@@ -127,6 +127,22 @@
   .zoom-btn:active{ background:var(--cyan-dim); color:#67E8F9; }
   .zoom-reset{ font-size:13px; letter-spacing:.04em; }
   .zoom-pct{ text-align:center; font-size:12px; font-weight:700; padding:4px 6px; border-radius:8px; background:rgba(15,23,42,.88); color:#A5F3FC; border:1px solid #334155; }
+  /* ---- map resolution / render-on-demand controls (HOLOPLOT map only) ---- */
+  .map-res-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:0 0 auto; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; }
+  .map-res-bar .bar-label{ font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--dim); padding:0 2px; }
+  .seg{ display:flex; border-radius:12px; overflow:hidden; border:1px solid var(--border); flex:0 1 auto; }
+  .seg button{ flex:1; min-height:52px; min-width:96px; padding:10px 14px; font-size:15px; font-weight:800; border:0; background:var(--surface2); color:var(--text); white-space:nowrap; }
+  .seg button.on{ background:var(--cyan-dim); color:#67E8F9; }
+  .seg button.on-amber{ background:var(--amber-dim); color:#FCD34D; }
+  .render-info{ font-size:12px; font-weight:700; color:var(--dim); background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+  .render-info.stale{ color:#FCD34D; border-color:var(--amber); }
+  .render-btn{ min-height:52px; padding:10px 18px; border-radius:12px; font-size:15px; font-weight:800; background:var(--cyan); color:#000; border:0; }
+  .render-btn:disabled{ opacity:.45; }
+  .render-needed-badge{ position:absolute; left:10px; top:10px; z-index:9; display:flex; flex-direction:column; gap:8px; align-items:stretch; background:rgba(120,53,15,.96); border:2px solid var(--amber); color:#FEF3C7; border-radius:14px; padding:10px 12px; box-shadow:0 10px 28px rgba(0,0,0,.5); width:248px; max-width:calc(100% - 90px); }
+  .render-needed-badge span{ font-size:13px !important; }
+  .render-needed-badge span{ font-size:14px; font-weight:800; line-height:1.3; }
+  .render-now-btn{ min-height:52px; padding:10px 18px; border-radius:12px; font-size:16px; font-weight:900; background:var(--amber); color:#000; border:0; white-space:nowrap; }
+  .readout-grid.stale{ opacity:.62; outline:2px dashed var(--amber); outline-offset:-2px; }
   /* the CAD canvas strip is shorter than the HOLOPLOT map: always a horizontal row there,
      so the controls can never spill onto the command history / command line below */
   .cad-shell .zoom-controls{ flex-direction:row; align-items:center; top:8px; right:8px; }
@@ -203,6 +219,19 @@
        so the column can never spill over the legend or clip the % readout */
     .zoom-controls{ flex-direction:row; align-items:center; top:8px; right:8px; }
     .zoom-pct{ align-self:center; }
+    /* compact res/render bar on phones: one tight row of controls + one info line,
+       so the map keeps its height and its zoom buttons stay reachable */
+    .map-res-bar{ padding:6px; gap:6px; }
+    .map-res-bar .bar-label{ display:none; }
+    .map-res-bar .seg{ flex:1 1 0; min-width:0; }
+    .map-res-bar .seg button{ min-width:0; min-height:48px; padding:6px 3px; font-size:12px; }
+    .map-res-bar .render-btn{ flex:0 0 auto; min-height:48px; padding:6px 10px; font-size:12px; }
+    .map-res-bar .render-info{ flex:1 1 100%; padding:5px 8px; font-size:11px; }
+    .map-shell{ flex-basis:208px; }
+    /* on phones the zoom row owns the map's top edge — drop the badge below it,
+       and give the On Demand segment a touch more room so its label never clips */
+    .render-needed-badge{ top:64px; left:6px; max-width:calc(100% - 12px); padding:8px 10px; }
+    .map-res-bar .seg button{ font-size:11px; letter-spacing:-.01em; }
   }
 </style>
 </head>
@@ -271,6 +300,10 @@ try{ var raw=localStorage.getItem(LS_KEY); if(raw){ var p=JSON.parse(raw); if(p&
 if(!Array.isArray(store.comments)) store.comments=[];
 if(!store.saves.holoplot) store.saves.holoplot=[];
 if(!store.saves.autocad) store.saves.autocad=[];
+if(!store.mapPrefs||typeof store.mapPrefs!=="object") store.mapPrefs={res:"low",renderMode:"live"};
+if(store.mapPrefs.res!=="high") store.mapPrefs.res="low";
+if(store.mapPrefs.renderMode!=="ondemand") store.mapPrefs.renderMode="live";
+function persistMapPrefs(){ store.mapPrefs={res:hs.resMode,renderMode:hs.renderMode}; persist(); }
 function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
 function doneSet(){ return new Set(store.progress); }
 function markDone(id){ if(!store.progress.includes(id)){ store.progress.push(id); persist(); } renderProgress(); }
@@ -502,6 +535,9 @@ var hs={
   venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
   hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1", _gesturing:false,
+  resMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.res:"low",
+  renderMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.renderMode:"live",
+  renderDirty:false, _comp:null, _renderSig:null, _renderMs:0, _previewing:false, _snapArrays:null,
   zoomPlan:{k:1,x:0,y:0}, zoomSide:{k:1,x:0,y:0},
   arrays:[
     {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
@@ -521,10 +557,16 @@ function wireHoloZoom(svg){ if(!svg) return; attachZoomPan(svg,{ getState:functi
   setActive:function(on){ hs._gesturing=on; },
   onGestureStart:function(){ for(var i=1;i<=3;i++) hLP.cancel("arr"+i); } }); }
 
-function hCompute(){
+var H_RES_STEP={low:4, high:1};
+function hStep(){ return H_RES_STEP[hs.resMode]||4; }
+function hSignature(){ return JSON.stringify({v:hs.venueId, r:hs.resMode, a:hs.arrays.map(function(a){return [a.x,a.y,a.az,a.tilt,a.hBeam,a.vBeam,a.gain,a.on?1:0];})}); }
+function hCompute(stepOverride){
+  var t0=(typeof performance!=="undefined"&&performance.now)?performance.now():Date.now();
+  var step=stepOverride||hStep();
   var venue=hVenue(), list=[];
-  for(var gx=-venue.w/2; gx<venue.w/2; gx+=2) for(var gy=0; gy<venue.d; gy+=2){
-    var px=gx+1, py=gy+1, energy=0;
+  var gridCols=Math.ceil(venue.w/step), gridRows=Math.ceil(venue.d/step);
+  for(var gx=-venue.w/2; gx<venue.w/2; gx+=step) for(var gy=0; gy<venue.d; gy+=step){
+    var px=gx+step/2, py=gy+step/2, energy=0;
     hs.arrays.forEach(function(a){ if(!a.on) return;
       var dx=px-a.x, dy=py-a.y, dist=Math.sqrt(dx*dx+dy*dy+16);
       var beamAng=Math.atan2(dx,dy)*180/Math.PI;
@@ -543,21 +585,49 @@ function hCompute(){
   var mx=aud.length?Math.max.apply(null,aud.map(function(c){return c.spl;})):0;
   var spill=out.length?Math.round(out.filter(function(c){return c.spl>75;}).length/out.length*100):0;
   var coverage=aud.length?Math.round(aud.filter(function(c){return c.spl>=78;}).length/aud.length*100):0;
-  return {cells:list, stats:{avg:Math.round(avg*10)/10, uni:Math.round((mx-mn)/2*10)/10, min:Math.round(mn), max:Math.round(mx), spill:spill, coverage:coverage}};
+  var t1=(typeof performance!=="undefined"&&performance.now)?performance.now():Date.now();
+  var ms=Math.max(1,Math.round(t1-t0));
+  return {cells:list, step:step, gridCols:gridCols, gridRows:gridRows, ms:ms, stats:{avg:Math.round(avg*10)/10, uni:Math.round((mx-mn)/2*10)/10, min:Math.round(mn), max:Math.round(mx), spill:spill, coverage:coverage}};
+}
+function hDoForceRender(){
+  var comp=hCompute();
+  hs._comp=comp; hs._renderMs=comp.ms; hs._renderSig=hSignature(); hs.renderDirty=false;
+  try{ hs._snapArrays=JSON.parse(JSON.stringify(hs.arrays)); }catch(e){ hs._snapArrays=hs.arrays; }
+  return comp;
+}
+function hDisplayArrays(){ return (hs.renderDirty&&hs._snapArrays)?hs._snapArrays:hs.arrays; }
+function hEnsureComp(){
+  var sig=hSignature();
+  if(!hs._comp) return hDoForceRender();
+  if(hs.renderMode==="live"){
+    if(sig!==hs._renderSig) return hDoForceRender();
+    hs.renderDirty=false; return hs._comp;
+  }
+  /* On Demand: never recompute here — reuse the last rendered map and flag stale */
+  if(sig!==hs._renderSig){ hs.renderDirty=true; return hs._comp; }
+  hs.renderDirty=false; return hs._comp;
+}
+function hRenderInfoText(comp){
+  if(!comp) return "Grid — · — ms";
+  var renderedRes=(comp.step===1?"High Res":"Low Res");
+  var base="Grid "+comp.gridCols+"×"+comp.gridRows+" · "+(comp.ms||hs._renderMs||0)+" ms · "+renderedRes;
+  if(hs.renderDirty) base+=" · STALE — render needed (selected: "+(hs.resMode==="high"?"High Res":"Low Res")+" / On Demand)";
+  return base;
 }
 
-function hPlanSVG(cells){
+function hPlanSVG(cells, step){
+  var cellStep=step||hStep();
   var venue=hVenue();
   var SX=function(mx){return 300+mx*9;}, SY=function(my){return 30+my*11;};
   var s='<svg id="h-svg" viewBox="'+viewBoxStr(hs.zoomPlan,600,470)+'" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
-  cells.forEach(function(c){ s+='<rect x="'+SX(c.x-1)+'" y="'+SY(c.y-1)+'" width="18" height="22" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
+  cells.forEach(function(c){ s+='<rect x="'+SX(c.x-cellStep/2)+'" y="'+SY(c.y-cellStep/2)+'" width="'+(cellStep*9)+'" height="'+(cellStep*11)+'" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
   venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
     if(hs.showKeys) s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+'</text>'; });
   s+='<rect x="'+SX(-venue.w/2)+'" y="'+SY(0)+'" width="'+(venue.w*9)+'" height="62" fill="#111827" stroke="#475569"/><text x="300" y="'+SY(2.5)+'" fill="#94A3B8" font-size="12" text-anchor="middle" font-weight="700">STAGE</text>';
-  hs.arrays.forEach(function(a){ if(!a.on) return; var rad=a.az*Math.PI/180, len=210;
+  hDisplayArrays().forEach(function(a){ if(!a.on) return; var rad=a.az*Math.PI/180, len=210;
     var bx=SX(a.x)+Math.sin(rad)*len, by=SY(a.y)+Math.cos(rad)*len, spread=a.hBeam*Math.PI/180*len;
     s+='<polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'" fill="#22D3EE" opacity="0.13"/><line x1="'+SX(a.x)+'" y1="'+SY(a.y)+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4" opacity="0.7"/>'; });
-  hs.arrays.forEach(function(a){
+  hDisplayArrays().forEach(function(a){
     s+='<g data-arr="'+a.id+'" style="cursor:pointer;opacity:'+(a.on?1:0.35)+'">';
     s+='<rect x="'+(SX(a.x)-44)+'" y="'+(SY(a.y)-26)+'" width="88" height="52" rx="8" fill="transparent"/>';
     s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
@@ -582,7 +652,7 @@ function hSideSVG(){
   s+='<rect x="40" y="330" width="90" height="70" fill="#111827" stroke="#475569"/><text x="85" y="370" fill="#94A3B8" font-size="11" text-anchor="middle">STAGE</text>';
   venue.zones.forEach(function(z,i){ var top=i===1?250:368;
     s+='<rect x="'+(120+z.y*8)+'" y="'+top+'" width="'+(z.h*8)+'" height="'+(i===1?28:32)+'" fill="#334155" stroke="#fff" stroke-dasharray="4 3"/><text x="'+(124+z.y*8)+'" y="'+(top-6)+'" fill="#fff" font-size="11">'+esc(z.name)+'</text>'; });
-  hs.arrays.filter(function(a){return a.on;}).forEach(function(a){ var rad=-a.tilt*Math.PI/180, x=110, y=300;
+  hDisplayArrays().filter(function(a){return a.on;}).forEach(function(a){ var rad=-a.tilt*Math.PI/180, x=110, y=300;
     var bx=x+Math.cos(rad)*340, by=y+Math.sin(rad)*340;
     s+='<polygon points="'+x+','+y+' '+bx+','+(by-38)+' '+bx+','+(by+38)+'" fill="#22D3EE" opacity="0.14"/><line x1="'+x+'" y1="'+y+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4"/><rect x="'+(x-14)+'" y="'+(y-18)+'" width="28" height="36" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff"/><text x="'+x+'" y="'+(y+52)+'" fill="#E6E8EB" font-size="10" text-anchor="middle">'+esc(a.name)+' · tilt '+a.tilt+'°</text>'; });
   s+='<text x="300" y="40" fill="#E6E8EB" font-size="13" text-anchor="middle" font-weight="700">SIDE VIEW — raise Tilt to hit the balcony, lower it for stalls</text>';
@@ -590,10 +660,10 @@ function hSideSVG(){
 }
 
 function renderHoloplot(){
-  hs._gesturing=false;
+  hs._gesturing=false; hs._previewing=false;
   var root=document.getElementById("ws-holoplot");
   var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
-  var venue=hVenue(), comp=hCompute(), stats=comp.stats, cur=hCur(), done=doneSet();
+  var venue=hVenue(), comp=hEnsureComp(), stats=comp.stats, cur=hCur(), done=doneSet();
   var html='<div class="ws-layout"><div class="top-zone">';
   html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">'+
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
@@ -601,10 +671,29 @@ function renderHoloplot(){
     '<button id="h-side" class="btn" style="min-height:52px">'+(hs.showSide?"Side view: ON — tap for Plan":"Show side view (tilt)")+'</button></div>';
   html+='<p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
   html+='<div id="h-display">'+displayControlsHTML("h")+'</div>';
+  /* Resolution + render-on-demand bar — HOLOPLOT map only */
+  html+='<div class="map-res-bar" aria-label="Map resolution and rendering controls">'+
+    '<span class="bar-label">MAP RES</span>'+
+    '<div class="seg" role="group" aria-label="Map resolution">'+
+      '<button type="button" id="h-res-low" aria-pressed="'+(hs.resMode==="low")+'" class="'+(hs.resMode==="low"?"on":"")+'">Low Res</button>'+
+      '<button type="button" id="h-res-high" aria-pressed="'+(hs.resMode==="high")+'" class="'+(hs.resMode==="high"?"on":"")+'">High Res</button>'+
+    '</div>'+
+    '<span class="bar-label">RENDER</span>'+
+    '<div class="seg" role="group" aria-label="Render mode">'+
+      '<button type="button" id="h-mode-live" aria-pressed="'+(hs.renderMode==="live")+'" class="'+(hs.renderMode==="live"?"on":"")+'">● Live</button>'+
+      '<button type="button" id="h-mode-ondemand" aria-pressed="'+(hs.renderMode==="ondemand")+'" class="'+(hs.renderMode==="ondemand"?"on-amber":"")+'">On Demand</button>'+
+    '</div>'+
+    '<button type="button" id="h-render-btn" class="render-btn" '+(hs.renderDirty?"":"")+' aria-label="Render the coverage map now at the chosen resolution">▶ Render</button>'+
+    '<span id="h-render-info" class="render-info mono'+(hs.renderDirty?" stale":"")+'" role="status" aria-label="Last map render information">'+esc(hRenderInfoText(comp))+(hs._previewing?" · Preview (Low Res)":"")+'</span>'+
+    (hs.renderDirty?'<span class="render-info stale" role="status">Pending — readouts are stale until you Render</span>':'')+
+  '</div>';
 
   html+='<section class="map-shell" style="background:var(--map-bg);border:1px solid var(--border)" aria-label="HOLOPLOT coverage map">';
+  if(hs.renderDirty){
+    html+='<div class="render-needed-badge" id="h-render-needed" role="alert"><span>◐ Render needed<br/><small style="font-weight:600">Map &amp; readouts are stale — values changed, heatmap has not recomputed.</small></span><button type="button" id="h-render-now" class="render-now-btn">▶ Render map</button></div>';
+  }
   html+='<div class="zoom-controls" role="group" aria-label="Map zoom controls — pinch, drag, or use these buttons"><button type="button" id="h-zoom-in" class="zoom-btn" aria-label="Zoom in on coverage map">+</button><button type="button" id="h-zoom-out" class="zoom-btn" aria-label="Zoom out on coverage map">−</button><button type="button" id="h-zoom-reset" class="zoom-btn zoom-reset" aria-label="Reset map view to fit, 100 percent">FIT</button><span id="h-zoom-pct" class="zoom-pct mono" aria-label="Current map zoom level">'+Math.round(hZoomState().k*100)+'%</span></div>';
-  html+= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
+  html+= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells, comp.step);
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
       '<span><span class="swatch" style="background:#1d4ed8"></span>&lt;65 dB</span>'+
@@ -617,8 +706,10 @@ function renderHoloplot(){
   } else {
     html+='<p class="mono" style="padding:8px 12px;margin:0;font-size:11px;background:#0F172A;color:#8A919E">SPL legend hidden — turn Legend ON above to show the colour key.</p>';
   }
-  var metrics=[["AVG SPL",stats.avg+" dB"],["UNIFORM ±",stats.uni+" dB"],["MIN",stats.min+" dB"],["MAX",stats.max+" dB"],["COVER ≥78",stats.coverage+"%"],["SPILL OUT",stats.spill+"%"]];
-  html+='<div class="readout-grid">'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
+  var staleSuffix=hs.renderDirty?" · STALE":"";
+  var metrics=[["AVG SPL"+staleSuffix, hs.renderDirty?"⏳ "+stats.avg+" dB":stats.avg+" dB"],["UNIFORM ±"+staleSuffix,stats.uni+" dB"],["MIN"+staleSuffix,stats.min+" dB"],["MAX"+staleSuffix,stats.max+" dB"],["COVER ≥78"+staleSuffix,stats.coverage+"%"],["SPILL OUT"+staleSuffix,stats.spill+"%"]];
+  html+='<div class="readout-grid'+(hs.renderDirty?" stale":"")+'" '+(hs.renderDirty?'data-stale="true" aria-label="Readouts are stale, render needed"':'')+'>'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
+  if(hs.renderDirty) html+='<p class="mono" style="margin:0;padding:6px 10px;font-size:12px;font-weight:700;color:#FCD34D;background:#2A1A05">⏳ Pending — these readouts are from the last Render and have NOT updated yet. Press Render to update them.</p>';
   html+='</section></div><div class="scroll-panel" data-scroll-panel>';
 
   /* beam value chips */
@@ -710,6 +801,13 @@ function renderHoloplot(){
   /* wiring */
   document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; renderHoloplot(); });
   document.getElementById("h-side").addEventListener("click",function(){ hs.showSide=!hs.showSide; renderHoloplot(); });
+  var _rl=document.getElementById("h-res-low"); if(_rl) _rl.addEventListener("click",function(){ if(hs.resMode!=="low"){ hs.resMode="low"; persistMapPrefs(); } renderHoloplot(); });
+  var _rh=document.getElementById("h-res-high"); if(_rh) _rh.addEventListener("click",function(){ if(hs.resMode!=="high"){ hs.resMode="high"; persistMapPrefs(); } renderHoloplot(); });
+  var _ml=document.getElementById("h-mode-live"); if(_ml) _ml.addEventListener("click",function(){ hs.renderMode="live"; persistMapPrefs(); renderHoloplot(); });
+  var _mo=document.getElementById("h-mode-ondemand"); if(_mo) _mo.addEventListener("click",function(){ hs.renderMode="ondemand"; persistMapPrefs(); /* keep current map as the last rendered state */ if(!hs.renderDirty) hs._renderSig=hSignature(); renderHoloplot(); });
+  function doRenderNow(){ hDoForceRender(); renderHoloplot(); }
+  var _rb=document.getElementById("h-render-btn"); if(_rb) _rb.addEventListener("click",doRenderNow);
+  var _rn=document.getElementById("h-render-now"); if(_rn) _rn.addEventListener("click",doRenderNow);
   wireDisplayControls(document.getElementById("h-display"), hs, renderHoloplot);
   wireHoloZoom(root.querySelector(".map-shell svg"));
   var hzi=document.getElementById("h-zoom-in"); if(hzi) hzi.addEventListener("click",function(){ hZoomBy(1.4); });
@@ -807,13 +905,27 @@ function renderHoloplot(){
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
 }
-/* live-update map + readouts while dragging a fader, without rebuilding the fader itself */
+/* live-update map + readouts while dragging a fader, without rebuilding the fader itself.
+   Live + High Res: preview at Low Res during the drag, full render on release (the
+   fader 'change' event calls renderHoloplot). On Demand: never recompute here. */
 function renderHoloplotSoft(){
   var root=document.getElementById("ws-holoplot"); if(!root) return;
-  var comp=hCompute(), stats=comp.stats;
+  if(hs.renderMode==="ondemand"){
+    if(hSignature()!==hs._renderSig) hs.renderDirty=true;
+    var info=document.getElementById("h-render-info");
+    if(info&&hs._comp){ info.textContent=hRenderInfoText(hs._comp); info.classList.add("stale"); }
+    var grid0=root.querySelector(".readout-grid"); if(grid0&&hs.renderDirty) grid0.classList.add("stale");
+    return;
+  }
+  var previewStep=(hs.resMode==="high")?H_RES_STEP.low:hStep();
+  hs._previewing=(hs.resMode==="high");
+  var comp=hCompute(previewStep), stats=comp.stats;
+  /* keep a live-preview render-info update without overwriting the final cached render */
+  var info2=document.getElementById("h-render-info");
+  if(info2) info2.textContent="Grid "+comp.gridCols+"×"+comp.gridRows+" · "+comp.ms+" ms · "+(hs._previewing?"Preview (Low Res) — full High Res on release":(hs.resMode==="high"?"High Res":"Low Res"));
   var shell=root.querySelector(".map-shell"); if(!shell) return;
   var oldSvg=shell.querySelector("svg"); if(!oldSvg) return;
-  var tmp=document.createElement("div"); tmp.innerHTML= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
+  var tmp=document.createElement("div"); tmp.innerHTML= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells, comp.step);
   var newSvg=tmp.querySelector("svg"); if(newSvg){ shell.replaceChild(newSvg, oldSvg); wireHoloZoom(newSvg); }
   /* re-wire array hit targets on the fresh svg */
   root.querySelectorAll("[data-arr]").forEach(function(g){
