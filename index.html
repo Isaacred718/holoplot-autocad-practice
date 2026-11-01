@@ -12,90 +12,171 @@
     --text:#E9ECF1; --dim:#9AA3B2; --cyan:#22D3EE; --cyan-dim:#164E63; --amber:#F59E0B; --amber-dim:#78350F;
     --red:#7F1D1D; --red-text:#FECACA; --green:#34D399;
     --map-bg:#0B1220;
+    --header-h:auto;
   }
   @media (prefers-color-scheme: light){
     :root{
-      --bg:#EEF0F3; --surface:#FFFFFF; --surface2:#E7EAef; --surface2:#E7EAEF; --border:#C9CFDA;
+      --bg:#EEF0F3; --surface:#FFFFFF; --surface2:#E7EAEF; --border:#C9CFDA;
       --text:#171B22; --dim:#5B6574;
       --map-bg:#0B1220;
     }
   }
-  *{ box-sizing:border-box; }
-  html{ -webkit-text-size-adjust:100%; }
+  *{ box-sizing:border-box; max-width:100%; }
+  html{ -webkit-text-size-adjust:100%; height:100%; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
   body{ margin:0; background:var(--bg); color:var(--text);
-    font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif; }
+    font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+    height:100dvh; max-height:100dvh; display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:none;
+    padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+  [hidden]{ display:none !important; }
   .mono{ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
-  button{ font:inherit; color:inherit; cursor:pointer; }
-  input,select{ font:inherit; color:var(--text); }
-  input[type="range"]{ height:48px; accent-color:var(--cyan); cursor:pointer; }
+  button{ font:inherit; color:inherit; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; }
+  input,select{ font:inherit; color:var(--text); min-width:0; }
+  input[type="range"]{ height:48px; accent-color:var(--cyan); cursor:pointer; touch-action:none; }
   input[type="range"]::-webkit-slider-thumb{ width:34px; height:34px; }
-  input[type="checkbox"]{ width:26px; height:26px; accent-color:var(--cyan); }
-  .wrap{ max-width:1400px; margin:0 auto; padding:0 10px 40px; }
-  @media(min-width:640px){ .wrap{ padding:0 16px 40px; } }
+  input[type="checkbox"]{ width:26px; height:26px; accent-color:var(--cyan); flex:none; }
+  /* ---- app shell: header + main == exactly 100dvh ---- */
+  .wrap{ width:100%; max-width:1400px; margin:0 auto; padding:0 10px calc(6px + env(safe-area-inset-bottom,0px)); flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  @media(min-width:640px){ .wrap{ padding-left:14px; padding-right:14px; } }
 
-  header{ position:sticky; top:0; z-index:40; background:#121418; border-bottom:1px solid #333945;
+  header{ flex:0 0 auto; position:relative; z-index:40; background:#121418; border-bottom:1px solid #333945;
     padding-top:env(safe-area-inset-top,0px); }
-  .header-in{ max-width:1400px; margin:0 auto; padding:12px; display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-  .ws-switch{ display:flex; border-radius:16px; overflow:hidden; border:1px solid #333945; width:100%; }
-  @media(min-width:640px){ .ws-switch{ width:auto; } }
-  .ws-switch button{ flex:1; min-height:56px; padding:12px 20px; font-size:16px; font-weight:700; border:0; background:#1B1E24; color:#E6E8EB; white-space:nowrap; }
+  .header-in{ max-width:1400px; margin:0 auto; padding:8px 10px; display:flex; flex-wrap:nowrap; align-items:center; gap:10px; min-width:0; }
+  @media(min-width:640px){ .header-in{ padding:8px 14px; } }
+  .ws-switch{ display:flex; border-radius:14px; overflow:hidden; border:1px solid #333945; flex:1 1 auto; min-width:0; }
+  @media(min-width:760px){ .ws-switch{ flex:0 1 430px; } }
+  .ws-switch button{ flex:1; min-height:56px; padding:8px 10px; font-size:15px; font-weight:700; border:0; background:#1B1E24; color:#E6E8EB; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .ws-switch button.on-h{ background:var(--cyan-dim); color:#67E8F9; }
   .ws-switch button.on-c{ background:var(--amber-dim); color:#FCD34D; }
-  .progress-box{ flex:1; min-width:150px; order:3; width:100%; }
-  @media(min-width:640px){ .progress-box{ order:0; width:auto; } }
-  .progress-track{ height:10px; border-radius:99px; background:#232730; margin-top:4px; overflow:hidden; }
+  .progress-box{ flex:1 1 180px; min-width:110px; }
+  @media(max-width:639px){ .progress-box{ display:none; } }
+  .progress-track{ height:8px; border-radius:99px; background:#232730; margin-top:3px; overflow:hidden; }
   .progress-fill{ height:100%; border-radius:99px; transition:width .3s; }
-  .tutor-toggle{ min-height:56px; padding:12px 20px; border-radius:16px; font-size:16px; font-weight:700; border:1px solid #333945; background:#22262F; color:#E6E8EB; }
+  .tutor-toggle{ flex:0 0 auto; min-height:56px; padding:8px 16px; border-radius:14px; font-size:15px; font-weight:700; border:1px solid #333945; background:#22262F; color:#E6E8EB; white-space:nowrap; }
   .tutor-toggle.on{ background:var(--cyan-dim); color:#67E8F9; }
-  .edition-note{ font-size:11px; color:#9AA3B2; display:none; }
-  @media(min-width:1024px){ .edition-note{ display:block; } }
+  .edition-note{ font-size:11px; color:#9AA3B2; display:none; line-height:1.35; }
+  @media(min-width:1100px){ .edition-note{ display:block; flex:0 1 260px; } }
 
-  .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; }
-  .btn{ min-height:52px; padding:12px 18px; border-radius:12px; font-size:15px; font-weight:700; background:var(--surface2); border:1px solid var(--border); }
+  /* ---- workspace layout ---- */
+  #ws-holoplot,#ws-autocad{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+  .ws-layout{ display:flex; flex-direction:column; flex:1 1 auto; min-height:0; height:100%; overflow:hidden; gap:8px; padding-top:8px; }
+  .top-zone{ display:flex; flex-direction:column; flex:1 1 auto; min-height:0; gap:6px; overflow:hidden; }
+  .top-zone-compact{ flex:0 0 auto; }
+  .map-shell{ flex:1 1 auto; min-height:118px; display:flex; flex-direction:column; overflow:hidden; border-radius:14px; }
+  .map-shell > svg{ flex:1 1 auto; min-height:0; height:auto !important; max-height:none !important; }
+  .map-shell > *:not(svg){ flex:0 0 auto; }
+  .cad-shell > *:not(svg){ flex:0 0 auto; }
+  .cad-shell{ flex:1 1 auto; min-height:132px; display:flex; flex-direction:column; overflow:hidden; border-radius:14px; }
+  .cad-shell > svg{ flex:1 1 auto; min-height:0; height:auto !important; max-height:none !important; }
+  .scroll-panel{ flex:0 0 36%; min-height:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; scrollbar-gutter:stable; padding:2px 2px 10px; border-top:1px solid var(--border); }
+  @media(max-height:860px) and (min-width:700px){
+    .scroll-panel{ flex-basis:33%; }
+    .chip{ min-height:76px !important; padding:10px !important; }
+  }
+  /* AutoCAD: canvas is the flexible space, deck scrolls below */
+  #ws-autocad .scroll-panel{ flex-basis:33%; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; }
+  .btn{ min-height:52px; padding:10px 16px; border-radius:12px; font-size:15px; font-weight:700; background:var(--surface2); border:1px solid var(--border); }
   .btn:disabled{ opacity:.4; cursor:default; }
-  .btn-sm{ min-height:48px; padding:10px 14px; font-size:14px; }
+  .btn-sm{ min-height:48px; padding:8px 12px; font-size:14px; }
   .tog-on{ background:var(--cyan-dim) !important; color:#67E8F9 !important; }
-  .field{ width:100%; border-radius:12px; padding:12px; min-height:52px; font-size:16px; background:var(--surface2); border:1px solid var(--border); }
-  .deck{ display:flex; border-radius:16px; overflow:hidden; border:1px solid var(--border); background:var(--surface); box-shadow:0 6px 18px rgba(0,0,0,.25); }
-  .deck button{ flex:1; min-height:64px; padding:10px 6px; font-size:14px; font-weight:700; line-height:1.25; background:var(--surface); border:0; border-left:1px solid var(--border); }
+  .field{ width:100%; border-radius:12px; padding:10px 12px; min-height:52px; font-size:16px; background:var(--surface2); border:1px solid var(--border); }
+  .deck{ display:flex; border-radius:14px; overflow:hidden; border:1px solid var(--border); background:var(--surface); box-shadow:0 4px 14px rgba(0,0,0,.22); position:sticky; top:0; z-index:5; }
+  .deck button{ flex:1; min-height:56px; padding:8px 4px; font-size:13px; font-weight:700; line-height:1.25; background:var(--surface); border:0; border-left:1px solid var(--border); min-width:0; }
   .deck button:first-child{ border-left:0; }
-  @media(min-width:640px){ .deck button{ font-size:16px; } }
+  @media(min-width:640px){ .deck button{ font-size:15px; } }
   .deck button.on-h{ background:var(--cyan-dim); color:#67E8F9; }
   .deck button.on-c{ background:var(--amber-dim); color:#FCD34D; }
-  .mode-switch{ display:flex; border-radius:16px; overflow:hidden; border:1px solid var(--border); width:100%; }
-  @media(min-width:640px){ .mode-switch{ width:auto; } }
-  .mode-switch button{ flex:1; min-height:56px; padding:12px 20px; font-size:16px; font-weight:700; border:0; background:var(--surface); color:var(--text); }
+  .mode-switch{ display:flex; border-radius:12px; overflow:hidden; border:1px solid var(--border); flex:0 1 300px; min-width:210px; }
+  .mode-switch button{ flex:1; min-height:48px; padding:8px 12px; font-size:14px; font-weight:700; border:0; background:var(--surface); color:var(--text); white-space:nowrap; }
   .mode-switch button.on-p{ background:var(--cyan-dim); color:#67E8F9; }
   .mode-switch button.on-e{ background:var(--red); color:var(--red-text); }
-  .edit-banner{ background:#2A1215; border:1px solid var(--red); color:var(--red-text); border-radius:12px; padding:12px 16px; font-size:14px; }
+  .edit-banner{ background:#2A1215; border:1px solid var(--red); color:var(--red-text); border-radius:12px; padding:10px 14px; font-size:13px; margin:0; }
   @media (prefers-color-scheme: light){ .edit-banner{ background:#FDECEC; color:#7F1D1D; } }
-  .chip{ border-radius:12px; padding:14px; min-height:96px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; text-align:left; }
+  .chip{ border-radius:12px; padding:12px; min-height:88px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; text-align:left; overflow:hidden; }
   .chip.lit-h{ background:var(--cyan-dim); }
   .chip.lit-c{ background:var(--amber-dim); }
   .chip.editing{ border:2px solid #F87171; }
-  .readout-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px; background:var(--surface); }
-  @media(min-width:640px){ .readout-grid{ grid-template-columns:repeat(6,1fr); } }
-  .readout{ background:var(--surface2); border-radius:12px; padding:12px 8px; text-align:center; }
-  .readout .v{ font-weight:700; font-size:19px; }
-  .readout .l{ font-size:11px; color:var(--dim); margin-top:2px; }
-  .slider-row{ margin-top:12px; background:var(--surface2); border-radius:12px; padding:10px 12px; }
-  .stepper{ width:48px; height:48px; border-radius:12px; font-size:22px; font-weight:700; background:var(--surface); border:1px solid var(--border); flex:none; }
-  .tool-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
-  @media(min-width:640px){ .tool-grid{ grid-template-columns:repeat(6,1fr); } }
-  @media(min-width:1024px){ .tool-grid{ grid-template-columns:repeat(12,1fr); } }
-  .tool-grid button{ min-height:64px; padding:10px 4px; border-radius:16px; font-size:14px; font-weight:700; line-height:1.25; background:var(--surface); border:1px solid var(--border); }
+  .readout-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:8px; background:var(--surface); flex:0 0 auto; }
+  @media(min-width:640px){ .readout-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+  .readout{ background:var(--surface2); border-radius:10px; padding:8px 4px; text-align:center; min-width:0; }
+  .readout .v{ font-weight:700; font-size:18px; white-space:nowrap; }
+  .readout .l{ font-size:10px; color:var(--dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slider-row{ margin-top:8px; background:var(--surface2); border-radius:12px; padding:8px 10px; min-width:0; }
+  .stepper{ width:48px; height:48px; border-radius:12px; font-size:22px; font-weight:700; background:var(--surface); border:1px solid var(--border); flex:none; touch-action:manipulation; }
+  .tool-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; flex:0 0 auto; }
+  @media(min-width:640px){ .tool-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+  @media(min-width:1024px){ .tool-grid{ grid-template-columns:repeat(12,minmax(0,1fr)); } }
+  .tool-grid button{ min-height:56px; padding:8px 2px; border-radius:14px; font-size:13px; font-weight:700; line-height:1.25; background:var(--surface); border:1px solid var(--border); min-width:0; overflow:hidden; }
   .tool-grid button.on{ background:var(--amber-dim); color:#FCD34D; border:2px solid var(--amber); }
-  .legend-bar{ display:flex; flex-wrap:wrap; gap:6px 14px; padding:8px 12px; font-size:11px; align-items:center; background:#0F172A; color:#CBD5E1; }
+  .legend-bar{ display:flex; flex-wrap:wrap; gap:4px 12px; padding:6px 10px; font-size:11px; align-items:center; background:#0F172A; color:#CBD5E1; flex:0 0 auto; }
   .swatch{ display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:5px; }
-  .lesson{ background:var(--surface2); border-radius:12px; padding:14px; }
-  .tutor-pill{ position:fixed; left:50%; transform:translateX(-50%); z-index:50; min-height:56px; padding:14px 24px;
+  .lesson{ background:var(--surface2); border-radius:12px; padding:12px; min-width:0; }
+  .tutor-pill{ position:fixed; left:50%; transform:translateX(-50%); z-index:60; min-height:56px; padding:12px 22px;
     border-radius:99px; font-size:16px; font-weight:700; background:var(--cyan-dim); color:#A5F3FC; border:2px solid var(--cyan);
-    box-shadow:0 10px 30px rgba(0,0,0,.45); max-width:94vw; bottom:calc(env(safe-area-inset-bottom,0px) + 16px); }
-  .grid2{ display:grid; gap:12px; } @media(min-width:768px){ .grid2{ grid-template-columns:1fr 1fr; } }
-  .grid3{ display:grid; gap:12px; } @media(min-width:768px){ .grid3{ grid-template-columns:repeat(3,1fr); } }
+    box-shadow:0 10px 30px rgba(0,0,0,.45); max-width:94vw; bottom:calc(env(safe-area-inset-bottom,0px) + 12px); }
+  .grid2{ display:grid; gap:8px; } @media(min-width:768px){ .grid2{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .grid3{ display:grid; gap:8px; } @media(min-width:768px){ .grid3{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
   .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
   a{ color:var(--cyan); }
-  code{ background:var(--surface2); padding:1px 6px; border-radius:6px; font-size:.92em; }
+  code{ background:var(--surface2); padding:1px 6px; border-radius:6px; font-size:.92em; overflow-wrap:anywhere; }
+  svg{ touch-action:none; }
+  /* display-controls strip: one compact, aligned row */
+  .display-controls{ display:flex; flex-direction:column; gap:6px; flex:0 0 auto; }
+  .display-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
+  .display-row .btn-sm{ min-height:48px; }
+  /* tutor + github footers: compact bars that never push the workspace off-screen */
+  #tutor-section{ flex:0 0 auto; margin-top:8px; min-width:0; }
+  #tutor-section:empty{ display:none; }
+  #tutor-section.tutor-open{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom,0px) + 10px); width:min(680px,94vw); max-height:58dvh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; z-index:56; margin:0; box-shadow:0 16px 44px rgba(0,0,0,.5); border-radius:14px; }
+  .tutor-bar{ display:flex; align-items:center; gap:10px; padding:8px 12px; }
+  .tutor-bar .tutor-intro{ display:none; }
+  .tutor-bar h2{ flex:0 0 auto; }
+  .tutor-topics{ display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-x; padding:2px; min-width:0; }
+  .tutor-topics button{ flex:0 0 auto; }
+  .github-card{ margin-top:10px; padding:12px 14px; }
+  .github-card h2{ margin:0 0 6px; font-size:15px; }
+  .github-card p{ margin:0; font-size:13px; line-height:1.55; color:var(--dim); }
+  @media(max-height:860px){
+    .header-in{ padding-top:6px; padding-bottom:6px; }
+    #tutor-section .tutor-intro{ display:none; }
+  }
+  @media(min-width:900px) and (orientation:landscape){
+    .ws-layout{ flex-direction:row; gap:10px; }
+    .top-zone{ flex:1 1 57%; min-width:0; }
+    .scroll-panel{ flex:0 0 41%; border-top:0; border-left:1px solid var(--border); padding-left:10px; }
+    #ws-autocad .scroll-panel{ flex-basis:41%; }
+  }
+  @media(max-width:700px){
+    .ws-hint{ display:none; }
+    #ws-holoplot .top-zone > div:first-child{ flex-wrap:nowrap !important; gap:6px !important; }
+    #ws-holoplot .top-zone > div:first-child > div{ min-width:0 !important; }
+    #h-side{ font-size:12px !important; padding:8px 10px !important; white-space:nowrap; }
+    .map-shell{ flex:0 0 252px; }
+    .cad-shell{ flex:0 0 318px; }
+    .readout-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); padding:6px; gap:4px; }
+    .readout .v{ font-size:13px; }
+    .readout .l{ font-size:8px; }
+    .display-row .btn-sm{ font-size:13px; padding:8px 9px; }
+    #ws-autocad .top-zone > p[aria-label="Command key legend"]{ display:none; }
+    .tool-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+    .tool-grid button{ font-size:11px; min-height:44px; }
+    .cad-shell{ flex-basis:216px; }
+    #ws-autocad .scroll-panel{ flex-basis:22%; }
+    #c-history{ height:40px !important; }
+    .snap-row{ flex-wrap:nowrap !important; overflow-x:auto; overflow-y:hidden; touch-action:pan-x; -webkit-overflow-scrolling:touch; }
+    .snap-row > *{ flex:0 0 auto; }
+    .readout .v{ font-size:11px; }
+    .ws-switch button{ font-size:13px; padding:8px 4px; }
+    .tutor-toggle{ font-size:13px; padding:8px 10px; }
+    .tutor-bar h2{ display:none; }
+    .scroll-panel{ flex-basis:30%; }
+    .display-controls [data-role="hover-hint"]{ display:none; }
+    .display-controls [data-role="mode-hint"]{ display:none; }
+    .mode-switch{ flex-basis:100%; }
+    .readout .v{ font-size:11px; }
+    .deck button{ font-size:12px; }
+  }
 </style>
 </head>
 <body>
@@ -118,18 +199,8 @@
   <div id="ws-holoplot"></div>
   <div id="ws-autocad" hidden></div>
 
-  <section id="tutor-section" aria-label="Virtual tutor" style="margin-top:20px"></section>
+  <section id="tutor-section" aria-label="Virtual tutor"></section>
 
-  <section class="card" style="margin-top:20px;padding:18px" aria-label="Run this app from GitHub Pages">
-    <h2 style="margin:0 0 6px;font-size:17px">📦 This page is the GitHub Pages package</h2>
-    <p style="margin:0;font-size:15px;line-height:1.55;color:var(--dim)">
-      Everything — both workspaces, the tutor, drills and lessons — lives in this one self-contained
-      <code>index.html</code>, with no server and no build step. To host it yourself on GitHub Pages:
-      create a repository, add this file as <code>index.html</code>, then in the repo go to
-      <strong>Settings → Pages</strong> and deploy from the <code>main</code> branch. Your designs and
-      practice progress save in this browser on this device, so they travel with the device, not the site.
-    </p>
-  </section>
 </main>
 
 <button id="tutor-pill" class="tutor-pill" hidden></button>
@@ -201,26 +272,23 @@ function makeLongPress(){
 /* ---------- display controls (shared markup builder) ---------- */
 function displayControlsHTML(ns){
   return ''+
-  '<div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">'+
-    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">'+
+  '<div class="display-controls">'+
+    '<div class="display-row">'+
       '<div class="mode-switch" role="tablist" aria-label="Practice or edit values mode">'+
         '<button data-act="mode-practice" role="tab">▶ Practice</button>'+
         '<button data-act="mode-edit" role="tab">✎ Edit Values</button>'+
       '</div>'+
-      '<span style="font-size:14px;color:var(--dim)" data-role="mode-hint"></span>'+
-    '</div>'+
-    '<p class="edit-banner" data-role="edit-banner" role="status" hidden>✎ EDIT VALUES MODE — long-press (press and hold ~0.6s) a value label, or tap its Edit button, type the new value, then Save. Switch back to Practice when you are done.</p>'+
-    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px" aria-label="Display toggles for keys, legends and hover text">'+
       '<button class="btn btn-sm" data-act="tog-legend" aria-pressed="true">Legend: ON</button>'+
       '<button class="btn btn-sm" data-act="tog-keys" aria-pressed="true">Keys &amp; Labels: ON</button>'+
       '<button class="btn btn-sm" data-act="tog-hover" aria-pressed="true">Hover values: ON</button>'+
-      '<span style="font-size:14px;font-weight:700">Hover text:</span>'+
       '<div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--border)" role="group" aria-label="Hover text mode: momentary or latched">'+
         '<button class="btn btn-sm" data-act="hover-momentary" style="border:0;border-radius:0">Momentary</button>'+
         '<button class="btn btn-sm" data-act="hover-latch" style="border:0;border-radius:0">Latched</button>'+
       '</div>'+
-      '<span style="font-size:14px;color:var(--dim)" data-role="hover-hint"></span>'+
+      '<span style="font-size:13px;color:var(--dim)" data-role="mode-hint"></span>'+
     '</div>'+
+    '<p class="edit-banner" data-role="edit-banner" role="status" hidden>✎ EDIT VALUES MODE — long-press (press and hold ~0.6s) a value label, or tap its Edit button, type the new value, then Save. Switch back to Practice when you are done.</p>'+
+    '<span style="font-size:12px;color:var(--dim)" data-role="hover-hint"></span>'+
   '</div>';
 }
 function wireDisplayControls(root, st, rerender){
@@ -254,6 +322,9 @@ function wireDisplayControls(root, st, rerender){
 }
 
 /* ---------- lessons renderer ---------- */
+function githubNoteHTML(){
+  return '<section class="card github-card" aria-label="Run this app from GitHub Pages"><h2>📦 This page is the GitHub Pages package</h2><p>Everything — both workspaces, the tutor, drills and lessons — lives in this one self-contained <code>index.html</code>, with no server and no build step. To host it yourself on GitHub Pages: create a repository, add this file as <code>index.html</code>, then in the repo go to <strong>Settings → Pages</strong> and deploy from the <code>main</code> branch. Your designs and practice progress save in this browser on this device, so they travel with the device, not the site.</p></section>';
+}
 function lessonsHTML(items, openId){
   var done=doneSet();
   var cards=items.map(function(l){
@@ -264,7 +335,7 @@ function lessonsHTML(items, openId){
         '<button data-lesson-done="'+l.id+'" '+(isDone?"disabled":"")+' class="btn" style="margin-top:12px;background:var(--cyan);color:#111;border:0">'+(isDone?"Completed ✓":"Mark complete")+'</button>' : '')+
     '</article>';
   }).join("");
-  return '<section class="card" style="margin-top:16px;padding:16px"><h2 style="margin:0;font-size:16px">📚 LESSONS — read, try it on the canvas, mark complete</h2><div class="grid2" style="margin-top:12px">'+cards+'</div></section>';
+  return '<section class="card" style="margin-top:10px;padding:14px"><h2 style="margin:0;font-size:16px">📚 LESSONS — read, try it on the canvas, mark complete</h2><div class="grid2" style="margin-top:12px">'+cards+'</div></section>';
 }
 function wireLessons(container, items, state, rerender){
   container.querySelectorAll("[data-lesson-toggle]").forEach(function(b){
@@ -341,7 +412,7 @@ function hCompute(){
 function hPlanSVG(cells){
   var venue=hVenue();
   var SX=function(mx){return 300+mx*9;}, SY=function(my){return 30+my*11;};
-  var s='<svg viewBox="0 0 600 470" style="width:100%;display:block;margin:0 auto;max-height:62dvh;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
+  var s='<svg viewBox="0 0 600 470" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
   cells.forEach(function(c){ s+='<rect x="'+SX(c.x-1)+'" y="'+SY(c.y-1)+'" width="18" height="22" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
   venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
     if(hs.showKeys) s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+'</text>'; });
@@ -368,7 +439,7 @@ function hPlanSVG(cells){
 }
 function hSideSVG(){
   var venue=hVenue();
-  var s='<svg viewBox="0 0 600 470" style="width:100%;display:block;margin:0 auto;max-height:62dvh" role="img" aria-label="Side view showing tilt">';
+  var s='<svg viewBox="0 0 600 470" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none" role="img" aria-label="Side view showing tilt">';
   s+='<line x1="40" y1="400" x2="570" y2="400" stroke="#475569" stroke-width="2"/>';
   s+='<rect x="40" y="330" width="90" height="70" fill="#111827" stroke="#475569"/><text x="85" y="370" fill="#94A3B8" font-size="11" text-anchor="middle">STAGE</text>';
   venue.zones.forEach(function(z,i){ var top=i===1?250:368;
@@ -382,16 +453,17 @@ function hSideSVG(){
 
 function renderHoloplot(){
   var root=document.getElementById("ws-holoplot");
+  var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
   var venue=hVenue(), comp=hCompute(), stats=comp.stats, cur=hCur(), done=doneSet();
-  var html='';
-  html+='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:stretch">'+
+  var html='<div class="ws-layout"><div class="top-zone">';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">'+
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
     '<select id="h-venue" class="field" style="flex:1">'+VENUES.map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
-    '<button id="h-side" class="btn" style="min-height:56px">'+(hs.showSide?"Side view: ON — tap for Plan":"Show side view (tilt)")+'</button></div>';
-  html+='<p class="mono" style="font-size:13px;margin:8px 0 0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below · the map stays on top, controls layer underneath like a mixer surface</p>';
+    '<button id="h-side" class="btn" style="min-height:52px">'+(hs.showSide?"Side view: ON — tap for Plan":"Show side view (tilt)")+'</button></div>';
+  html+='<p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below. The map shrinks to fit — only the layer panel underneath scrolls.</p>';
   html+='<div id="h-display">'+displayControlsHTML("h")+'</div>';
 
-  html+='<section style="border-radius:16px;overflow:hidden;background:var(--map-bg);border:1px solid var(--border);margin-top:12px" aria-label="HOLOPLOT coverage map">';
+  html+='<section class="map-shell" style="background:var(--map-bg);border:1px solid var(--border)" aria-label="HOLOPLOT coverage map">';
   html+= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
@@ -405,12 +477,13 @@ function renderHoloplot(){
   } else {
     html+='<p class="mono" style="padding:8px 12px;margin:0;font-size:11px;background:#0F172A;color:#8A919E">SPL legend hidden — turn Legend ON above to show the colour key.</p>';
   }
-  var metrics=[["AVG SPL",stats.avg+" dB"],["UNIFORMITY ±",stats.uni+" dB"],["MIN",stats.min+" dB"],["MAX",stats.max+" dB"],["COVERAGE ≥78",stats.coverage+"%"],["SPILL >75 OUT",stats.spill+"%"]];
+  var metrics=[["AVG SPL",stats.avg+" dB"],["UNIFORM ±",stats.uni+" dB"],["MIN",stats.min+" dB"],["MAX",stats.max+" dB"],["COVER ≥78",stats.coverage+"%"],["SPILL OUT",stats.spill+"%"]];
   html+='<div class="readout-grid">'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
+  html+='</section></div><div class="scroll-panel" data-scroll-panel>';
 
   /* beam value chips */
-  html+='<div style="padding:12px;background:var(--surface);border-top:1px solid var(--border)">';
-  html+='<h3 style="margin:0;font-size:16px">Beam values '+(hs.hoverMode==="latch"?"— tap a label to pin (latch) it":"— touch a label to see its values")+'</h3>';
+  html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px">';
+  html+='<h3 style="margin:0;font-size:15px">Beam values '+(hs.hoverMode==="latch"?"— tap a label to pin (latch) it":"— touch a label to see its values")+'</h3>';
   html+='<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(hs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its values.":"In Practice mode these labels are read-only. Switch to Edit Values to change them by long-press.")+'</p>';
   html+='<div class="grid3" style="margin-top:10px">';
   hs.arrays.forEach(function(a){
@@ -437,14 +510,14 @@ function renderHoloplot(){
       '<button type="submit" class="btn" style="background:var(--cyan);color:#000;border:0;flex:1">Save values</button>'+
       '<button type="button" id="h-edit-cancel" class="btn" style="flex:1">Cancel</button></div></form>';
   }
-  html+='</div></section>';
+  html+='</div>';
 
   /* decks */
-  html+='<div style="margin-top:12px"><div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+
-    [["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div><div style="margin-top:12px">';
+  html+='<div style="margin-top:8px"><div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+
+    [["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div><div style="margin-top:8px">';
 
   if(hs.deck==="arrays"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>';
     html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">'+hs.arrays.map(function(a){
       return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+'</button>';}).join("")+'</div>';
     html+='<div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
@@ -464,7 +537,7 @@ function renderHoloplot(){
       '<button id="h-balcony" class="btn" style="flex:1;background:var(--cyan);color:#000;border:0">Try: add balcony beam</button></div></section>';
   }
   if(hs.deck==="drills"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Coverage drills"><h2 style="margin:0;font-size:16px">🎯 COVERAGE DRILLS</h2><div class="grid3" style="margin-top:4px">';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Coverage drills"><h2 style="margin:0;font-size:16px">🎯 COVERAGE DRILLS</h2><div class="grid3" style="margin-top:4px">';
     H_DRILLS.forEach(function(d){
       var pass=d.test(stats)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2);
       var isDone=done.has(d.id);
@@ -476,7 +549,7 @@ function renderHoloplot(){
     html+='</div></section>';
   }
   if(hs.deck==="save"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Save this design"><h2 style="margin:0;font-size:16px">💾 SAVE THIS DESIGN</h2>'+
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Save this design"><h2 style="margin:0;font-size:16px">💾 SAVE THIS DESIGN</h2>'+
       '<label class="sr-only" for="h-savename">Design name</label><input id="h-savename" class="field" style="margin-top:12px" value="'+esc(hs.saveName)+'"/>'+
       '<button id="h-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--cyan);color:#000;border:0">Save design</button>'+
       '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
@@ -486,8 +559,10 @@ function renderHoloplot(){
     html+='</section>';
   }
   html+='</div></div>';
-  html+='<div id="h-lessons">'+lessonsHTML(H_LESSONS, hs.openLesson)+'</div>';
+  html+='<div id="h-lessons">'+lessonsHTML(H_LESSONS, hs.openLesson)+'</div>'+githubNoteHTML();
+  html+='</div></div>';
   root.innerHTML=html;
+  var _nsp=root.querySelector("[data-scroll-panel]"); if(_nsp) _nsp.scrollTop=_spTop;
 
   /* wiring */
   document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; renderHoloplot(); });
@@ -670,7 +745,7 @@ function cRunCommand(raw){
 }
 
 function cCanvasSVG(){
-  var s='<svg id="cad-svg" viewBox="0 0 80 60" style="width:100%;display:block;margin:0 auto;max-height:58dvh;touch-action:none;user-select:none;cursor:crosshair" role="img" aria-label="AutoCAD drawing canvas">';
+  var s='<svg id="cad-svg" viewBox="0 0 80 60" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none;cursor:crosshair" role="img" aria-label="AutoCAD drawing canvas">';
   if(cs.showGrid){
     for(var i=0;i<=40;i++) s+='<line x1="'+(i*2)+'" y1="0" x2="'+(i*2)+'" y2="60" stroke="#1F2430" stroke-width="'+(i%5===0?0.12:0.05)+'"/>';
     for(var j=0;j<=30;j++) s+='<line x1="0" y1="'+(j*2)+'" x2="80" y2="'+(j*2)+'" stroke="#1F2430" stroke-width="'+(j%5===0?0.12:0.05)+'"/>';
@@ -710,38 +785,39 @@ function cDrills(){
 
 function renderAutocad(){
   var root=document.getElementById("ws-autocad");
+  var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
   var done=doneSet(), sel=cs.shapes.find(function(s){return s.id===cs.selected;});
-  var html='<p class="mono" style="font-size:13px;margin:12px 0 0;color:var(--dim)">Pick a tool from the big dock, draw on the canvas, then switch layers below — Layers, Properties, Dimensions — like pages on a mixing surface</p>';
+  var html='<div class="ws-layout"><div class="top-zone"><p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Pick a tool, draw on the canvas, then switch layers below. The canvas shrinks to fit — only the layer panel underneath scrolls.</p>';
   html+='<div class="tool-grid" role="toolbar" aria-label="Drawing tools">'+
     CAD_TOOLS.map(function(t){return '<button data-tool="'+t[0]+'" aria-pressed="'+(cs.tool===t[0])+'" class="'+(cs.tool===t[0]?"on":"")+'">'+t[1]+'</button>';}).join("")+
     '<button id="c-undo">↩ Undo</button><button id="c-finish" style="grid-column:span 2">Finish Polyline</button><button id="c-clear">Clear</button></div>';
   html+='<div id="c-display">'+displayControlsHTML("c")+'</div>';
-  if(cs.showKeys) html+='<p class="mono" style="font-size:13px;margin:10px 0 0;border-radius:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);color:var(--dim)" aria-label="Command key legend">KEY: L Line · C Circle · REC Rectang · PL Pline · A Arc · D Dim · E Erase · U Undo · SNAP grid lock · ORTHO horizontal/vertical lock</p>';
+  if(cs.showKeys) html+='<p class="mono" style="font-size:12px;margin:0;border-radius:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--dim)" aria-label="Command key legend">KEY: L Line · C Circle · REC Rectang · PL Pline · A Arc · D Dim · E Erase · U Undo · SNAP grid lock · ORTHO horizontal/vertical lock</p>';
 
-  html+='<section style="border-radius:16px;overflow:hidden;background:#0A0A0C;border:1px solid var(--border);margin-top:12px">';
+  html+='<section class="cad-shell" style="background:#0A0A0C;border:1px solid var(--border)">';
   html+=cCanvasSVG();
-  html+='<div style="background:#111318;border-top:1px solid var(--border)"><div id="c-history" class="mono" style="height:128px;overflow-y:auto;padding:10px 12px;font-size:12px;line-height:1.6;color:#A5F3FC" aria-live="polite">'+
+  html+='<div style="background:#111318;border-top:1px solid var(--border)"><div id="c-history" class="mono" style="height:64px;overflow-y:auto;padding:6px 10px;font-size:12px;line-height:1.5;color:#A5F3FC;touch-action:pan-y;-webkit-overflow-scrolling:touch" aria-live="polite">'+
     cs.history.map(function(h){return '<div>'+esc(h)+'</div>';}).join("")+
     '<div style="color:#8A919E">Cursor: '+cs.cursor.x.toFixed(0)+', '+cs.cursor.y.toFixed(0)+' ft · Tool: '+cs.tool.toUpperCase()+' · Layer: '+esc(cs.activeLayer)+' · Objects: '+cs.shapes.length+'</div></div>'+
-    '<form id="c-cmdform" style="display:flex;border-top:1px solid var(--border)"><span class="mono" style="padding:16px 12px;font-size:16px;font-weight:700;color:var(--amber);align-self:center">Command:</span>'+
-    '<label class="sr-only" for="c-cmd">AutoCAD command line</label><input id="c-cmd" class="mono" value="'+esc(cs.cmd)+'" placeholder="Type LINE, CIRCLE, HELP, or 10,10 … then Enter" autocomplete="off" style="flex:1;min-width:0;background:transparent;outline:none;border:0;font-size:16px;padding:16px 4px;color:var(--text)"/>'+
-    '<button type="submit" style="padding:0 24px;min-height:56px;font-weight:700;font-size:16px;background:var(--amber-dim);color:#FCD34D;border:0">Enter ↵</button></form></div>';
-  html+='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;background:var(--surface)">'+
+    '<form id="c-cmdform" style="display:flex;border-top:1px solid var(--border)"><span class="mono" style="padding:10px 10px;font-size:15px;font-weight:700;color:var(--amber);align-self:center">Command:</span>'+
+    '<label class="sr-only" for="c-cmd">AutoCAD command line</label><input id="c-cmd" class="mono" value="'+esc(cs.cmd)+'" placeholder="Type LINE, CIRCLE, HELP, or 10,10 … then Enter" autocomplete="off" style="flex:1;min-width:0;background:transparent;outline:none;border:0;font-size:16px;padding:10px 4px;color:var(--text)"/>'+
+    '<button type="submit" style="padding:0 20px;min-height:52px;font-weight:700;font-size:16px;background:var(--amber-dim);color:#FCD34D;border:0">Enter ↵</button></form></div>';
+  html+='<div class="snap-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;background:var(--surface)">'+
     '<button id="c-snap" class="btn btn-sm'+(cs.snap?" tog-on":"")+'" aria-pressed="'+cs.snap+'">SNAP '+(cs.snap?"ON":"OFF")+' (2 ft)</button>'+
     '<button id="c-ortho" class="btn btn-sm'+(cs.ortho?" tog-on":"")+'" aria-pressed="'+cs.ortho+'">ORTHO '+(cs.ortho?"ON":"OFF")+'</button>'+
     '<button id="c-grid" class="btn btn-sm" aria-pressed="'+cs.showGrid+'">GRID '+(cs.showGrid?"ON":"OFF")+'</button>'+
     '<span class="mono" style="font-size:14px;font-weight:700;color:var(--dim)">Templates:</span>'+
     '<button class="btn btn-sm" data-template="stage">Stage Plot</button><button class="btn btn-sm" data-template="room">Room Plan</button><button class="btn btn-sm" data-template="speakers">Speaker Array</button></div>';
-  html+='</section>';
+  html+='</section></div><div class="scroll-panel" data-scroll-panel>';
 
-  html+='<div style="margin-top:12px"><div class="deck" role="tablist" aria-label="AutoCAD control layers">'+
+  html+='<div><div class="deck" role="tablist" aria-label="AutoCAD control layers">'+
     [["layers","▦ Layers"],["props","ⓘ Properties"],["dims","↔ Dimensions"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-cdeck="'+t[0]+'" aria-selected="'+(cs.deck===t[0])+'" class="'+(cs.deck===t[0]?"on-c":"")+'">'+t[1]+'</button>';}).join("")+'</div>';
   if(sel&&cs.deck!=="props"&&cs.deck!=="dims")
-    html+='<button id="c-selshortcut" class="btn" style="width:100%;margin-top:10px;text-align:left;background:var(--amber-dim);color:#FCD34D;border:1px solid var(--amber)" aria-label="Selected '+sel.type+' object, '+esc(shapeInfo(sel))+'. Open Properties layer">Selected: '+sel.type.toUpperCase()+' · '+esc(shapeInfo(sel))+' · '+esc(sel.layer)+' — tap to open Properties ›</button>';
-  html+='<div style="margin-top:12px">';
+    html+='<button id="c-selshortcut" class="btn" style="width:100%;margin-top:8px;text-align:left;background:var(--amber-dim);color:#FCD34D;border:1px solid var(--amber)" aria-label="Selected '+sel.type+' object, '+esc(shapeInfo(sel))+'. Open Properties layer">Selected: '+sel.type.toUpperCase()+' · '+esc(shapeInfo(sel))+' · '+esc(sel.layer)+' — tap to open Properties ›</button>';
+  html+='<div style="margin-top:8px">';
 
   if(cs.deck==="layers"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Layers"><h2 style="margin:0;font-size:16px">LAYERS — colour key / legend</h2>';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Layers"><h2 style="margin:0;font-size:16px">LAYERS — colour key / legend</h2>';
     if(!cs.showLegend) html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">Layer legend hidden — turn Legend ON above to show the colour key and visibility switches.</p>';
     else { html+='<div class="grid2">';
       cs.layers.forEach(function(l){
@@ -753,14 +829,14 @@ function renderAutocad(){
     html+='<label style="display:block;font-size:14px;font-weight:600;margin-top:20px" for="c-textval">Text label (for TEXT tool)</label><input id="c-textval" class="field" style="margin-top:6px" value="'+esc(cs.textVal)+'"/></section>';
   }
   if(cs.deck==="props"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Properties"><h2 style="margin:0;font-size:16px">PROPERTIES</h2>';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Properties"><h2 style="margin:0;font-size:16px">PROPERTIES</h2>';
     if(sel){ html+='<div style="font-size:16px;margin-top:8px;display:flex;flex-direction:column;gap:6px"><p style="margin:0"><span style="color:var(--dim)">Type:</span> <span class="mono" style="font-weight:700">'+sel.type.toUpperCase()+'</span></p><p style="margin:0"><span style="color:var(--dim)">Layer:</span> '+esc(sel.layer)+'</p><p style="margin:0"><span style="color:var(--dim)">Measure:</span> '+esc(shapeInfo(sel))+'</p><p class="mono" style="margin:0;font-size:14px;color:var(--dim)">From ('+sel.x1+','+sel.y1+') to ('+sel.x2+','+sel.y2+')</p>'+
       '<div style="display:flex;flex-wrap:wrap;gap:10px;padding-top:8px"><button id="c-godims" class="btn" style="flex:1;background:var(--amber-dim);color:#FCD34D">Open in Dimensions ›</button><button id="c-erasesel" class="btn" style="flex:1;background:var(--red);color:var(--red-text)">Erase selected</button></div></div>';
     } else html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">Tap any object to inspect it. Draw with the tool dock above, or type commands below the canvas.</p>';
     html+='</section>';
   }
   if(cs.deck==="dims"){
-    html+='<section class="card" style="padding:16px" aria-label="Dimension and point values" role="tabpanel"><h2 style="margin:0;font-size:16px">Dimensions &amp; points '+(cs.hoverMode==="latch"?"— tap to pin (latch)":"— touch to inspect")+'</h2>'+
+    html+='<section class="card" style="padding:14px" aria-label="Dimension and point values" role="tabpanel"><h2 style="margin:0;font-size:16px">Dimensions &amp; points '+(cs.hoverMode==="latch"?"— tap to pin (latch)":"— touch to inspect")+'</h2>'+
       '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(cs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its coordinates / size.":"Read-only in Practice mode. Load a template or draw, then touch a label — switch to Edit Values to change values by long-press.")+'</p>';
     if(cs.shapes.length===0) html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">No objects yet. Load the Stage Plot template above the canvas and dimension &amp; point labels will appear here.</p>';
     html+='<div class="grid2" style="margin-top:10px">';
@@ -788,14 +864,14 @@ function renderAutocad(){
     html+='</section>';
   }
   if(cs.deck==="drills"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Drafting drills"><h2 style="margin:0;font-size:16px">🎯 DRAFTING DRILLS — auto-checked</h2><div class="grid2">';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Drafting drills"><h2 style="margin:0;font-size:16px">🎯 DRAFTING DRILLS — auto-checked</h2><div class="grid2">';
     cDrills().forEach(function(d){ var isDone=done.has(d.id);
       html+='<div style="display:flex;align-items:center;gap:12px;margin-top:8px;border-radius:12px;padding:12px;background:var(--surface2)"><span style="font-size:20px">'+((d.pass||isDone)?"✅":"⬜")+'</span><div style="flex:1"><p style="margin:0;font-size:16px;font-weight:700">'+esc(d.title)+'</p><p style="margin:2px 0 0;font-size:14px;color:var(--dim)">'+esc(d.hint)+'</p></div>'+
       '<button data-cdrill="'+d.id+'" '+((!d.pass||isDone)?"disabled":"")+' class="btn" style="background:var(--amber-dim);color:#FCD34D;flex:none">'+(isDone?"Done":"Claim")+'</button></div>'; });
     html+='</div></section>';
   }
   if(cs.deck==="save"){
-    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Save drawing"><h2 style="margin:0;font-size:16px">💾 SAVE DRAWING</h2>'+
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Save drawing"><h2 style="margin:0;font-size:16px">💾 SAVE DRAWING</h2>'+
       '<label class="sr-only" for="c-savename">Drawing name</label><input id="c-savename" class="field" style="margin-top:12px" value="'+esc(cs.saveName)+'"/>'+
       '<button id="c-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--amber);color:#000;border:0">Save drawing ('+cs.shapes.length+' objects)</button>'+
       '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
@@ -803,8 +879,10 @@ function renderAutocad(){
     html+='</section>';
   }
   html+='</div></div>';
-  html+='<div id="c-lessons">'+lessonsHTML(C_LESSONS, cs.openLesson)+'</div>';
+  html+='<div id="c-lessons">'+lessonsHTML(C_LESSONS, cs.openLesson)+'</div>'+githubNoteHTML();
+  html+='</div></div>';
   root.innerHTML=html;
+  var _nsp=root.querySelector("[data-scroll-panel]"); if(_nsp) _nsp.scrollTop=_spTop;
 
   /* wiring */
   wireDisplayControls(document.getElementById("c-display"), cs, renderAutocad);
@@ -920,14 +998,15 @@ function askTutor(text){
 }
 function renderTutor(){
   var sec=document.getElementById("tutor-section"), pill=document.getElementById("tutor-pill");
-  if(!tutorOn){ sec.innerHTML=""; pill.hidden=true; return; }
+  if(!tutorOn){ sec.innerHTML=""; sec.className=""; pill.hidden=true; return; }
+  sec.className=tutorOpen?"tutor-open":"";
   if(tutorSel&&!tutorOpen){
     pill.hidden=false;
     pill.textContent="🎓 Explain: “"+(tutorSel.length>42?tutorSel.slice(0,42)+"…":tutorSel)+"”";
     pill.setAttribute("aria-label","Explain highlighted text with the virtual tutor: "+tutorSel.slice(0,60));
   } else pill.hidden=true;
   if(tutorOpen){
-    sec.innerHTML='<div style="border-radius:16px;padding:16px;background:#0F2A33;border:1px solid var(--cyan)">'+
+    sec.innerHTML='<div style="border-radius:14px;padding:14px;background:#0F2A33;border:1px solid var(--cyan)">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><h2 style="margin:0;font-size:16px;color:#E6E8EB">🎓 Virtual Tutor</h2>'+
       '<button id="tutor-close" class="btn btn-sm" aria-label="Close virtual tutor">Close ✕</button></div>'+
       '<p class="mono" style="font-size:12px;margin:8px 0 0;color:#9AA3B2">YOU HIGHLIGHTED</p>'+
@@ -939,9 +1018,9 @@ function renderTutor(){
     document.getElementById("tutor-again").addEventListener("click",function(){ askTutor(tutorSel); });
     document.getElementById("tutor-clear").addEventListener("click",function(){ tutorExpl=""; tutorSel=""; tutorOpen=false; renderTutor(); });
   } else {
-    sec.innerHTML='<div class="card" style="padding:16px"><h2 style="margin:0;font-size:14px">🎓 Virtual Tutor — highlight any text, get it explained</h2>'+
-      '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">Select (highlight) any word or line anywhere in the app — a lesson, a slider label, a readout — then tap the 🎓 Explain pill that appears. Or tap a topic:</p>'+
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+TUTOR_TOPICS.map(function(t){return '<button class="btn btn-sm" data-topic="'+esc(t)+'" aria-label="Ask tutor about '+esc(t)+'">'+esc(t)+'</button>';}).join("")+'</div></div>';
+    sec.innerHTML='<div class="card tutor-bar"><h2 style="margin:0;font-size:14px">🎓 Virtual Tutor</h2>'+
+      '<p class="tutor-intro" style="font-size:13px;margin:4px 0 0;color:var(--dim)">Select (highlight) any word or line anywhere in the app — a lesson, a slider label, a readout — then tap the 🎓 Explain pill that appears. Or tap a topic:</p>'+
+      '<div class="tutor-topics">'+TUTOR_TOPICS.map(function(t){return '<button class="btn btn-sm" data-topic="'+esc(t)+'" aria-label="Ask tutor about '+esc(t)+'">'+esc(t)+'</button>';}).join("")+'</div></div>';
     sec.querySelectorAll("[data-topic]").forEach(function(b){ b.addEventListener("click",function(){ askTutor(b.getAttribute("data-topic")); }); });
   }
 }
