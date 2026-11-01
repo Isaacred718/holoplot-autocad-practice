@@ -317,6 +317,11 @@ function localExplain(raw){
   return null;
 }
 
+/* true on touch-first devices (iPad / phone) where the browser fires synthetic
+   mouseenter/focus on tap — a full re-render from those handlers would destroy
+   the element being tapped before its click lands, swallowing the tap. */
+function touchHoverNone(){ return !!(window.matchMedia && window.matchMedia("(hover: none)").matches); }
+
 /* ---------- long-press helper ---------- */
 function makeLongPress(){
   var timers={}, fired={};
@@ -483,7 +488,7 @@ function hPlanSVG(cells){
     s+='<polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'" fill="#22D3EE" opacity="0.13"/><line x1="'+SX(a.x)+'" y1="'+SY(a.y)+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4" opacity="0.7"/>'; });
   hs.arrays.forEach(function(a){
     s+='<g data-arr="'+a.id+'" style="cursor:pointer;opacity:'+(a.on?1:0.35)+'">';
-    s+='<rect x="'+(SX(a.x)-30)+'" y="'+(SY(a.y)-17)+'" width="60" height="34" rx="6" fill="transparent"/>';
+    s+='<rect x="'+(SX(a.x)-44)+'" y="'+(SY(a.y)-26)+'" width="88" height="52" rx="8" fill="transparent"/>';
     s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
     if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+4)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(a.model)+'</text>';
     if(hArrVisible(a.id)){
@@ -638,20 +643,22 @@ function renderHoloplot(){
     var id=Number(g.getAttribute("data-arr"));
     g.addEventListener("click",function(){ if(hLP.wasFired("arr"+id)) return; hs.sel=id;
       if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
+      else if(hs.showHover) hs.hovered=id; /* tap-to-show values on touch */
       renderHoloplot(); });
-    g.addEventListener("mouseenter",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
-    g.addEventListener("mouseleave",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } hLP.cancel("arr"+id); });
+    g.addEventListener("mouseenter",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    g.addEventListener("mouseleave",function(){ hLP.cancel("arr"+id); if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
     g.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("arr"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
     g.addEventListener("pointerup",function(){ hLP.cancel("arr"+id); });
   });
   root.querySelectorAll("[data-chip]").forEach(function(ch){
     var id=Number(ch.getAttribute("data-chip"));
-    ch.addEventListener("mouseenter",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
-    ch.addEventListener("mouseleave",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } hLP.cancel("chip"+id); });
-    ch.addEventListener("focus",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
-    ch.addEventListener("blur",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
+    ch.addEventListener("mouseenter",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    ch.addEventListener("mouseleave",function(){ hLP.cancel("chip"+id); if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
+    ch.addEventListener("focus",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    ch.addEventListener("blur",function(){ if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
     ch.addEventListener("click",function(){ if(hLP.wasFired("chip"+id)) return; hs.sel=id;
       if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
+      else if(hs.showHover) hs.hovered=id; /* tap-to-show values on touch */
       renderHoloplot(); });
     ch.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("chip"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
     ch.addEventListener("pointerup",function(){ hLP.cancel("chip"+id); });
@@ -668,6 +675,14 @@ function renderHoloplot(){
     document.getElementById("h-edit-cancel").addEventListener("click",function(){ hs.editing=null; renderHoloplot(); });
   }
   if(hs.deck==="arrays"){
+    /* Array selection buttons (Array L / Array R / Centre) — these were rendered
+       with data-sel-arr but never wired, so tapping them did nothing and the
+       faders kept showing the previously selected array. */
+    root.querySelectorAll("[data-sel-arr]").forEach(function(b){ b.addEventListener("click",function(){
+      var id=Number(b.getAttribute("data-sel-arr")); if(!id) return;
+      hs.sel=id; hs.editing=null;
+      if(hs.showHover){ if(hs.hoverMode==="latch"){ if(hs.latched.indexOf(id)<0) hs.latched.push(id); } else hs.hovered=id; }
+      renderHoloplot(); }); });
     document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; renderHoloplot(); });
     document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; renderHoloplot(); });
     root.querySelectorAll("[data-slider]").forEach(function(inp){
@@ -725,7 +740,10 @@ function renderHoloplotSoft(){
   /* re-wire array hit targets on the fresh svg */
   root.querySelectorAll("[data-arr]").forEach(function(g){
     var id=Number(g.getAttribute("data-arr"));
-    g.addEventListener("click",function(){ hs.sel=id; renderHoloplot(); });
+    g.addEventListener("click",function(){ if(hLP.wasFired("arr"+id)) return; hs.sel=id;
+      if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
+      else if(hs.showHover) hs.hovered=id;
+      renderHoloplot(); });
   });
   var grid=root.querySelector(".readout-grid");
   if(grid){ var vals=[stats.avg+" dB",stats.uni+" dB",stats.min+" dB",stats.max+" dB",stats.coverage+"%",stats.spill+"%"];
