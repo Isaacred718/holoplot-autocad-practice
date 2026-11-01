@@ -147,6 +147,20 @@
     .scroll-panel{ flex:0 0 41%; border-top:0; border-left:1px solid var(--border); padding-left:10px; }
     #ws-autocad .scroll-panel{ flex-basis:41%; }
   }
+  /* ---- top-level page bar + aggregate pages ---- */
+  .pagebar{ display:flex; gap:6px; max-width:1400px; margin:0 auto; padding:0 10px 8px; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-x; scrollbar-width:none; }
+  .pagebar::-webkit-scrollbar{ display:none; }
+  .pagebar button{ flex:1 0 auto; min-height:56px; padding:8px 14px; border-radius:14px; font-size:15px; font-weight:800; background:#1B1E24; color:#E6E8EB; border:1px solid #333945; white-space:nowrap; }
+  .pagebar button.on{ background:var(--cyan-dim); color:#67E8F9; border-color:var(--cyan); }
+  .pagebar button.on-c{ background:var(--amber-dim); color:#FCD34D; border-color:var(--amber); }
+  .page-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; padding:10px 2px 14px; }
+  @keyframes faderFlash{ 0%{ background:var(--cyan); color:#000; } 100%{ background:transparent; } }
+  .fader-flash{ animation:faderFlash .9s ease-out; border-radius:8px; padding:2px 8px; }
+  .fader-note{ font-size:14px; font-weight:700; color:var(--green); margin:10px 0 0; }
+  .comment-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; margin-top:10px; }
+  .comment-card.resolved{ opacity:.72; }
+  .reply-box{ background:var(--surface2); border-radius:10px; padding:10px 12px; margin-top:8px; }
+  .badge{ display:inline-block; font-size:11px; font-weight:800; padding:3px 8px; border-radius:99px; background:var(--surface2); border:1px solid var(--border); }
   @media(max-width:700px){
     .ws-hint{ display:none; }
     #ws-holoplot .top-zone > div:first-child{ flex-wrap:nowrap !important; gap:6px !important; }
@@ -181,10 +195,18 @@
 </head>
 <body>
 <header>
+  <nav class="pagebar" role="tablist" aria-label="App pages">
+    <button id="tab-holoplot" role="tab" data-page="holoplot">◉ HOLOPLOT</button>
+    <button id="tab-autocad" role="tab" data-page="autocad">⌖ AutoCAD</button>
+    <button id="tab-lessons" role="tab" data-page="lessons">📚 Lessons</button>
+    <button id="tab-drills" role="tab" data-page="drills">🎯 Drills</button>
+    <button id="tab-projects" role="tab" data-page="projects">💾 Projects</button>
+    <button id="tab-comments" role="tab" data-page="comments">💬 Comments</button>
+  </nav>
   <div class="header-in">
     <div class="ws-switch" role="tablist" aria-label="Workspace switcher">
-      <button id="tab-holoplot" role="tab">◉ HOLOPLOT Plan</button>
-      <button id="tab-autocad" role="tab">⌖ AutoCAD</button>
+      <button id="tab-holoplot2" role="tab">◉ HOLOPLOT Plan</button>
+      <button id="tab-autocad2" role="tab">⌖ AutoCAD</button>
     </div>
     <div class="progress-box">
       <div class="mono" style="display:flex;justify-content:space-between;font-size:11px;color:#9AA3B2"><span>PRACTICE PROGRESS</span><span id="progress-label"></span></div>
@@ -196,8 +218,18 @@
 </header>
 
 <main class="wrap">
+  <div id="shared-banner" hidden style="flex:0 0 auto;margin-top:8px;border-radius:14px;padding:12px 14px;background:#0F2A33;border:2px solid var(--cyan)">
+    <p style="margin:0;font-weight:800;font-size:16px">🔗 Shared design — save a copy to edit</p>
+    <p id="shared-banner-text" style="margin:4px 0 0;font-size:13px;line-height:1.5;color:var(--dim)">This is a snapshot shared by link. Saving a copy puts it in your own on-device library; your edits will not flow back to the sender.</p>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"><button id="shared-save" class="btn" style="flex:1;background:var(--cyan);color:#000;border:0">💾 Save a copy</button><button id="shared-dismiss" class="btn" style="flex:1">Dismiss</button></div>
+  </div>
+  <div id="share-link-wrap" hidden style="flex:0 0 auto;margin-top:8px"><label style="font-size:13px;font-weight:700" for="share-link-box">🔗 Shareable snapshot link — tap and hold to copy if needed. It is a snapshot: the recipient gets a copy, edits do not flow back.</label><textarea id="share-link-box" class="field mono" rows="3" readonly style="margin-top:6px;font-size:12px;word-break:break-all"></textarea></div>
   <div id="ws-holoplot"></div>
   <div id="ws-autocad" hidden></div>
+  <div id="page-lessons" hidden></div>
+  <div id="page-drills" hidden></div>
+  <div id="page-projects" hidden></div>
+  <div id="page-comments" hidden></div>
 
   <section id="tutor-section" aria-label="Virtual tutor"></section>
 
@@ -221,13 +253,39 @@ function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 
 /* ---------- on-device storage (static site: no server) ---------- */
 var LS_KEY="holoplot-autocad-practice-github-v1";
-var store={ progress:[], saves:{ holoplot:[], autocad:[] } };
+var store={ progress:[], saves:{ holoplot:[], autocad:[] }, comments:[] };
 try{ var raw=localStorage.getItem(LS_KEY); if(raw){ var p=JSON.parse(raw); if(p&&p.progress&&p.saves) store=p; } }catch(e){}
+if(!Array.isArray(store.comments)) store.comments=[];
+if(!store.saves.holoplot) store.saves.holoplot=[];
+if(!store.saves.autocad) store.saves.autocad=[];
 function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
 function doneSet(){ return new Set(store.progress); }
 function markDone(id){ if(!store.progress.includes(id)){ store.progress.push(id); persist(); } renderProgress(); }
-function addSave(ws,name,data){ store.saves[ws].push({id:Date.now(),name:name,data:data}); persist(); }
+function commentsFor(ws){ return store.comments.filter(function(c){return c.ws===ws;}); }
+function addSave(ws,name,data){ var snap=commentsFor(ws).map(function(c){return JSON.parse(JSON.stringify(c));}); store.saves[ws].push({id:Date.now(),name:name,data:data,comments:snap}); persist(); }
 function deleteSave(ws,id){ store.saves[ws]=store.saves[ws].filter(function(s){return s.id!==id;}); persist(); }
+function addComment(ws,target,author,text){ store.comments.push({id:Date.now()+Math.floor(Math.random()*999),ws:ws,target:target||"Current work",author:(author||"Isaac").trim()||"Isaac",text:text,created:new Date().toLocaleString(),resolved:false,replies:[]}); persist(); }
+function deleteComment(id){ store.comments=store.comments.filter(function(c){return c.id!==id;}); persist(); }
+function toggleResolveComment(id){ store.comments=store.comments.map(function(c){return c.id===id?Object.assign({},c,{resolved:!c.resolved}):c;}); persist(); }
+function addReply(id,author,text){ store.comments=store.comments.map(function(c){ if(c.id!==id) return c; var r=(c.replies||[]).slice(); r.push({id:Date.now(),author:(author||"Isaac").trim()||"Isaac",text:text,created:new Date().toLocaleString()}); return Object.assign({},c,{replies:r}); }); persist(); }
+/* ---------- shareable snapshot links (state in the URL hash, no server) ---------- */
+var SHARE_BASE="https://isaacred718.github.io/holoplot-autocad-practice/";
+function shareEncode(obj){ var s=JSON.stringify(obj); var b=btoa(unescape(encodeURIComponent(s))); return b.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function shareDecode(str){ try{ var b=str.replace(/-/g,"+").replace(/_/g,"/"); while(b.length%4) b+="="; return JSON.parse(decodeURIComponent(escape(atob(b)))); }catch(e){ return null; } }
+function buildShareLink(ws,name,dataObj,comments){ return SHARE_BASE+"#share="+shareEncode({v:1,ws:ws,name:name,data:dataObj,comments:comments||[]}); }
+function presentShareLink(link,btn){
+  function done(msg){ if(btn){ var old=btn.textContent; btn.textContent=msg; setTimeout(function(){ btn.textContent=old; },2600); } }
+  if(navigator.share){ navigator.share({title:"Shared practice design",url:link}).then(function(){ done("✓ Shared"); }).catch(function(){ copyShareLink(link,btn,done); }); }
+  else copyShareLink(link,btn,done);
+}
+function copyShareLink(link,btn,done){
+  function fallback(){ var ta=document.createElement("textarea"); ta.value=link; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); done("✓ Link copied"); }catch(e){ done("Link ready — long-press to copy"); window.prompt; } ta.remove(); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(function(){ done("✓ Link copied"); }).catch(fallback); } else fallback();
+  /* always leave the link visible/selectable for iPad Safari manual copy */
+  var wrap=document.getElementById("share-link-wrap"); var box=document.getElementById("share-link-box");
+  if(box){ if(wrap) wrap.hidden=false; box.value=link; box.select(); }
+}
+var pendingShared=null;
 
 /* ---------- virtual tutor: built-in explanations, no server ---------- */
 var TUTOR_DICT=[
@@ -369,8 +427,11 @@ var H_DRILLS=[
   {id:"hd3",title:"Drill C — Two-zone balance",goal:"Run 2+ arrays on, avg 84–94 dB, uniformity ≤ 4.5 dB",test:function(s){return s.avg>=84&&s.avg<=94&&s.uni<=4.5;},needs2:true}
 ];
 
+var H_FADER_HOME={1:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:-6,y:4},2:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:6,y:4},3:{az:0,tilt:0,hBeam:20,vBeam:12,gain:0,x:0,y:4}};
+var H_FADER_LABEL={az:"Azimuth",tilt:"Tilt",hBeam:"Horizontal beam width",vBeam:"Vertical beam width",gain:"Gain",x:"Position left/right",y:"Position depth"};
+var H_FADER_UNIT={az:"°",tilt:"°",hBeam:"°",vBeam:"°",gain:" dB",x:" m",y:" m"};
 var hs={
-  venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design",
+  venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
   hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1",
   arrays:[
@@ -517,7 +578,9 @@ function renderHoloplot(){
     [["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div><div style="margin-top:8px">';
 
   if(hs.deck==="arrays"){
-    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>';
+    html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>'+
+    '<p id="fader-tip" style="font-size:13px;margin:6px 0 0;color:var(--dim)">Tip: <strong style="color:var(--text)">double-tap (or double-click) any fader</strong> to reset just that fader to its home value — azimuth, tilt and gain go to 0; beam width and position go back to their defaults. Dragging and the − / + steppers work as normal.</p>'+
+    (hs.faderMsg?'<p class="fader-note" role="status">↺ '+esc(hs.faderMsg)+'</p>':"");
     html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">'+hs.arrays.map(function(a){
       return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+'</button>';}).join("")+'</div>';
     html+='<div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
@@ -529,7 +592,7 @@ function renderHoloplot(){
     sliders.forEach(function(s){
       html+='<div class="slider-row"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+cur[s[1]]+s[4]+'</span></div>'+
       '<div style="display:flex;align-items:center;gap:8px"><button type="button" class="stepper" data-step="'+s[1]+':-1" aria-label="Decrease '+s[0]+'">−</button>'+
-      '<input id="h-sl-'+s[1]+'" type="range" min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+cur[s[1]]+'" data-slider="'+s[1]+'" style="flex:1;min-width:0"/>'+
+      '<input id="h-sl-'+s[1]+'" type="range" min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+cur[s[1]]+'" data-slider="'+s[1]+'" title="Drag to adjust — double-tap to reset to home" aria-describedby="fader-tip" style="flex:1;min-width:0"/>'+
       '<button type="button" class="stepper" data-step="'+s[1]+':1" aria-label="Increase '+s[0]+'">+</button></div></div>';
     });
     html+='</div><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">'+
@@ -552,6 +615,7 @@ function renderHoloplot(){
     html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Save this design"><h2 style="margin:0;font-size:16px">💾 SAVE THIS DESIGN</h2>'+
       '<label class="sr-only" for="h-savename">Design name</label><input id="h-savename" class="field" style="margin-top:12px" value="'+esc(hs.saveName)+'"/>'+
       '<button id="h-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--cyan);color:#000;border:0">Save design</button>'+
+      '<button id="h-share" class="btn" style="width:100%;margin-top:8px;min-height:56px">🔗 Share link for this design (snapshot + comments)</button>'+
       '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
     store.saves.holoplot.forEach(function(s){
       html+='<div style="display:flex;gap:8px;margin-top:10px"><button data-load-save="'+s.id+'" class="btn" style="flex:1;text-align:left">Load: '+esc(s.name)+'</button><button data-del-save="'+s.id+'" class="btn" aria-label="Delete '+esc(s.name)+'">✕</button></div>';
@@ -607,6 +671,23 @@ function renderHoloplot(){
     document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; renderHoloplot(); });
     document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; renderHoloplot(); });
     root.querySelectorAll("[data-slider]").forEach(function(inp){
+      /* double-tap / double-click resets this fader to its home value */
+      var tapCount=0, tapTimer=null, downX=0, downY=0, downT=0;
+      function doReset(){
+        var key=inp.getAttribute("data-slider"); var home=(H_FADER_HOME[hCur().id]||{})[key]; if(home===undefined) return;
+        hCur()[key]=home; hs.faderMsg=H_FADER_LABEL[key]+" reset to "+home+H_FADER_UNIT[key]+" — map updated.";
+        renderHoloplot();
+        var lbl=document.querySelector('[data-slval="'+key+'"]'); if(lbl) lbl.classList.add("fader-flash");
+      }
+      inp.addEventListener("dblclick",function(e){ e.preventDefault(); tapCount=0; doReset(); });
+      inp.addEventListener("pointerdown",function(e){ downX=e.clientX; downY=e.clientY; downT=Date.now(); });
+      inp.addEventListener("pointerup",function(e){
+        var moved=Math.hypot(e.clientX-downX,e.clientY-downY);
+        if(Date.now()-downT>300||moved>10){ tapCount=0; return; } /* it was a drag, not a tap */
+        tapCount++;
+        if(tapCount>=2){ tapCount=0; if(tapTimer) window.clearTimeout(tapTimer); doReset(); }
+        else { if(tapTimer) window.clearTimeout(tapTimer); tapTimer=window.setTimeout(function(){ tapCount=0; },380); }
+      });
       inp.addEventListener("input",function(){ var key=inp.getAttribute("data-slider"); hCur()[key]=Number(inp.value);
         var lbl=root.querySelector('[data-slval="'+key+'"]'); if(lbl){ var s=[["az","°"],["tilt","°"],["hBeam","°"],["vBeam","°"],["gain"," dB"],["x"," m"],["y"," m"]].find(function(p){return p[0]===key;}); lbl.textContent=inp.value+(s?s[1]:""); }
         renderHoloplotSoft(); });
@@ -616,20 +697,40 @@ function renderHoloplot(){
       var parts=b.getAttribute("data-step").split(":"), key=parts[0], dir=Number(parts[1]);
       var meta={az:[-40,40,1],tilt:[-15,25,1],hBeam:[10,60,1],vBeam:[8,40,1],gain:[-12,12,0.5],x:[-Math.floor(hVenue().w/2)+3,Math.floor(hVenue().w/2)-3,1],y:[1,14,1]}[key];
       var v=Math.min(meta[1],Math.max(meta[0],Math.round((hCur()[key]+dir*meta[2])/meta[2])*meta[2])); hCur()[key]=v; renderHoloplot(); }); });
-    document.getElementById("h-reset").addEventListener("click",function(){ hs.arrays=hs.arrays.map(function(a){ return Object.assign({},a,{az:a.id===1?-10:a.id===2?10:0, tilt:a.id===3?10:0, hBeam:28, gain:a.id===3?-2:0}); }); renderHoloplot(); });
+    document.getElementById("h-reset").addEventListener("click",function(){ hs.arrays=[
+      {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
+      {id:2,name:"Array R",model:"X2",x:6,y:4,az:10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
+      {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,on:false}
+    ]; hs.sel=1; hs.editing=null; hs.latched=[]; hs.hovered=null; renderHoloplot(); });
     document.getElementById("h-balcony").addEventListener("click",function(){ hCur().on=true; hs.arrays=hs.arrays.map(function(a){ return a.id===3?Object.assign({},a,{on:true,tilt:12,gain:2}):a; }); renderHoloplot(); });
   }
   if(hs.deck==="drills"){ root.querySelectorAll("[data-drill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-drill")); renderHoloplot(); }); }); }
   if(hs.deck==="save"){
     document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
     document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify({venueId:hs.venueId, arrays:hs.arrays})); renderHoloplot(); });
+    document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", {venueId:hs.venueId, arrays:hs.arrays}, commentsFor("holoplot")); presentShareLink(link, this); });
     root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hs.venueId=d.venueId; hs.arrays=d.arrays; }catch(e){} renderHoloplot(); }); });
     root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); }); });
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
 }
-/* soft re-render while dragging a fader: refresh map + readouts + chips only by full render but keep the slider — instead update on release; live-update value label only (map refresh on change). */
-function renderHoloplotSoft(){ /* value labels update inline; full refresh happens on slider release */ }
+/* live-update map + readouts while dragging a fader, without rebuilding the fader itself */
+function renderHoloplotSoft(){
+  var root=document.getElementById("ws-holoplot"); if(!root) return;
+  var comp=hCompute(), stats=comp.stats;
+  var shell=root.querySelector(".map-shell"); if(!shell) return;
+  var oldSvg=shell.querySelector("svg"); if(!oldSvg) return;
+  var tmp=document.createElement("div"); tmp.innerHTML= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
+  var newSvg=tmp.querySelector("svg"); if(newSvg) shell.replaceChild(newSvg, oldSvg);
+  /* re-wire array hit targets on the fresh svg */
+  root.querySelectorAll("[data-arr]").forEach(function(g){
+    var id=Number(g.getAttribute("data-arr"));
+    g.addEventListener("click",function(){ hs.sel=id; renderHoloplot(); });
+  });
+  var grid=root.querySelector(".readout-grid");
+  if(grid){ var vals=[stats.avg+" dB",stats.uni+" dB",stats.min+" dB",stats.max+" dB",stats.coverage+"%",stats.spill+"%"];
+    grid.querySelectorAll(".readout .v").forEach(function(el,i){ if(vals[i]!==undefined) el.textContent=vals[i]; }); }
+}
 </script>
 <script>
 "use strict";
@@ -805,7 +906,7 @@ function renderAutocad(){
   html+='<div class="snap-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;background:var(--surface)">'+
     '<button id="c-snap" class="btn btn-sm'+(cs.snap?" tog-on":"")+'" aria-pressed="'+cs.snap+'">SNAP '+(cs.snap?"ON":"OFF")+' (2 ft)</button>'+
     '<button id="c-ortho" class="btn btn-sm'+(cs.ortho?" tog-on":"")+'" aria-pressed="'+cs.ortho+'">ORTHO '+(cs.ortho?"ON":"OFF")+'</button>'+
-    '<button id="c-grid" class="btn btn-sm" aria-pressed="'+cs.showGrid+'">GRID '+(cs.showGrid?"ON":"OFF")+'</button>'+
+    '<button id="c-grid" class="btn btn-sm'+(cs.showGrid?" tog-on":"")+'" aria-pressed="'+cs.showGrid+'">GRID '+(cs.showGrid?"ON":"OFF")+'</button>'+
     '<span class="mono" style="font-size:14px;font-weight:700;color:var(--dim)">Templates:</span>'+
     '<button class="btn btn-sm" data-template="stage">Stage Plot</button><button class="btn btn-sm" data-template="room">Room Plan</button><button class="btn btn-sm" data-template="speakers">Speaker Array</button></div>';
   html+='</section></div><div class="scroll-panel" data-scroll-panel>';
@@ -874,6 +975,7 @@ function renderAutocad(){
     html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Save drawing"><h2 style="margin:0;font-size:16px">💾 SAVE DRAWING</h2>'+
       '<label class="sr-only" for="c-savename">Drawing name</label><input id="c-savename" class="field" style="margin-top:12px" value="'+esc(cs.saveName)+'"/>'+
       '<button id="c-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--amber);color:#000;border:0">Save drawing ('+cs.shapes.length+' objects)</button>'+
+      '<button id="c-share" class="btn" style="width:100%;margin-top:8px;min-height:56px">🔗 Share link for this drawing (snapshot + comments)</button>'+
       '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
     store.saves.autocad.forEach(function(s){ html+='<div style="display:flex;gap:8px;margin-top:10px"><button data-cload="'+s.id+'" class="btn" style="flex:1;text-align:left">Load: '+esc(s.name)+'</button><button data-cdel="'+s.id+'" class="btn" aria-label="Delete '+esc(s.name)+'">✕</button></div>'; });
     html+='</section>';
@@ -959,6 +1061,7 @@ function renderAutocad(){
   if(cs.deck==="save"){
     document.getElementById("c-savename").addEventListener("input",function(e){ cs.saveName=e.target.value; });
     document.getElementById("c-save").addEventListener("click",function(){ addSave("autocad", cs.saveName||"Untitled drawing", JSON.stringify({shapes:cs.shapes,layers:cs.layers})); renderAutocad(); });
+    document.getElementById("c-share").addEventListener("click",function(){ var link=buildShareLink("autocad", cs.saveName||"Untitled drawing", {shapes:cs.shapes,layers:cs.layers}, commentsFor("autocad")); presentShareLink(link, this); });
     root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){} renderAutocad(); }); });
     root.querySelectorAll("[data-cdel]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("autocad", Number(b.getAttribute("data-cdel"))); renderAutocad(); }); });
   }
@@ -969,23 +1072,119 @@ function renderAutocad(){
 "use strict";
 /* ================= app shell: workspaces, progress, tutor ================= */
 var TOTAL_ITEMS=H_LESSONS.length+C_LESSONS.length+H_DRILLS.length+4;
-var currentWs="holoplot";
+var currentWs="holoplot", currentPage="holoplot";
+var aggState={ openLesson:null, commentWs:"holoplot", commentFilter:"all", replyOpen:null, author:"Isaac" };
 function renderProgress(){
   var n=doneSet().size, pct=Math.round(n/TOTAL_ITEMS*100);
-  document.getElementById("progress-label").textContent=n+"/"+TOTAL_ITEMS+" · "+pct+"%";
-  var f=document.getElementById("progress-fill"); f.style.width=pct+"%"; f.style.background=currentWs==="holoplot"?"var(--cyan)":"var(--amber)";
+  var lbl=document.getElementById("progress-label"); if(lbl) lbl.textContent=n+"/"+TOTAL_ITEMS+" · "+pct+"%";
+  var f=document.getElementById("progress-fill"); if(f){ f.style.width=pct+"%"; f.style.background=currentWs==="holoplot"?"var(--cyan)":"var(--amber)"; }
 }
-function setWorkspace(ws){
-  currentWs=ws;
-  document.getElementById("ws-holoplot").hidden=ws!=="holoplot";
-  document.getElementById("ws-autocad").hidden=ws!=="autocad";
-  var th=document.getElementById("tab-holoplot"), tc=document.getElementById("tab-autocad");
-  th.className=ws==="holoplot"?"on-h":""; tc.className=ws==="autocad"?"on-c":"";
-  th.setAttribute("aria-selected",ws==="holoplot"); tc.setAttribute("aria-selected",ws==="autocad");
+function downloadJSON(filename, obj){
+  try{ var blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}); var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },800); }catch(e){}
+}
+function renderLessonsPage(){
+  var el=document.getElementById("page-lessons"); if(!el) return;
+  el.innerHTML='<div class="page-scroll"><h2 style="margin:0;font-size:20px">📚 Lessons — both topics in one place</h2><p style="color:var(--dim);font-size:14px;margin:6px 0 0">HOLOPLOT and AutoCAD lessons together. Open one, read it, try it in its workspace, then mark it complete. Progress counts toward the header bar.</p>'+
+  '<h3 style="margin:18px 0 0">◉ HOLOPLOT</h3><div id="agg-h-lessons">'+lessonsHTML(H_LESSONS, aggState.openLesson)+'</div>'+
+  '<h3 style="margin:18px 0 0">⌖ AutoCAD</h3><div id="agg-c-lessons">'+lessonsHTML(C_LESSONS, aggState.openLesson)+'</div></div>';
+  wireLessons(document.getElementById("agg-h-lessons"), H_LESSONS, aggState, renderLessonsPage);
+  wireLessons(document.getElementById("agg-c-lessons"), C_LESSONS, aggState, renderLessonsPage);
+}
+function renderDrillsPage(){
+  var el=document.getElementById("page-drills"); if(!el) return;
+  var comp=hCompute(), stats=comp.stats, done=doneSet();
+  var h='<div class="page-scroll"><h2 style="margin:0;font-size:20px">🎯 Drills — both topics in one place</h2><p style="color:var(--dim);font-size:14px;margin:6px 0 0">HOLOPLOT drills check your live coverage map. AutoCAD drills check your live drawing. Do the work in the workspace, then claim here or there — both stay in sync.</p>';
+  h+='<h3 style="margin:18px 0 0">◉ HOLOPLOT coverage drills</h3><div class="grid3">';
+  H_DRILLS.forEach(function(d){ var pass=d.test(stats)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2); var isDone=done.has(d.id);
+    h+='<div class="card" style="margin-top:8px;padding:14px"><p style="margin:0;font-weight:700">'+esc(d.title)+'</p><p style="font-size:14px;color:var(--dim);margin:4px 0 0">'+esc(d.goal)+'</p><p class="mono" style="font-size:13px;margin:6px 0 0">Now: avg '+stats.avg+' dB · ±'+stats.uni+' dB · spill '+stats.spill+'%</p><button data-agg-hdrill="'+d.id+'" '+((!pass||isDone)?"disabled":"")+' class="btn" style="margin-top:10px;width:100%">'+(isDone?"Completed ✓":pass?"Claim drill ✓":"Keep steering in HOLOPLOT…")+'</button></div>'; });
+  h+='</div><h3 style="margin:18px 0 0">⌖ AutoCAD drafting drills</h3><div class="grid2">';
+  cDrills().forEach(function(d){ var isDone=done.has(d.id);
+    h+='<div class="card" style="margin-top:8px;padding:14px;display:flex;gap:12px;align-items:center"><span style="font-size:20px">'+((d.pass||isDone)?"✅":"⬜")+'</span><div style="flex:1"><p style="margin:0;font-weight:700">'+esc(d.title)+'</p><p style="margin:2px 0 0;font-size:14px;color:var(--dim)">'+esc(d.hint)+'</p></div><button data-agg-cdrill="'+d.id+'" '+((!d.pass||isDone)?"disabled":"")+' class="btn">'+(isDone?"Done":"Claim")+'</button></div>'; });
+  h+='</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="agg-go-h" style="flex:1">Open HOLOPLOT workspace ›</button><button class="btn" id="agg-go-c" style="flex:1">Open AutoCAD workspace ›</button></div></div>';
+  el.innerHTML=h;
+  el.querySelectorAll("[data-agg-hdrill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-agg-hdrill")); renderDrillsPage(); renderHoloplot(); }); });
+  el.querySelectorAll("[data-agg-cdrill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-agg-cdrill")); renderDrillsPage(); renderAutocad(); }); });
+  document.getElementById("agg-go-h").addEventListener("click",function(){ setPage("holoplot"); });
+  document.getElementById("agg-go-c").addEventListener("click",function(){ setPage("autocad"); });
+}
+function renderProjectsPage(){
+  var el=document.getElementById("page-projects"); if(!el) return;
+  function block(ws,title){
+    var list=store.saves[ws]; var h='<h3 style="margin:18px 0 0">'+title+' ('+list.length+')</h3>';
+    if(!list.length) h+='<p style="color:var(--dim);font-size:14px">Nothing saved yet. Save from the workspace Save deck and it will appear here with its comments.</p>';
+    list.forEach(function(s){ var cc=(s.comments||[]).length;
+      h+='<div class="card" style="margin-top:8px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center"><div style="flex:1;min-width:180px"><p style="margin:0;font-weight:700">'+esc(s.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--dim)">'+new Date(s.id).toLocaleString()+' · '+cc+' comment'+(cc===1?"":"s")+' bundled</p></div>'+
+      '<button class="btn btn-sm" data-proj-load="'+ws+':'+s.id+'">Load</button><button class="btn btn-sm" data-proj-share="'+ws+':'+s.id+'">🔗 Share link</button><button class="btn btn-sm" data-proj-export="'+ws+':'+s.id+'">⬇ Export</button><button class="btn btn-sm" data-proj-del="'+ws+':'+s.id+'" aria-label="Delete '+esc(s.name)+'">✕ Delete</button></div>'; });
+    return h;
+  }
+  el.innerHTML='<div class="page-scroll"><h2 style="margin:0;font-size:20px">💾 Projects — saved designs &amp; drawings</h2><p style="color:var(--dim);font-size:14px;margin:6px 0 0">Your whole library for both workspaces in one place, stored on this device in this browser. Export downloads a JSON file containing the design/drawing plus the comments bundled with it, so work travels with its discussion.</p>'+
+  block("holoplot","◉ HOLOPLOT designs")+block("autocad","⌖ AutoCAD drawings")+
+  '<button class="btn" id="proj-export-all" style="width:100%;margin-top:18px">⬇ Export everything (designs, drawings &amp; all comments) as JSON</button></div>';
+  el.querySelectorAll("[data-proj-load]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-load").split(":"); var ws=p[0], id=Number(p[1]); var s=store.saves[ws].find(function(x){return x.id===id;}); if(!s) return;
+    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hs.venueId=d.venueId; hs.arrays=d.arrays; hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
+    if(ws==="holoplot") renderHoloplot(); else renderAutocad(); setPage(ws); }); });
+  el.querySelectorAll("[data-proj-del]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-del").split(":"); deleteSave(p[0], Number(p[1])); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); }); });
+  el.querySelectorAll("[data-proj-share]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-share").split(":"); var s=store.saves[p[0]].find(function(x){return x.id===Number(p[1]);}); if(!s) return; var dobj={}; try{ dobj=JSON.parse(s.data); }catch(e){} presentShareLink(buildShareLink(p[0], s.name, dobj, s.comments||[]), b); }); });
+  el.querySelectorAll("[data-proj-export]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-export").split(":"); var s=store.saves[p[0]].find(function(x){return x.id===Number(p[1]);}); if(s) downloadJSON(s.name.replace(/[^a-z0-9-_]+/gi,"-")+".json", s); }); });
+  document.getElementById("proj-export-all").addEventListener("click",function(){ downloadJSON("holoplot-autocad-projects.json", store); });
+}
+function renderCommentsPage(){
+  var el=document.getElementById("page-comments"); if(!el) return;
+  var filter=aggState.commentFilter;
+  var list=store.comments.filter(function(c){ return filter==="all"||c.ws===filter; }).slice().reverse();
+  var curTarget= aggState.commentWs==="holoplot" ? (hs.saveName||"Current HOLOPLOT design") : (cs.saveName||"Current AutoCAD drawing");
+  var h='<div class="page-scroll"><h2 style="margin:0;font-size:20px">💬 Comments</h2>'+
+  '<p style="color:var(--dim);font-size:14px;margin:6px 0 0;line-height:1.55"><strong style="color:var(--text)">On-device comments for now.</strong> Comments live in this browser on this device, attached to a HOLOPLOT design or AutoCAD drawing. When you save a design/drawing, its workspace comments are bundled into that save and into its export, so the discussion travels with the work. This is not live multi-user editing yet — real-time collaboration needs a shared backend, which is a separate follow-on.</p>';
+  h+='<section class="card" style="padding:14px;margin-top:12px"><h3 style="margin:0;font-size:16px">Add a comment</h3>'+
+  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><div class="mode-switch" role="group" aria-label="Comment workspace"><button data-cws="holoplot" class="'+(aggState.commentWs==="holoplot"?"on-p":"")+'">◉ HOLOPLOT</button><button data-cws="autocad" class="'+(aggState.commentWs==="autocad"?"on-e":"")+'" style="'+(aggState.commentWs==="autocad"?"background:var(--amber-dim);color:#FCD34D":"")+'">⌖ AutoCAD</button></div>'+
+  '<input id="cm-author" class="field" style="flex:1;min-width:140px" value="'+esc(aggState.author)+'" aria-label="Your name" placeholder="Your name"/></div>'+
+  '<p style="font-size:13px;color:var(--dim);margin:8px 0 0">Attaching to: <strong style="color:var(--text)">'+esc(curTarget)+'</strong></p>'+
+  '<label class="sr-only" for="cm-text">Comment text</label><textarea id="cm-text" class="field" rows="3" style="margin-top:8px;resize:vertical" placeholder="e.g. Balcony beam feels hot at the back — check tilt before the show…"></textarea>'+
+  '<button id="cm-add" class="btn" style="width:100%;margin-top:10px;background:var(--cyan);color:#000;border:0">Post comment</button><p id="cm-msg" style="font-size:13px;margin:8px 0 0;color:var(--green)" role="status"></p></section>';
+  h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap" role="group" aria-label="Filter comments">'+[["all","All"],["holoplot","HOLOPLOT"],["autocad","AutoCAD"]].map(function(f){return '<button class="btn btn-sm'+(filter===f[0]?" tog-on":"")+'" data-cfilter="'+f[0]+'">'+f[1]+' ('+(f[0]==="all"?store.comments.length:commentsFor(f[0]).length)+')</button>';}).join("")+'</div>';
+  if(!list.length) h+='<p style="color:var(--dim);font-size:15px;margin-top:14px">No comments here yet. Post the first one above — a note to your future self, or a question to pick up with a collaborator once live sync lands.</p>';
+  list.forEach(function(c){
+    h+='<article class="comment-card'+(c.resolved?" resolved":"")+'"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="badge">'+(c.ws==="holoplot"?"◉ HOLOPLOT":"⌖ AutoCAD")+'</span><span class="badge">'+esc(c.target)+'</span>'+(c.resolved?'<span class="badge" style="color:var(--green)">✓ Resolved</span>':'<span class="badge">Open</span>')+'<span style="margin-left:auto;font-size:12px;color:var(--dim)">'+esc(c.created)+'</span></div>'+
+    '<p style="margin:8px 0 0;font-size:15px;line-height:1.55"><strong>'+esc(c.author)+':</strong> '+esc(c.text)+'</p>';
+    (c.replies||[]).forEach(function(r){ h+='<div class="reply-box"><p style="margin:0;font-size:14px;line-height:1.5"><strong>'+esc(r.author)+':</strong> '+esc(r.text)+'</p><p style="margin:2px 0 0;font-size:11px;color:var(--dim)">'+esc(r.created)+'</p></div>'; });
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-sm" data-creply="'+c.id+'">↩ Reply</button><button class="btn btn-sm" data-cresolve="'+c.id+'">'+(c.resolved?"Reopen":"✓ Resolve")+'</button><button class="btn btn-sm" data-cdel="'+c.id+'">✕ Delete</button></div>';
+    if(aggState.replyOpen===c.id) h+='<div style="margin-top:10px"><label class="sr-only" for="cm-reply-'+c.id+'">Reply text</label><textarea id="cm-reply-'+c.id+'" class="field" rows="2" placeholder="Write a reply…"></textarea><button class="btn" data-creply-send="'+c.id+'" style="width:100%;margin-top:8px">Post reply</button></div>';
+    h+='</article>';
+  });
+  h+='</div>'; el.innerHTML=h;
+  el.querySelectorAll("[data-cws]").forEach(function(b){ b.addEventListener("click",function(){ aggState.commentWs=b.getAttribute("data-cws"); renderCommentsPage(); }); });
+  el.querySelectorAll("[data-cfilter]").forEach(function(b){ b.addEventListener("click",function(){ aggState.commentFilter=b.getAttribute("data-cfilter"); renderCommentsPage(); }); });
+  document.getElementById("cm-author").addEventListener("input",function(e){ aggState.author=e.target.value; });
+  document.getElementById("cm-add").addEventListener("click",function(){ var t=document.getElementById("cm-text").value.trim(); if(!t){ document.getElementById("cm-msg").textContent="Write something first, then post."; return; } addComment(aggState.commentWs, curTarget, aggState.author, t); renderCommentsPage(); });
+  el.querySelectorAll("[data-creply]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-creply")); aggState.replyOpen=aggState.replyOpen===id?null:id; renderCommentsPage(); var ta=document.getElementById("cm-reply-"+id); if(ta) ta.focus(); }); });
+  el.querySelectorAll("[data-creply-send]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-creply-send")); var ta=document.getElementById("cm-reply-"+id); var t=ta?ta.value.trim():""; if(!t) return; addReply(id, aggState.author, t); aggState.replyOpen=null; renderCommentsPage(); }); });
+  el.querySelectorAll("[data-cresolve]").forEach(function(b){ b.addEventListener("click",function(){ toggleResolveComment(Number(b.getAttribute("data-cresolve"))); renderCommentsPage(); }); });
+  el.querySelectorAll("[data-cdel]").forEach(function(b){ b.addEventListener("click",function(){ deleteComment(Number(b.getAttribute("data-cdel"))); renderCommentsPage(); }); });
+}
+function setPage(page){
+  currentPage=page; if(page==="holoplot"||page==="autocad") currentWs=page;
+  document.getElementById("ws-holoplot").hidden=page!=="holoplot";
+  document.getElementById("ws-autocad").hidden=page!=="autocad";
+  document.getElementById("page-lessons").hidden=page!=="lessons";
+  document.getElementById("page-drills").hidden=page!=="drills";
+  document.getElementById("page-projects").hidden=page!=="projects";
+  document.getElementById("page-comments").hidden=page!=="comments";
+  document.querySelectorAll(".pagebar [data-page]").forEach(function(b){ var on=b.getAttribute("data-page")===page; b.className=on?(page==="autocad"?"on-c":"on"):""; b.setAttribute("aria-selected",on); });
+  var th=document.getElementById("tab-holoplot2"), tc=document.getElementById("tab-autocad2");
+  if(th){ th.className=currentWs==="holoplot"?"on-h":""; th.setAttribute("aria-selected",currentWs==="holoplot"); }
+  if(tc){ tc.className=currentWs==="autocad"?"on-c":""; tc.setAttribute("aria-selected",currentWs==="autocad"); }
+  if(page==="lessons") renderLessonsPage();
+  if(page==="drills") renderDrillsPage();
+  if(page==="projects") renderProjectsPage();
+  if(page==="comments") renderCommentsPage();
   renderProgress();
 }
-document.getElementById("tab-holoplot").addEventListener("click",function(){ setWorkspace("holoplot"); });
-document.getElementById("tab-autocad").addEventListener("click",function(){ setWorkspace("autocad"); });
+function setWorkspace(ws){ setPage(ws); }
+document.querySelectorAll(".pagebar [data-page]").forEach(function(b){ b.addEventListener("click",function(){ setPage(b.getAttribute("data-page")); }); });
+document.getElementById("tab-holoplot2").addEventListener("click",function(){ setPage("holoplot"); });
+document.getElementById("tab-autocad2").addEventListener("click",function(){ setPage("autocad"); });
 
 /* tutor */
 var tutorOn=true, tutorSel="", tutorExpl="", tutorOpen=false;
@@ -1041,11 +1240,38 @@ document.addEventListener("selectionchange",function(){ window.clearTimeout(selT
 document.addEventListener("mouseup",captureSelection);
 document.addEventListener("touchend",function(){ window.setTimeout(captureSelection,300); });
 
+/* shared snapshot loading */
+function applyShared(p){
+  if(!p||!p.ws||!p.data) return false;
+  pendingShared=p;
+  if(p.ws==="holoplot"){ if(p.data.venueId) hs.venueId=p.data.venueId; if(p.data.arrays) hs.arrays=p.data.arrays; hs.saveName=(p.name||"Shared design")+" (shared copy)"; renderHoloplot(); }
+  else { if(p.data.shapes) cs.shapes=p.data.shapes; if(p.data.layers) cs.layers=p.data.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=(p.name||"Shared drawing")+" (shared copy)"; renderAutocad(); }
+  var b=document.getElementById("shared-banner"); b.hidden=false;
+  document.getElementById("shared-banner-text").textContent="“"+(p.name||"Untitled")+"” — "+(p.ws==="holoplot"?"HOLOPLOT design":"AutoCAD drawing")+" with "+((p.comments||[]).length)+" comment(s) in the link. This is a snapshot: save a copy to keep and edit it in your own library; edits do not flow back to the sender.";
+  setPage(p.ws);
+  return true;
+}
+function checkSharedLink(){
+  var h=window.location.hash||""; var m=h.match(/#share=([A-Za-z0-9\-_]+)/); if(!m) return;
+  var p=shareDecode(m[1]); if(p) applyShared(p);
+}
+document.getElementById("shared-dismiss").addEventListener("click",function(){ document.getElementById("shared-banner").hidden=true; pendingShared=null; });
+document.getElementById("shared-save").addEventListener("click",function(){
+  if(!pendingShared) return; var p=pendingShared;
+  (p.comments||[]).forEach(function(c){ if(!store.comments.some(function(x){return x.id===c.id;})) store.comments.push(c); });
+  addSave(p.ws, p.name||"Shared design", JSON.stringify(p.data));
+  /* addSave snapshots current comments; ensure shared comments are the bundled ones */
+  var sv=store.saves[p.ws][store.saves[p.ws].length-1]; if(sv) sv.comments=(p.comments||[]).map(function(c){return JSON.parse(JSON.stringify(c));});
+  persist(); pendingShared=null; document.getElementById("shared-banner").hidden=true; setPage("projects");
+});
+window.addEventListener("hashchange",checkSharedLink);
+
 /* init */
 renderHoloplot();
 renderAutocad();
 renderTutor();
 setWorkspace("holoplot");
+checkSharedLink();
 </script>
 </body>
 </html>
