@@ -300,6 +300,7 @@ try{ var raw=localStorage.getItem(LS_KEY); if(raw){ var p=JSON.parse(raw); if(p&
 if(!Array.isArray(store.comments)) store.comments=[];
 if(!store.saves.holoplot) store.saves.holoplot=[];
 if(!store.saves.autocad) store.saves.autocad=[];
+if(!Array.isArray(store.speakerGroups)) store.speakerGroups=[];
 if(!store.mapPrefs||typeof store.mapPrefs!=="object") store.mapPrefs={res:"low",renderMode:"live"};
 if(store.mapPrefs.res!=="high") store.mapPrefs.res="low";
 if(store.mapPrefs.renderMode!=="ondemand") store.mapPrefs.renderMode="live";
@@ -525,7 +526,8 @@ var H_LESSONS=[
 var H_DRILLS=[
   {id:"hd1",title:"Drill A — Even Stalls",goal:"Avg SPL 82–92 dB in the audience AND uniformity ≤ 6 dB",test:function(s){return s.avg>=82&&s.avg<=92&&s.uni<=6;}},
   {id:"hd2",title:"Drill B — Tame the spill",goal:"Keep avg ≥ 80 dB while spill cells (>75 dB outside audience) ≤ 18%",test:function(s){return s.avg>=80&&s.spill<=18;}},
-  {id:"hd3",title:"Drill C — Two-zone balance",goal:"Run 2+ arrays on, avg 84–94 dB, uniformity ≤ 4.5 dB",test:function(s){return s.avg>=84&&s.avg<=94&&s.uni<=4.5;},needs2:true}
+  {id:"hd3",title:"Drill C — Two-zone balance",goal:"Run 2+ arrays on, avg 84–94 dB, uniformity ≤ 4.5 dB",test:function(s){return s.avg>=84&&s.avg<=94&&s.uni<=4.5;},needs2:true},
+  {id:"hd4",title:"Drill D — Hit the target",goal:"Bring EVERY zone's average inside its practice target ± tolerance (all zone chips green). Start: at least one zone is out — steer, balance gains, or add a beam aimed at the weak zone.",test:function(s,c){return !!(c&&c.allZonesInTol);}}
 ];
 
 var H_FADER_HOME={1:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:-6,y:4},2:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:6,y:4},3:{az:0,tilt:0,hBeam:20,vBeam:12,gain:0,x:0,y:4}};
@@ -539,15 +541,57 @@ var hs={
   renderMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.renderMode:"live",
   renderDirty:false, _comp:null, _renderSig:null, _renderMs:0, _previewing:false, _snapArrays:null,
   zoomPlan:{k:1,x:0,y:0}, zoomSide:{k:1,x:0,y:0},
+  selBeam:0, layerOn:{Main:true,Balcony:true,Fill:true}, zoneTargets:{}, linked:[], _arrCache:{}, invertPan:false, invertTilt:false, fanAmt:24, fanMsg:"", groupName:"",
   arrays:[
-    {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
-    {id:2,name:"Array R",model:"X2",x:6,y:4,az:10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
-    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,on:false}
+    {id:1,name:"Array L",model:"X2",x:-6,y:4,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:2,name:"Array R",model:"X2",x:6,y:4,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
   ]
 };
 var hLP=makeLongPress();
 function hVenue(){ return VENUES.find(function(v){return v.id===hs.venueId;})||VENUES[0]; }
 function hCur(){ return hs.arrays.find(function(a){return a.id===hs.sel;})||hs.arrays[0]; }
+var H_LAYERS=["Main","Balcony","Fill"];
+function hBeams(a){ if(!a.beams||!a.beams.length){ a.beams=[{az:a.az||0,tilt:a.tilt||0,hBeam:a.hBeam||28,vBeam:a.vBeam||18,gain:a.gain||0,zone:(hVenue().zones[0]||{}).name||"",layer:"Main"}]; } return a.beams; }
+function hCurBeam(){ var bs=hBeams(hCur()); if(hs.selBeam>=bs.length) hs.selBeam=0; return bs[hs.selBeam]; }
+function hBeamHome(arrId,idx,key){ if(idx===0){ var h=H_FADER_HOME[arrId]||{}; if(h[key]!==undefined) return h[key]; } var d={az:0,tilt:0,hBeam:28,vBeam:18,gain:0}; return d[key]; }
+var H_PARAM_RANGE={az:[-40,40],tilt:[-15,25],hBeam:[10,60],vBeam:[8,40],gain:[-12,12]};
+function hClampParam(key,v){ var r=H_PARAM_RANGE[key]; return r?Math.min(r[1],Math.max(r[0],v)):v; }
+function hIsLinked(id){ return (hs.linked||[]).indexOf(id)>=0; }
+function hGroupOrder(){ return hLinkedArrays().slice().sort(function(p,q){return p.x-q.x;}); }
+function hGroupSign(a){ var grp=hGroupOrder(), n=grp.length; if(n<2) return 1; var i=grp.findIndex(function(x){return x.id===a.id;}); var mid=(n-1)/2; return i<mid?1:(i>mid?-1:0); }
+function hLinkedArrays(){ return hs.arrays.filter(function(a){return hIsLinked(a.id);}); }
+function hApplyParamTo(arrId,beamIdx,key,newVal){ var a=hs.arrays.find(function(x){return x.id===arrId;}); if(!a) return; var b=hBeams(a)[beamIdx]; if(!b) return; newVal=hClampParam(key,newVal); var delta=newVal-b[key]; b[key]=newVal;
+  if(delta&&hIsLinked(arrId)){ var mirrored=(key==="az"&&hs.invertPan)||(key==="tilt"&&hs.invertTilt); var srcSign=mirrored?hGroupSign(a):1;
+    hLinkedArrays().forEach(function(oa){ if(oa.id===arrId) return; var ob=hBeams(oa)[beamIdx]; if(!ob) return; var d=mirrored?(delta*srcSign*hGroupSign(oa)):delta; ob[key]=hClampParam(key,ob[key]+d); }); } }
+function hToggleInvert(key){ var grp=hGroupOrder(); if(grp.length<2) return; var on=(key==="az")?hs.invertPan:hs.invertTilt;
+  if(!on){ var idx=hs.selBeam; grp.forEach(function(a){ var b=hBeams(a)[idx]; if(b) b[key]=hClampParam(key,-b[key]); }); }
+  if(key==="az") hs.invertPan=!on; else hs.invertTilt=!on; }
+function hFan(key){ var grp=hGroupOrder(); if(grp.length<2) return; var idx=hs.selBeam, n=grp.length, amt=Number(hs.fanAmt)||0;
+  var vals=grp.map(function(a){ var b=hBeams(a)[idx]; return b?b[key]:0; });
+  var mean=vals.reduce(function(x,y){return x+y;},0)/n, clamped=false, set=[];
+  grp.forEach(function(a,i){ var b=hBeams(a)[idx]; if(!b) return; var raw=Math.round((mean+(i-(n-1)/2)*(amt/(n-1)))*10)/10; var v=hClampParam(key,raw); if(v!==raw) clamped=true; b[key]=v; set.push(v); });
+  var label=(key==="az"?"pan":(key==="tilt"?"tilt":"gain")), unit=(key==="gain"?" dB":"°");
+  function fmt(v){ return (Math.round(v*10)/10)+unit; }
+  hs.fanMsg="Fanned "+label+" across "+grp.map(function(a){return a.name;}).join(" + ")+": "+fmt(Math.min.apply(null,set))+" … "+fmt(Math.max.apply(null,set))+" around "+fmt(mean)+(clamped?" — some values clamped to the parameter limits":""); }
+function hSetBeamParam(key,newVal){ hApplyParamTo(hs.sel,hs.selBeam,key,newVal); }
+function hResetBeamParam(key){ var a=hCur(), idx=hs.selBeam, linked=hIsLinked(a.id); var targets=linked?hLinkedArrays():[a];
+  targets.forEach(function(oa){ var ob=hBeams(oa)[idx]; if(ob) ob[key]=hBeamHome(oa.id,idx,key); });
+  hs.faderMsg=H_FADER_LABEL[key]+" reset"+(linked?" for the whole link group ("+targets.map(function(t){return t.name;}).join(" + ")+")":" to "+hBeamHome(a.id,idx,key)+H_FADER_UNIT[key])+" — map updated."; }
+function hZoneTarget(name){ var vt=(hs.zoneTargets||{})[hs.venueId]||{}; return vt[name]||{target:80,tol:3}; }
+function hSetZoneTarget(name,field,val){ if(!hs.zoneTargets[hs.venueId]) hs.zoneTargets[hs.venueId]={}; var cur=hZoneTarget(name); var nt={target:cur.target,tol:cur.tol}; nt[field]=val; hs.zoneTargets[hs.venueId][name]=nt; }
+function hMigrateArrays(list){ if(!Array.isArray(list)) return hs.arrays; return list.map(function(a){ var na={id:a.id,name:a.name,model:a.model||"X2",x:a.x,y:a.y,on:a.on!==false};
+  if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.map(function(b){ return {az:b.az||0,tilt:b.tilt||0,hBeam:b.hBeam||28,vBeam:b.vBeam||18,gain:b.gain||0,zone:b.zone||"",layer:b.layer||"Main"}; }); }
+  else { na.beams=[{az:a.az||0,tilt:a.tilt||0,hBeam:a.hBeam||28,vBeam:a.vBeam||18,gain:a.gain||0,zone:a.zone||"",layer:a.layer||"Main"}]; } return na; }); }
+function hLoadDesignData(d){ if(!d) return; if(d.venueId) hs.venueId=d.venueId; if(d.arrays) hs.arrays=hMigrateArrays(d.arrays);
+  if(d.zoneTargets) hs.zoneTargets=d.zoneTargets; if(d.layerOn) hs.layerOn={Main:d.layerOn.Main!==false,Balcony:d.layerOn.Balcony!==false,Fill:d.layerOn.Fill!==false};
+  hs.linked=Array.isArray(d.linked)?d.linked.filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}):[];
+  hs.invertPan=!!d.invertPan&&hs.linked.length>=2; hs.invertTilt=!!d.invertTilt&&hs.linked.length>=2; if(typeof d.fanAmt==="number") hs.fanAmt=d.fanAmt;
+  if(hs.arrays.length){ hs.sel=hs.arrays[0].id; } hs.selBeam=0; hs.editing=null; hs._arrCache={}; hs._comp=null; hs.renderDirty=false; }
+function hDesignData(){ return {venueId:hs.venueId, arrays:JSON.parse(JSON.stringify(hs.arrays)), zoneTargets:JSON.parse(JSON.stringify(hs.zoneTargets||{})), layerOn:Object.assign({},hs.layerOn), linked:(hs.linked||[]).slice(), invertPan:!!hs.invertPan, invertTilt:!!hs.invertTilt, fanAmt:hs.fanAmt}; }
+/* gain fader taper: slider position <-> dB via a log curve, so equal fader travel gives equal (perceptually even) dB steps across the range */
+function gainToPos(g){ var sg=g>=0?1:-1; return Math.round(500+sg*500*(Math.log1p(Math.abs(g))/Math.log1p(12))); }
+function posToGain(p){ var t=(p-500)/500; var sg=t>=0?1:-1; return Math.round(sg*(Math.expm1(Math.abs(t)*Math.log1p(12)))*10)/10; }
 function hArrVisible(id){ return hs.showHover && ((hs.hoverMode==="momentary"&&hs.hovered===id)||(hs.hoverMode==="latch"&&hs.latched.indexOf(id)>=0)||hs.editing===id); }
 function hZoomState(){ return hs.showSide?hs.zoomSide:hs.zoomPlan; }
 function hApplyView(){ var st=hZoomState(); var svg=document.querySelector("#ws-holoplot .map-shell svg"); if(svg) svg.setAttribute("viewBox", viewBoxStr(st,600,470)); var pct=document.getElementById("h-zoom-pct"); if(pct) pct.textContent=Math.round(st.k*100)+"%"; }
@@ -559,35 +603,64 @@ function wireHoloZoom(svg){ if(!svg) return; attachZoomPan(svg,{ getState:functi
 
 var H_RES_STEP={low:4, high:1};
 function hStep(){ return H_RES_STEP[hs.resMode]||4; }
-function hSignature(){ return JSON.stringify({v:hs.venueId, r:hs.resMode, a:hs.arrays.map(function(a){return [a.x,a.y,a.az,a.tilt,a.hBeam,a.vBeam,a.gain,a.on?1:0];})}); }
+function hSignature(){ return JSON.stringify({v:hs.venueId, r:hs.resMode, lo:hs.layerOn, zt:(hs.zoneTargets||{})[hs.venueId]||{}, lk:hs.linked, a:hs.arrays.map(function(a){return [a.x,a.y,a.on?1:0,hBeams(a).map(function(b){return [b.az,b.tilt,b.hBeam,b.vBeam,b.gain,b.zone,b.layer,hs.layerOn[b.layer]===false?0:1];})];})}); }
 function hCompute(stepOverride){
   var t0=(typeof performance!=="undefined"&&performance.now)?performance.now():Date.now();
   var step=stepOverride||hStep();
-  var venue=hVenue(), list=[];
+  var venue=hVenue();
   var gridCols=Math.ceil(venue.w/step), gridRows=Math.ceil(venue.d/step);
-  for(var gx=-venue.w/2; gx<venue.w/2; gx+=step) for(var gy=0; gy<venue.d; gy+=step){
-    var px=gx+step/2, py=gy+step/2, energy=0;
-    hs.arrays.forEach(function(a){ if(!a.on) return;
-      var dx=px-a.x, dy=py-a.y, dist=Math.sqrt(dx*dx+dy*dy+16);
-      var beamAng=Math.atan2(dx,dy)*180/Math.PI;
-      var diff=beamAng-a.az; while(diff>180)diff-=360; while(diff<-180)diff+=360;
-      var fall=-14*Math.pow(diff/Math.max(8,a.hBeam),2);
-      var spl=104+a.gain-20*Math.log10(Math.max(2,dist))+Math.max(-32,fall);
-      energy+=Math.pow(10,spl/10);
-    });
-    var splv=energy>0?10*Math.log10(energy):42;
-    var inAud=venue.zones.some(function(z){return px>=z.x&&px<=z.x+z.w&&py>=z.y&&py<=z.y+z.h;});
-    list.push({x:px,y:py,spl:splv,inAud:inAud});
-  }
+  var coords=[];
+  for(var gx=-venue.w/2; gx<venue.w/2; gx+=step) for(var gy=0; gy<venue.d; gy+=step){ coords.push({x:gx+step/2, y:gy+step/2}); }
+  /* PERFORMANCE CORE: each array's contribution grid is cached separately and the
+     cached grids are combined in the linear power domain — moving one array's beam
+     recomputes only that array. Combining cached power grids gives results identical
+     to a full recompute: cell = 10*log10(sum of beam powers). */
+  if(!hs._arrCache) hs._arrCache={};
+  var total=new Array(coords.length); for(var z0=0;z0<coords.length;z0++) total[z0]=0;
+  hs.arrays.forEach(function(a){
+    var key=step+"|"+venue.id+"|"+a.x+"|"+a.y+"|"+(a.on?1:0)+"|"+hBeams(a).map(function(b){return [b.az,b.hBeam,b.gain,hs.layerOn[b.layer]===false?0:1].join(",");}).join(";");
+    var energies=hs._arrCache[key];
+    if(!energies){
+      energies=new Array(coords.length); for(var z1=0;z1<coords.length;z1++) energies[z1]=0;
+      if(a.on){ hBeams(a).forEach(function(b){ if(hs.layerOn[b.layer]===false) return;
+        for(var i=0;i<coords.length;i++){ var px=coords[i].x, py=coords[i].y;
+          var dx=px-a.x, dy=py-a.y, dist=Math.sqrt(dx*dx+dy*dy+16);
+          var beamAng=Math.atan2(dx,dy)*180/Math.PI;
+          var diff=beamAng-b.az; while(diff>180)diff-=360; while(diff<-180)diff+=360;
+          var fall=-14*Math.pow(diff/Math.max(8,b.hBeam),2);
+          var spl=104+b.gain-20*Math.log10(Math.max(2,dist))+Math.max(-32,fall);
+          energies[i]+=Math.pow(10,spl/10); }
+      }); }
+      hs._arrCache[key]=energies;
+    }
+    for(var j=0;j<coords.length;j++) total[j]+=energies[j];
+  });
+  var list=coords.map(function(c,i){
+    var splv=total[i]>0?10*Math.log10(total[i]):42;
+    var zi=-1; for(var k=0;k<venue.zones.length;k++){ var zn=venue.zones[k]; if(c.x>=zn.x&&c.x<=zn.x+zn.w&&c.y>=zn.y&&c.y<=zn.y+zn.h){ zi=k; break; } }
+    return {x:c.x, y:c.y, spl:splv, inAud:zi>=0, zoneIdx:zi};
+  });
   var aud=list.filter(function(c){return c.inAud;}), out=list.filter(function(c){return !c.inAud;});
   var avg=aud.length?aud.reduce(function(s,c){return s+c.spl;},0)/aud.length:0;
   var mn=aud.length?Math.min.apply(null,aud.map(function(c){return c.spl;})):0;
   var mx=aud.length?Math.max.apply(null,aud.map(function(c){return c.spl;})):0;
   var spill=out.length?Math.round(out.filter(function(c){return c.spl>75;}).length/out.length*100):0;
   var coverage=aud.length?Math.round(aud.filter(function(c){return c.spl>=78;}).length/aud.length*100):0;
+  /* per-zone averages + goal scoring (practice targets) */
+  var zoneStats=venue.zones.map(function(zn,zi){
+    var cells=list.filter(function(c){return c.zoneIdx===zi;});
+    var zavg=cells.length?cells.reduce(function(s,c){return s+c.spl;},0)/cells.length:0;
+    var tg=hZoneTarget(zn.name);
+    var within=cells.length?cells.filter(function(c){return Math.abs(c.spl-tg.target)<=tg.tol;}).length:0;
+    return {name:zn.name, avg:Math.round(zavg*10)/10, target:tg.target, tol:tg.tol, miss:Math.round((zavg-tg.target)*10)/10,
+      inTol:cells.length>0&&Math.abs(zavg-tg.target)<=tg.tol, withinPct:cells.length?Math.round(within/cells.length*100):0, cells:cells.length};
+  });
+  var goalCells=0; aud.forEach(function(c){ if(c.zoneIdx>=0){ var tg2=hZoneTarget(venue.zones[c.zoneIdx].name); if(Math.abs(c.spl-tg2.target)<=tg2.tol) goalCells++; } });
+  var goal=aud.length?Math.round(goalCells/aud.length*100):0;
+  var allZonesInTol=zoneStats.length>0&&zoneStats.every(function(z){return z.inTol;});
   var t1=(typeof performance!=="undefined"&&performance.now)?performance.now():Date.now();
   var ms=Math.max(1,Math.round(t1-t0));
-  return {cells:list, step:step, gridCols:gridCols, gridRows:gridRows, ms:ms, stats:{avg:Math.round(avg*10)/10, uni:Math.round((mx-mn)/2*10)/10, min:Math.round(mn), max:Math.round(mx), spill:spill, coverage:coverage}};
+  return {cells:list, step:step, gridCols:gridCols, gridRows:gridRows, ms:ms, zones:zoneStats, goal:goal, allZonesInTol:allZonesInTol, stats:{avg:Math.round(avg*10)/10, uni:Math.round((mx-mn)/2*10)/10, min:Math.round(mn), max:Math.round(mx), spill:spill, coverage:coverage, goal:goal}};
 }
 function hDoForceRender(){
   var comp=hCompute();
@@ -621,24 +694,25 @@ function hPlanSVG(cells, step){
   var SX=function(mx){return 300+mx*9;}, SY=function(my){return 30+my*11;};
   var s='<svg id="h-svg" viewBox="'+viewBoxStr(hs.zoomPlan,600,470)+'" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
   cells.forEach(function(c){ s+='<rect x="'+SX(c.x-cellStep/2)+'" y="'+SY(c.y-cellStep/2)+'" width="'+(cellStep*9)+'" height="'+(cellStep*11)+'" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
-  venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
-    if(hs.showKeys) s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+'</text>'; });
+  if(hs.showKeys){ venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
+    s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+' zone</text>'; }); }
   s+='<rect x="'+SX(-venue.w/2)+'" y="'+SY(0)+'" width="'+(venue.w*9)+'" height="62" fill="#111827" stroke="#475569"/><text x="300" y="'+SY(2.5)+'" fill="#94A3B8" font-size="12" text-anchor="middle" font-weight="700">STAGE</text>';
-  hDisplayArrays().forEach(function(a){ if(!a.on) return; var rad=a.az*Math.PI/180, len=210;
-    var bx=SX(a.x)+Math.sin(rad)*len, by=SY(a.y)+Math.cos(rad)*len, spread=a.hBeam*Math.PI/180*len;
-    s+='<polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'" fill="#22D3EE" opacity="0.13"/><line x1="'+SX(a.x)+'" y1="'+SY(a.y)+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4" opacity="0.7"/>'; });
+  hDisplayArrays().forEach(function(a){ if(!a.on) return; hBeams(a).forEach(function(b){ if(hs.layerOn[b.layer]===false) return; var rad=b.az*Math.PI/180, len=210;
+    var bx=SX(a.x)+Math.sin(rad)*len, by=SY(a.y)+Math.cos(rad)*len, spread=b.hBeam*Math.PI/180*len;
+    s+='<polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'" fill="#22D3EE" opacity="0.13"/><line x1="'+SX(a.x)+'" y1="'+SY(a.y)+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4" opacity="0.7"/>'; }); });
   hDisplayArrays().forEach(function(a){
     s+='<g data-arr="'+a.id+'" style="cursor:pointer;opacity:'+(a.on?1:0.35)+'">';
     s+='<rect x="'+(SX(a.x)-44)+'" y="'+(SY(a.y)-26)+'" width="88" height="52" rx="8" fill="transparent"/>';
     s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
     if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+4)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(a.model)+'</text>';
+    if(hIsLinked(a.id)) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+28)+'" fill="#FCD34D" font-size="10" text-anchor="middle" font-weight="800">LINK</text>';
     if(hArrVisible(a.id)){
       var zk=hs.zoomPlan.k, vx=hs.zoomPlan.x, vy=hs.zoomPlan.y, vw=600/zk, vh=470/zk, tw=196/zk, th=62/zk;
       var tx=Math.max(vx+4/zk, Math.min(vx+vw-tw-4/zk, SX(a.x)+16/zk)), ty=Math.max(vy+4/zk, Math.min(vy+vh-th-4/zk, SY(a.y)-th-6/zk));
       s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+th+'" rx="'+(6/zk)+'" fill="#0F172A" stroke="#22D3EE" stroke-width="'+(1/zk)+'"/>'+
-        '<text x="'+(tx+8/zk)+'" y="'+(ty+16/zk)+'" fill="#A5F3FC" font-size="'+(10/zk)+'" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+'</text>'+
-        '<text x="'+(tx+8/zk)+'" y="'+(ty+30/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</text>'+
-        '<text x="'+(tx+8/zk)+'" y="'+(ty+44/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+16/zk)+'" fill="#A5F3FC" font-size="'+(10/zk)+'" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" · LINKED":"")+'</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+30/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">B1 Az '+hBeams(a)[0].az+'° · Tilt '+hBeams(a)[0].tilt+'° · Gain '+hBeams(a)[0].gain+' dB</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+44/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Beam '+hBeams(a)[0].hBeam+'° × '+hBeams(a)[0].vBeam+'° · Pos '+a.x+' m, '+a.y+' m</text>'+
         '<text x="'+(tx+8/zk)+'" y="'+(ty+57/zk)+'" fill="#8A919E" font-size="'+(9/zk)+'">'+(hs.hoverMode==="latch"?"Latched — tap array again to unpin":"Momentary — shows while hovering")+'</text></g>';
     }
     s+='</g>';
@@ -652,9 +726,9 @@ function hSideSVG(){
   s+='<rect x="40" y="330" width="90" height="70" fill="#111827" stroke="#475569"/><text x="85" y="370" fill="#94A3B8" font-size="11" text-anchor="middle">STAGE</text>';
   venue.zones.forEach(function(z,i){ var top=i===1?250:368;
     s+='<rect x="'+(120+z.y*8)+'" y="'+top+'" width="'+(z.h*8)+'" height="'+(i===1?28:32)+'" fill="#334155" stroke="#fff" stroke-dasharray="4 3"/><text x="'+(124+z.y*8)+'" y="'+(top-6)+'" fill="#fff" font-size="11">'+esc(z.name)+'</text>'; });
-  hDisplayArrays().filter(function(a){return a.on;}).forEach(function(a){ var rad=-a.tilt*Math.PI/180, x=110, y=300;
+  hDisplayArrays().filter(function(a){return a.on;}).forEach(function(a){ hBeams(a).forEach(function(b,bi){ if(hs.layerOn[b.layer]===false) return; var rad=-b.tilt*Math.PI/180, x=110, y=300;
     var bx=x+Math.cos(rad)*340, by=y+Math.sin(rad)*340;
-    s+='<polygon points="'+x+','+y+' '+bx+','+(by-38)+' '+bx+','+(by+38)+'" fill="#22D3EE" opacity="0.14"/><line x1="'+x+'" y1="'+y+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4"/><rect x="'+(x-14)+'" y="'+(y-18)+'" width="28" height="36" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff"/><text x="'+x+'" y="'+(y+52)+'" fill="#E6E8EB" font-size="10" text-anchor="middle">'+esc(a.name)+' · tilt '+a.tilt+'°</text>'; });
+    s+='<polygon points="'+x+','+y+' '+bx+','+(by-38)+' '+bx+','+(by+38)+'" fill="#22D3EE" opacity="0.14"/><line x1="'+x+'" y1="'+y+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4"/><rect x="'+(x-14)+'" y="'+(y-18)+'" width="28" height="36" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff"/><text x="'+x+'" y="'+(y+52+bi*14)+'" fill="#E6E8EB" font-size="10" text-anchor="middle">'+esc(a.name)+' B'+(bi+1)+' · tilt '+b.tilt+'°</text>'; }); });
   s+='<text x="300" y="40" fill="#E6E8EB" font-size="13" text-anchor="middle" font-weight="700">SIDE VIEW — raise Tilt to hit the balcony, lower it for stalls</text>';
   return s+'</svg>';
 }
@@ -707,36 +781,57 @@ function renderHoloplot(){
     html+='<p class="mono" style="padding:8px 12px;margin:0;font-size:11px;background:#0F172A;color:#8A919E">SPL legend hidden — turn Legend ON above to show the colour key.</p>';
   }
   var staleSuffix=hs.renderDirty?" · STALE":"";
-  var metrics=[["AVG SPL"+staleSuffix, hs.renderDirty?"⏳ "+stats.avg+" dB":stats.avg+" dB"],["UNIFORM ±"+staleSuffix,stats.uni+" dB"],["MIN"+staleSuffix,stats.min+" dB"],["MAX"+staleSuffix,stats.max+" dB"],["COVER ≥78"+staleSuffix,stats.coverage+"%"],["SPILL OUT"+staleSuffix,stats.spill+"%"]];
+  var metrics=[["AVG SPL"+staleSuffix, hs.renderDirty?"⏳ "+stats.avg+" dB":stats.avg+" dB"],["UNIFORM ±"+staleSuffix,stats.uni+" dB"],["MIN"+staleSuffix,stats.min+" dB"],["MAX"+staleSuffix,stats.max+" dB"],["COVER ≥78"+staleSuffix,stats.coverage+"%"],["SPILL OUT"+staleSuffix,stats.spill+"%"],["GOAL ✓"+staleSuffix,(stats.goal||0)+"%"]];
   html+='<div class="readout-grid'+(hs.renderDirty?" stale":"")+'" '+(hs.renderDirty?'data-stale="true" aria-label="Readouts are stale, render needed"':'')+'>'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
   if(hs.renderDirty) html+='<p class="mono" style="margin:0;padding:6px 10px;font-size:12px;font-weight:700;color:#FCD34D;background:#2A1A05">⏳ Pending — these readouts are from the last Render and have NOT updated yet. Press Render to update them.</p>';
   html+='</section></div><div class="scroll-panel" data-scroll-panel>';
+  /* zones, goal scoring & layers */
+  html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
+  '<h3 style="margin:0;font-size:15px">Audience zones &amp; goal — practice targets</h3>'+
+  '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Practice targets only, on a simplified model. Goal score: <strong id="h-goal-score" style="color:var(--text)">'+comp.goal+'%</strong> of audience cells within their zone target ± tolerance · '+(comp.allZonesInTol?'<span style="color:var(--green);font-weight:700">All zones in tolerance ✓</span>':'<span style="color:#FCD34D;font-weight:700">Some zones out of tolerance</span>')+'</p>'+
+  '<div class="grid2" style="margin-top:10px">';
+  (comp.zones||[]).forEach(function(z){ var col=z.inTol?"var(--green)":"#F59E0B";
+    html+='<div class="zone-chip" style="border-radius:12px;padding:12px;background:var(--surface2);border:2px solid '+col+'">'+
+    '<p style="margin:0;font-weight:700;font-size:16px">'+esc(z.name)+' zone <span style="float:right;color:'+col+'">'+(z.inTol?"✓ IN":"✗ OUT "+(z.miss>0?"+":"")+z.miss+" dB")+'</span></p>'+
+    '<p class="mono" style="font-size:14px;margin:4px 0 0">Avg <span data-zone-avg="'+esc(z.name)+'">'+z.avg+'</span> dB · target '+z.target+' ±'+z.tol+' dB · '+z.withinPct+'% of cells in band</p>'+
+    '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><label style="font-size:13px;font-weight:600;flex:1;min-width:110px">Target SPL dB<input type="number" step="1" value="'+z.target+'" data-ztarget="'+esc(z.name)+'" class="field" style="margin-top:4px;min-height:48px" aria-label="Practice target SPL for '+esc(z.name)+' zone"/></label>'+
+    '<label style="font-size:13px;font-weight:600;flex:1;min-width:110px">Tolerance ± dB<input type="number" step="0.5" min="0.5" value="'+z.tol+'" data-ztol="'+esc(z.name)+'" class="field" style="margin-top:4px;min-height:48px" aria-label="Tolerance in dB for '+esc(z.name)+' zone"/></label></div></div>'; });
+  html+='</div>'+
+  '<h3 style="margin:14px 0 0;font-size:15px">Layers — grouping + mute</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
+  H_LAYERS.forEach(function(L){ var n=0; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ if(b.layer===L) n++; }); }); var on=hs.layerOn[L]!==false;
+    html+='<button class="btn btn-sm" data-layer-tog="'+L+'" aria-pressed="'+on+'" style="'+(on?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"opacity:.65")+'">'+L+' layer · '+n+' beam'+(n===1?"":"s")+' · '+(on?"ON":"OFF")+'</button>'; });
+  html+='</div><p style="font-size:12px;margin:6px 0 0;color:var(--dim)">Turning a layer OFF removes its beams from the map and every readout.</p></div>';
 
   /* beam value chips */
   html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px">';
   html+='<h3 style="margin:0;font-size:15px">Beam values '+(hs.hoverMode==="latch"?"— tap a label to pin (latch) it":"— touch a label to see its values")+'</h3>';
   html+='<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(hs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its values.":"In Practice mode these labels are read-only. Switch to Edit Values to change them by long-press.")+'</p>';
   html+='<div class="grid3" style="margin-top:10px">';
-  hs.arrays.forEach(function(a){
-    var vis=hArrVisible(a.id);
-    html+='<div class="chip'+(vis?" lit-h":"")+(hs.editing===a.id?" editing":"")+'" data-chip="'+a.id+'" role="button" tabindex="0" aria-label="Beam values for '+esc(a.name)+': azimuth '+a.az+' degrees, tilt '+a.tilt+' degrees, gain '+a.gain+' dB, beam '+a.hBeam+' by '+a.vBeam+' degrees">'+
-      '<p style="margin:0;font-weight:700;font-size:16px">'+esc(a.name)+' · '+esc(a.model)+(a.on?" · ON":" · OFF")+'</p>'+
-      '<p class="mono" style="font-size:14px;margin:4px 0 0">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</p>'+
-      '<p class="mono" style="font-size:14px;margin:0">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</p>'+
+  hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b,bi){
+    var key=a.id+":"+bi, vis=hs.showHover&&((hs.hoverMode==="momentary"&&hs.hovered===key)||(hs.hoverMode==="latch"&&hs.latched.indexOf(key)>=0)||hs.editing===key);
+    html+='<div class="chip'+(vis?" lit-h":"")+(hs.editing===key?" editing":"")+'" data-bchip="'+key+'" role="button" tabindex="0" aria-label="Beam values for '+esc(a.name)+' beam '+(bi+1)+': azimuth '+b.az+' degrees, tilt '+b.tilt+' degrees, gain '+b.gain+' dB, beam '+b.hBeam+' by '+b.vBeam+' degrees, target zone '+esc(b.zone||"")+', layer '+esc(b.layer)+'">'+
+      '<p style="margin:0;font-weight:700;font-size:16px">'+esc(a.name)+' · Beam '+(bi+1)+(a.on?"":" · ARRAY OFF")+(hIsLinked(a.id)?" · 🔗 LINKED":"")+'</p>'+
+      '<p class="mono" style="font-size:14px;margin:4px 0 0">Az '+b.az+'° · Tilt '+b.tilt+'° · Gain '+b.gain+' dB</p>'+
+      '<p class="mono" style="font-size:14px;margin:0">Beam '+b.hBeam+'° × '+b.vBeam+'° · → '+esc(b.zone||"—")+' · '+esc(b.layer)+' layer'+(hs.layerOn[b.layer]===false?" (muted)":"")+'</p>'+
       (vis?'<p style="font-size:12px;margin:6px 0 0;color:#A5F3FC">'+(hs.hoverMode==="latch"?"📌 Latched: this label stays pinned — tap again to unpin.":"Momentary: showing while you touch it — lift off and it hides.")+'</p>':"")+
-      (hs.viewMode==="edit"?'<button class="btn btn-sm" data-edit-arr="'+a.id+'" style="margin-top:10px;background:var(--red);color:var(--red-text)" aria-label="Edit values for '+esc(a.name)+'">✎ Edit values</button>':"")+
+      (hs.viewMode==="edit"?'<button class="btn btn-sm" data-edit-beam="'+key+'" style="margin-top:10px;background:var(--red);color:var(--red-text)" aria-label="Edit values for '+esc(a.name)+' beam '+(bi+1)+'">✎ Edit values</button>':"")+
     '</div>';
-  });
+  }); });
   html+='</div>';
   if(hs.editMsg) html+='<p style="font-size:14px;margin:8px 0 0;font-weight:600;color:var(--green)" role="status">'+esc(hs.editMsg)+'</p>';
-  var ea=hs.arrays.find(function(a){return a.id===hs.editing;});
-  if(ea){
-    var fields=[["az","Azimuth °",ea.az],["tilt","Tilt °",ea.tilt],["hBeam","H beam width °",ea.hBeam],["vBeam","V beam width °",ea.vBeam],["gain","Gain dB",ea.gain],["x","Position X m",ea.x],["y","Position Y m",ea.y]];
+  var eparts=typeof hs.editing==="string"?hs.editing.split(":"):[];
+  var ea=eparts.length?hs.arrays.find(function(a){return a.id===Number(eparts[0]);}):null;
+  var eb=ea?hBeams(ea)[Number(eparts[1])||0]:null;
+  if(ea&&eb){
+    var fields=[["az","Azimuth °",eb.az],["tilt","Tilt °",eb.tilt],["hBeam","H beam width °",eb.hBeam],["vBeam","V beam width °",eb.vBeam],["gain","Gain dB",eb.gain],["x","Array position X m",ea.x],["y","Array position Y m",ea.y]];
+    var zoneOpts=[]; hVenue().zones.forEach(function(z){ zoneOpts.push(z.name); }); if(eb.zone&&zoneOpts.indexOf(eb.zone)<0) zoneOpts.push(eb.zone);
     html+='<form id="h-editform" style="border-radius:12px;padding:12px;margin-top:12px;background:#1F1517;border:1px solid var(--red)" aria-label="Edit beam values for '+esc(ea.name)+'">'+
-      '<p style="margin:0;font-weight:700;font-size:16px">✎ Editing '+esc(ea.name)+' — type new values, then Save</p>'+
+      '<p style="margin:0;font-weight:700;font-size:16px">✎ Editing '+esc(ea.name)+' · Beam '+(Number(eparts[1])+1)+' — type new values, then Save'+(hIsLinked(ea.id)?' · 🔗 Linked: beam edits apply as the same delta to the whole link group':'')+'</p>'+
       '<div class="grid2" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">'+
       fields.map(function(f){return '<label style="font-size:14px;font-weight:600">'+f[1]+'<input name="'+f[0]+'" type="number" step="0.5" value="'+f[2]+'" class="field" style="margin-top:6px" aria-label="'+f[1]+' for '+esc(ea.name)+'"/></label>';}).join("")+
-      '<label style="font-size:14px;font-weight:600">Powered on<br/><input id="h-edit-on" type="checkbox" '+(ea.on?"checked":"")+' style="margin-top:10px" aria-label="Powered on for '+esc(ea.name)+'"/></label>'+
+      '<label style="font-size:14px;font-weight:600">Target zone<select name="zone" class="field" style="margin-top:6px" aria-label="Target zone for this beam">'+zoneOpts.map(function(z){return '<option'+(z===eb.zone?" selected":"")+'>'+esc(z)+'</option>';}).join("")+'</select></label>'+
+      '<label style="font-size:14px;font-weight:600">Layer<select name="layer" class="field" style="margin-top:6px" aria-label="Layer for this beam">'+H_LAYERS.map(function(L){return '<option'+(L===eb.layer?" selected":"")+'>'+L+'</option>';}).join("")+'</select></label>'+
+      '<label style="font-size:14px;font-weight:600">Array powered on<br/><input id="h-edit-on" type="checkbox" '+(ea.on?"checked":"")+' style="margin-top:10px" aria-label="Powered on for '+esc(ea.name)+'"/></label>'+
       '</div><div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">'+
       '<button type="submit" class="btn" style="background:var(--cyan);color:#000;border:0;flex:1">Save values</button>'+
       '<button type="button" id="h-edit-cancel" class="btn" style="flex:1">Cancel</button></div></form>';
@@ -752,17 +847,51 @@ function renderHoloplot(){
     '<p id="fader-tip" style="font-size:13px;margin:6px 0 0;color:var(--dim)">Tip: <strong style="color:var(--text)">double-tap (or double-click) any fader</strong> to reset just that fader to its home value — azimuth, tilt and gain go to 0; beam width and position go back to their defaults. Dragging and the − / + steppers work as normal.</p>'+
     (hs.faderMsg?'<p class="fader-note" role="status">↺ '+esc(hs.faderMsg)+'</p>':"");
     html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">'+hs.arrays.map(function(a){
-      return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+'</button>';}).join("")+'</div>';
+      return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" 🔗 LINKED":"")+'</button>';}).join("")+'</div>';
     html+='<div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
       '<label style="display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;min-height:48px"><input type="checkbox" id="h-on" '+(cur.on?"checked":"")+'/> Powered on</label>'+
       '<div style="flex:1;min-width:180px"><label style="font-size:14px;font-weight:600" for="h-model">Module — '+esc(cur.name)+'</label>'+
       '<select id="h-model" class="field" style="margin-top:6px">'+["X1","X2","X1 + Sub"].map(function(m){return '<option'+(m===cur.model?" selected":"")+'>'+m+'</option>';}).join("")+'</select></div></div>';
+    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🔗 Speaker link — one group'+(hs.linked.length>=2?(' · Linked: '+hGroupOrder().map(function(a){return a.name;}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
+      '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.linked.length>=2?("Linked: "+hLinkedArrays().map(function(a){return a.name;}).join(" + ")+" — beam edits apply the SAME change (delta) to the matching beam on every linked speaker, preserving each speaker's own offsets. Gains move by equal dB deltas; the gain fader uses a logarithmic (dB) taper so equal travel gives equal dB steps."):"Link 2 or 3 speakers and beam edits move together by the same delta — offsets preserved, never snapped to identical values.")+'</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+hs.arrays.map(function(a){ var on=hIsLinked(a.id); return '<button class="btn btn-sm" data-link-tog="'+a.id+'" aria-pressed="'+on+'" style="'+(on?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(on?"🔗 Linked: ":"Link: ")+esc(a.name)+'</button>'; }).join("")+'</div></div>';
+    var hasGrp=hs.linked.length>=2;
+    html+='<div style="margin-top:12px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🪞 Mirror &amp; fan'+(hasGrp?(' — '+hGroupOrder().map(function(a){return esc(a.name);}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+      '<button class="btn btn-sm" data-invert="az" '+(hasGrp?"":"disabled")+' aria-pressed="'+hs.invertPan+'" style="'+(hs.invertPan?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Invert Pan: '+(hs.invertPan?"ON":"OFF")+'</button>'+
+      '<button class="btn btn-sm" data-invert="tilt" '+(hasGrp?"":"disabled")+' aria-pressed="'+hs.invertTilt+'" style="'+(hs.invertTilt?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Invert Tilt: '+(hs.invertTilt?"ON":"OFF")+'</button></div>'+
+      (hasGrp?'<p style="font-size:13px;margin:6px 0 0;color:var(--dim)">Turning Invert ON negates that axis on every linked speaker\'s selected beam right away; while ON, linked moves on that axis mirror across the group (with 3 linked, the centre speaker is unchanged by mirrored moves). Turning it OFF restores normal same-delta moves; values stay where they are.</p>':'<p style="font-size:13px;margin:6px 0 0;color:var(--dim)">Link 2 or 3 speakers above to enable Invert and Fan — they only work on a linked group.</p>')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px"><span style="font-weight:700;font-size:14px">Fan amount</span>'+
+      '<button class="stepper" data-fan-step="-1" '+(hasGrp?"":"disabled")+' aria-label="Decrease fan amount">−</button>'+
+      '<input id="h-fan-amt" type="number" step="1" value="'+hs.fanAmt+'" class="field" style="width:104px;min-height:48px" '+(hasGrp?"":"disabled")+' aria-label="Fan amount, degrees for pan and tilt, dB for gain"/>'+
+      '<button class="stepper" data-fan-step="1" '+(hasGrp?"":"disabled")+' aria-label="Increase fan amount">+</button>'+
+      '<button class="btn btn-sm" data-fan="az" '+(hasGrp?"":"disabled")+'>Fan Pan</button>'+
+      '<button class="btn btn-sm" data-fan="tilt" '+(hasGrp?"":"disabled")+'>Fan Tilt</button>'+
+      '<button class="btn btn-sm" data-fan="gain" '+(hasGrp?"":"disabled")+'>Fan Gain</button></div>'+
+      '<p style="font-size:13px;margin:6px 0 0;color:var(--dim)">Fan spreads the selected beam\'s value across the group in even steps centred on the group mean — the mean does not move.</p>'+
+      (hs.fanMsg?'<p class="fader-note" role="status">'+esc(hs.fanMsg)+'</p>':"")+'</div>';
+    html+='<div style="margin-top:12px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">👥 Speaker Groups — saved setups</p>'+
+      '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">A saved group stores link membership + Invert Pan/Tilt only — never speaker values. Applying one changes grouping and invert states only.</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input id="h-group-name" class="field" style="flex:1;min-width:160px" value="'+esc(hs.groupName||"")+'" placeholder="Group name, e.g. Mains L+R mirrored" aria-label="Speaker group name"/>'+
+      '<button class="btn btn-sm" id="h-group-save" '+(hasGrp?"":"disabled")+'>Save Group</button></div>'+
+      (hasGrp?"":'<p style="font-size:13px;margin:6px 0 0;color:#FCD34D">Link speakers first — Save Group needs a linked group.</p>')+
+      ((store.speakerGroups||[]).length?(store.speakerGroups.map(function(g){ return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:150px;font-weight:600">'+esc(g.name)+' <span style="color:var(--dim);font-weight:400">('+(g.linked||[]).map(function(id){ var ar=hs.arrays.find(function(x){return x.id===id;}); return ar?ar.name:String(id); }).join(" + ")+((g.invertPan||g.invertTilt)?(" · "+(g.invertPan?"Invert Pan ":"")+(g.invertTilt?"Invert Tilt":"")):"")+')</span></span><button class="btn btn-sm" data-group-apply="'+g.id+'">Apply</button><button class="btn btn-sm" data-group-del="'+g.id+'" aria-label="Delete speaker group '+esc(g.name)+'">✕ Delete</button></div>'; }).join("")):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">No saved groups yet.</p>')+'</div>';
+    var cbs=hBeams(cur), cbm=hCurBeam();
+    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of 3)</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+cbs.map(function(b,bi){ return '<button class="btn btn-sm" data-beam-sel="'+bi+'" aria-pressed="'+(bi===hs.selBeam)+'" style="'+(bi===hs.selBeam?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Beam '+(bi+1)+' → '+esc(b.zone||"—")+' · '+esc(b.layer)+'</button>'; }).join("")+
+      '<button class="btn btn-sm" id="h-add-beam" '+(cbs.length>=3?"disabled":"")+'>+ Add beam</button>'+
+      '<button class="btn btn-sm" id="h-del-beam" '+(cbs.length<=1?"disabled":"")+'>✕ Delete Beam '+(hs.selBeam+1)+'</button></div>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><label style="font-size:14px;font-weight:600;flex:1;min-width:150px">Beam '+(hs.selBeam+1)+' target zone<select id="h-beam-zone" class="field" style="margin-top:6px">'+(function(){ var opts=[]; hVenue().zones.forEach(function(z){ opts.push(z.name); }); if(cbm.zone&&opts.indexOf(cbm.zone)<0) opts.push(cbm.zone); return opts.map(function(z){ return '<option'+(z===cbm.zone?" selected":"")+'>'+esc(z)+'</option>'; }).join(""); })()+'</select></label>'+
+      '<label style="font-size:14px;font-weight:600;flex:1;min-width:150px">Beam '+(hs.selBeam+1)+' layer<select id="h-beam-layer" class="field" style="margin-top:6px">'+H_LAYERS.map(function(L){ return '<option'+(L===cbm.layer?" selected":"")+'>'+L+'</option>'; }).join("")+'</select></label></div>'+
+      '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">The fader bank below edits Beam '+(hs.selBeam+1)+' of '+esc(cur.name)+'. Up to 3 beams per array; each beam aims at its own zone on its own layer.</p></div>';
     var sliders=[["Azimuth (steer L/R)","az",-40,40,"°",1],["Tilt (steer up/down)","tilt",-15,25,"°",1],["Horizontal beam width","hBeam",10,60,"°",1],["Vertical beam width","vBeam",8,40,"°",1],["Gain","gain",-12,12," dB",0.5],["Position left/right","x",-Math.floor(venue.w/2)+3,Math.floor(venue.w/2)-3," m",1],["Position depth (from stage)","y",1,14," m",1]];
     html+='<div class="grid2">';
     sliders.forEach(function(s){
-      html+='<div class="slider-row"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+cur[s[1]]+s[4]+'</span></div>'+
+      var isPos=(s[1]==="x"||s[1]==="y"), sv=isPos?cur[s[1]]:hCurBeam()[s[1]];
+      var slAttrs=(s[1]==="gain")?('min="0" max="1000" step="1" value="'+gainToPos(sv)+'"'):('min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+sv+'"');
+      html+='<div class="slider-row"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+sv+s[4]+'</span></div>'+
       '<div style="display:flex;align-items:center;gap:8px"><button type="button" class="stepper" data-step="'+s[1]+':-1" aria-label="Decrease '+s[0]+'">−</button>'+
-      '<input id="h-sl-'+s[1]+'" type="range" min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+cur[s[1]]+'" data-slider="'+s[1]+'" title="Drag to adjust — double-tap to reset to home" aria-describedby="fader-tip" style="flex:1;min-width:0"/>'+
+      '<input id="h-sl-'+s[1]+'" type="range" '+slAttrs+' data-slider="'+s[1]+'" title="Drag to adjust — double-tap to reset to home" aria-describedby="fader-tip" style="flex:1;min-width:0"/>'+
       '<button type="button" class="stepper" data-step="'+s[1]+':1" aria-label="Increase '+s[0]+'">+</button></div></div>';
     });
     html+='</div><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">'+
@@ -772,7 +901,7 @@ function renderHoloplot(){
   if(hs.deck==="drills"){
     html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Coverage drills"><h2 style="margin:0;font-size:16px">🎯 COVERAGE DRILLS</h2><div class="grid3" style="margin-top:4px">';
     H_DRILLS.forEach(function(d){
-      var pass=d.test(stats)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2);
+      var pass=d.test(stats,comp)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2);
       var isDone=done.has(d.id);
       html+='<div style="margin-top:8px;border-radius:12px;padding:14px;background:var(--surface2)"><div style="display:flex;justify-content:space-between;gap:8px"><p style="margin:0;font-weight:700;font-size:16px">'+esc(d.title)+'</p><span style="font-size:12px;font-weight:700;color:'+(isDone?"var(--green)":pass?"var(--amber)":"var(--dim)")+'">'+(isDone?"✓ DONE":pass?"READY ✓":"IN PROGRESS")+'</span></div>'+
       '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+esc(d.goal)+'</p>'+
@@ -801,6 +930,9 @@ function renderHoloplot(){
   /* wiring */
   document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; renderHoloplot(); });
   document.getElementById("h-side").addEventListener("click",function(){ hs.showSide=!hs.showSide; renderHoloplot(); });
+  root.querySelectorAll("[data-ztarget]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)) hSetZoneTarget(inp.getAttribute("data-ztarget"),"target",v); renderHoloplot(); }); });
+  root.querySelectorAll("[data-ztol]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)) hSetZoneTarget(inp.getAttribute("data-ztol"),"tol",Math.max(0.5,Math.abs(v))); renderHoloplot(); }); });
+  root.querySelectorAll("[data-layer-tog]").forEach(function(b){ b.addEventListener("click",function(){ var L=b.getAttribute("data-layer-tog"); hs.layerOn[L]=!(hs.layerOn[L]!==false); renderHoloplot(); }); });
   var _rl=document.getElementById("h-res-low"); if(_rl) _rl.addEventListener("click",function(){ if(hs.resMode!=="low"){ hs.resMode="low"; persistMapPrefs(); } renderHoloplot(); });
   var _rh=document.getElementById("h-res-high"); if(_rh) _rh.addEventListener("click",function(){ if(hs.resMode!=="high"){ hs.resMode="high"; persistMapPrefs(); } renderHoloplot(); });
   var _ml=document.getElementById("h-mode-live"); if(_ml) _ml.addEventListener("click",function(){ hs.renderMode="live"; persistMapPrefs(); renderHoloplot(); });
@@ -823,31 +955,33 @@ function renderHoloplot(){
       renderHoloplot(); });
     g.addEventListener("mouseenter",function(){ if(hs._gesturing) return; if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
     g.addEventListener("mouseleave",function(){ hLP.cancel("arr"+id); if(hs._gesturing) return; if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
-    g.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("arr"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
+    g.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("arr"+id,function(){ hs.sel=id; hs.editing=id+":"+hs.selBeam; renderHoloplot(); }); });
     g.addEventListener("pointerup",function(){ hLP.cancel("arr"+id); });
   });
-  root.querySelectorAll("[data-chip]").forEach(function(ch){
-    var id=Number(ch.getAttribute("data-chip"));
-    ch.addEventListener("mouseenter",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
-    ch.addEventListener("mouseleave",function(){ hLP.cancel("chip"+id); if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
-    ch.addEventListener("focus",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+  root.querySelectorAll("[data-bchip]").forEach(function(ch){
+    var key=ch.getAttribute("data-bchip"), parts=key.split(":"), aid=Number(parts[0]), bidx=Number(parts[1]);
+    ch.addEventListener("mouseenter",function(){ if(touchHoverNone()) return; if(hs.hovered!==key){ hs.hovered=key; renderHoloplot(); } });
+    ch.addEventListener("mouseleave",function(){ hLP.cancel("bchip"+key); if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
+    ch.addEventListener("focus",function(){ if(touchHoverNone()) return; if(hs.hovered!==key){ hs.hovered=key; renderHoloplot(); } });
     ch.addEventListener("blur",function(){ if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
-    ch.addEventListener("click",function(){ if(hLP.wasFired("chip"+id)) return; hs.sel=id;
-      if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
-      else if(hs.showHover) hs.hovered=id; /* tap-to-show values on touch */
+    ch.addEventListener("click",function(){ if(hLP.wasFired("bchip"+key)) return; hs.sel=aid; hs.selBeam=bidx;
+      if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(key); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(key); }
+      else if(hs.showHover) hs.hovered=key;
       renderHoloplot(); });
-    ch.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("chip"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
-    ch.addEventListener("pointerup",function(){ hLP.cancel("chip"+id); });
-    ch.addEventListener("contextmenu",function(e){ if(hs.viewMode==="edit"){ e.preventDefault(); hs.sel=id; hs.editing=id; renderHoloplot(); } });
+    ch.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("bchip"+key,function(){ hs.sel=aid; hs.selBeam=bidx; hs.editing=key; renderHoloplot(); }); });
+    ch.addEventListener("pointerup",function(){ hLP.cancel("bchip"+key); });
+    ch.addEventListener("contextmenu",function(e){ if(hs.viewMode==="edit"){ e.preventDefault(); hs.sel=aid; hs.selBeam=bidx; hs.editing=key; renderHoloplot(); } });
   });
-  root.querySelectorAll("[data-edit-arr]").forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation(); hs.sel=Number(b.getAttribute("data-edit-arr")); hs.editing=hs.sel; renderHoloplot(); }); });
+  root.querySelectorAll("[data-edit-beam]").forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation(); var key=b.getAttribute("data-edit-beam"), pp=key.split(":"); hs.sel=Number(pp[0]); hs.selBeam=Number(pp[1])||0; hs.editing=key; renderHoloplot(); }); });
   var ef=document.getElementById("h-editform");
   if(ef){ ef.addEventListener("submit",function(e){ e.preventDefault();
-      var fd=new FormData(ef); var a=hs.arrays.find(function(x){return x.id===hs.editing;}); if(!a) return;
+      var fd=new FormData(ef); var parts=String(hs.editing||"").split(":"); var a=hs.arrays.find(function(x){return x.id===Number(parts[0]);}); if(!a) return; var bidx=Number(parts[1])||0; var bm=hBeams(a)[bidx]; if(!bm) return;
       function num(n,fb){ var v=Number(fd.get(n)); return isFinite(v)?v:fb; }
-      a.az=num("az",a.az); a.tilt=num("tilt",a.tilt); a.hBeam=num("hBeam",a.hBeam); a.vBeam=num("vBeam",a.vBeam); a.gain=num("gain",a.gain); a.x=num("x",a.x); a.y=num("y",a.y);
+      ["az","tilt","hBeam","vBeam","gain"].forEach(function(k){ hApplyParamTo(a.id,bidx,k,num(k,bm[k])); });
+      a.x=num("x",a.x); a.y=num("y",a.y);
+      bm.zone=String(fd.get("zone")||bm.zone); bm.layer=String(fd.get("layer")||bm.layer);
       a.on=document.getElementById("h-edit-on").checked;
-      hs.editMsg="Saved "+a.name+": Az "+a.az+"°, Tilt "+a.tilt+"°, Gain "+a.gain+" dB — coverage map updated."; hs.editing=null; renderHoloplot(); });
+      hs.editMsg="Saved "+a.name+" Beam "+(bidx+1)+": Az "+bm.az+"°, Tilt "+bm.tilt+"°, Gain "+bm.gain+" dB"+(hIsLinked(a.id)?" (link group moved by the same deltas)":"")+" — coverage map updated."; hs.editing=null; renderHoloplot(); });
     document.getElementById("h-edit-cancel").addEventListener("click",function(){ hs.editing=null; renderHoloplot(); });
   }
   if(hs.deck==="arrays"){
@@ -859,14 +993,29 @@ function renderHoloplot(){
       hs.sel=id; hs.editing=null;
       if(hs.showHover){ if(hs.hoverMode==="latch"){ if(hs.latched.indexOf(id)<0) hs.latched.push(id); } else hs.hovered=id; }
       renderHoloplot(); }); });
+    root.querySelectorAll("[data-link-tog]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-link-tog")); var i=hs.linked.indexOf(id); if(i>=0) hs.linked.splice(i,1); else hs.linked.push(id); if(hs.linked.length<2){ hs.invertPan=false; hs.invertTilt=false; } renderHoloplot(); }); });
+    root.querySelectorAll("[data-invert]").forEach(function(b){ b.addEventListener("click",function(){ hToggleInvert(b.getAttribute("data-invert")); renderHoloplot(); }); });
+    root.querySelectorAll("[data-fan-step]").forEach(function(b){ b.addEventListener("click",function(){ hs.fanAmt=Math.max(0,(Number(hs.fanAmt)||0)+Number(b.getAttribute("data-fan-step"))*2); renderHoloplot(); }); });
+    var fa=document.getElementById("h-fan-amt"); if(fa) fa.addEventListener("change",function(){ var v=Number(fa.value); if(isFinite(v)) hs.fanAmt=Math.max(0,v); renderHoloplot(); });
+    root.querySelectorAll("[data-fan]").forEach(function(b){ b.addEventListener("click",function(){ hFan(b.getAttribute("data-fan")); renderHoloplot(); }); });
+    var gn=document.getElementById("h-group-name"); if(gn) gn.addEventListener("input",function(){ hs.groupName=gn.value; });
+    var gs=document.getElementById("h-group-save"); if(gs) gs.addEventListener("click",function(){ if(hs.linked.length<2) return; if(!Array.isArray(store.speakerGroups)) store.speakerGroups=[]; store.speakerGroups.push({id:Date.now(), name:(hs.groupName||"").trim()||"Untitled group", linked:hs.linked.slice(), invertPan:!!hs.invertPan, invertTilt:!!hs.invertTilt}); persist(); renderHoloplot(); });
+    root.querySelectorAll("[data-group-apply]").forEach(function(b){ b.addEventListener("click",function(){ var g=(store.speakerGroups||[]).find(function(x){return x.id===Number(b.getAttribute("data-group-apply"));}); if(!g) return; hs.linked=(g.linked||[]).filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}); hs.invertPan=!!g.invertPan&&hs.linked.length>=2; hs.invertTilt=!!g.invertTilt&&hs.linked.length>=2; renderHoloplot(); }); });
+    root.querySelectorAll("[data-group-del]").forEach(function(b){ b.addEventListener("click",function(){ store.speakerGroups=(store.speakerGroups||[]).filter(function(x){return x.id!==Number(b.getAttribute("data-group-del"));}); persist(); renderHoloplot(); }); });
+    root.querySelectorAll("[data-beam-sel]").forEach(function(b){ b.addEventListener("click",function(){ hs.selBeam=Number(b.getAttribute("data-beam-sel")); hs.editing=null; renderHoloplot(); }); });
+    var ab=document.getElementById("h-add-beam"); if(ab) ab.addEventListener("click",function(){ var a=hCur(), bs=hBeams(a); if(bs.length>=3) return; var zn=hVenue().zones[Math.min(bs.length,hVenue().zones.length-1)]; bs.push({az:0,tilt:bs.length===1?10:0,hBeam:28,vBeam:18,gain:0,zone:zn?zn.name:"",layer:bs.length===1?"Fill":"Main"}); hs.selBeam=bs.length-1; renderHoloplot(); });
+    var db=document.getElementById("h-del-beam"); if(db) db.addEventListener("click",function(){ var bs=hBeams(hCur()); if(bs.length<=1) return; bs.splice(hs.selBeam,1); if(hs.selBeam>=bs.length) hs.selBeam=bs.length-1; renderHoloplot(); });
+    var bz=document.getElementById("h-beam-zone"); if(bz) bz.addEventListener("change",function(){ hCurBeam().zone=bz.value; renderHoloplot(); });
+    var bl=document.getElementById("h-beam-layer"); if(bl) bl.addEventListener("change",function(){ hCurBeam().layer=bl.value; renderHoloplot(); });
     document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; renderHoloplot(); });
     document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; renderHoloplot(); });
     root.querySelectorAll("[data-slider]").forEach(function(inp){
       /* double-tap / double-click resets this fader to its home value */
       var tapCount=0, tapTimer=null, downX=0, downY=0, downT=0;
       function doReset(){
-        var key=inp.getAttribute("data-slider"); var home=(H_FADER_HOME[hCur().id]||{})[key]; if(home===undefined) return;
-        hCur()[key]=home; hs.faderMsg=H_FADER_LABEL[key]+" reset to "+home+H_FADER_UNIT[key]+" — map updated.";
+        var key=inp.getAttribute("data-slider");
+        if(key==="x"||key==="y"){ var home=(H_FADER_HOME[hCur().id]||{})[key]; if(home===undefined) return; hCur()[key]=home; hs.faderMsg=H_FADER_LABEL[key]+" reset to "+home+H_FADER_UNIT[key]+" — map updated."; }
+        else hResetBeamParam(key);
         renderHoloplot();
         var lbl=document.querySelector('[data-slval="'+key+'"]'); if(lbl) lbl.classList.add("fader-flash");
       }
@@ -879,28 +1028,33 @@ function renderHoloplot(){
         if(tapCount>=2){ tapCount=0; if(tapTimer) window.clearTimeout(tapTimer); doReset(); }
         else { if(tapTimer) window.clearTimeout(tapTimer); tapTimer=window.setTimeout(function(){ tapCount=0; },380); }
       });
-      inp.addEventListener("input",function(){ var key=inp.getAttribute("data-slider"); hCur()[key]=Number(inp.value);
-        var lbl=root.querySelector('[data-slval="'+key+'"]'); if(lbl){ var s=[["az","°"],["tilt","°"],["hBeam","°"],["vBeam","°"],["gain"," dB"],["x"," m"],["y"," m"]].find(function(p){return p[0]===key;}); lbl.textContent=inp.value+(s?s[1]:""); }
+      inp.addEventListener("input",function(){ var key=inp.getAttribute("data-slider"); var raw=Number(inp.value);
+        if(key==="x"||key==="y") hCur()[key]=raw; else if(key==="gain") hSetBeamParam("gain",posToGain(raw)); else hSetBeamParam(key,raw);
+        var curVal=(key==="x"||key==="y")?hCur()[key]:hCurBeam()[key];
+        var lbl=root.querySelector('[data-slval="'+key+'"]'); if(lbl){ var s=[["az","°"],["tilt","°"],["hBeam","°"],["vBeam","°"],["gain"," dB"],["x"," m"],["y"," m"]].find(function(p){return p[0]===key;}); lbl.textContent=curVal+(s?s[1]:""); }
         renderHoloplotSoft(); });
       inp.addEventListener("change",function(){ renderHoloplot(); });
     });
     root.querySelectorAll("[data-step]").forEach(function(b){ b.addEventListener("click",function(){
       var parts=b.getAttribute("data-step").split(":"), key=parts[0], dir=Number(parts[1]);
       var meta={az:[-40,40,1],tilt:[-15,25,1],hBeam:[10,60,1],vBeam:[8,40,1],gain:[-12,12,0.5],x:[-Math.floor(hVenue().w/2)+3,Math.floor(hVenue().w/2)-3,1],y:[1,14,1]}[key];
-      var v=Math.min(meta[1],Math.max(meta[0],Math.round((hCur()[key]+dir*meta[2])/meta[2])*meta[2])); hCur()[key]=v; renderHoloplot(); }); });
+      var curV=(key==="x"||key==="y")?hCur()[key]:hCurBeam()[key];
+      var v=Math.min(meta[1],Math.max(meta[0],Math.round((curV+dir*meta[2])/meta[2])*meta[2]));
+      if(key==="x"||key==="y") hCur()[key]=v; else hSetBeamParam(key,v);
+      renderHoloplot(); }); });
     document.getElementById("h-reset").addEventListener("click",function(){ hs.arrays=[
-      {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
-      {id:2,name:"Array R",model:"X2",x:6,y:4,az:10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
-      {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,on:false}
-    ]; hs.sel=1; hs.editing=null; hs.latched=[]; hs.hovered=null; renderHoloplot(); });
-    document.getElementById("h-balcony").addEventListener("click",function(){ hCur().on=true; hs.arrays=hs.arrays.map(function(a){ return a.id===3?Object.assign({},a,{on:true,tilt:12,gain:2}):a; }); renderHoloplot(); });
+      {id:1,name:"Array L",model:"X2",x:-6,y:4,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+      {id:2,name:"Array R",model:"X2",x:6,y:4,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+      {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
+    ]; hs.linked=[]; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={}; renderHoloplot(); });
+    document.getElementById("h-balcony").addEventListener("click",function(){ var a3=hs.arrays.find(function(a){return a.id===3;}); if(a3){ a3.on=true; var b3=hBeams(a3)[0]; b3.tilt=12; b3.gain=2; } renderHoloplot(); });
   }
   if(hs.deck==="drills"){ root.querySelectorAll("[data-drill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-drill")); renderHoloplot(); }); }); }
   if(hs.deck==="save"){
     document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
-    document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify({venueId:hs.venueId, arrays:hs.arrays})); renderHoloplot(); });
-    document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", {venueId:hs.venueId, arrays:hs.arrays}, commentsFor("holoplot")); presentShareLink(link, this); });
-    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hs.venueId=d.venueId; hs.arrays=d.arrays; hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; }catch(e){} renderHoloplot(); }); });
+    document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify(hDesignData())); renderHoloplot(); });
+    document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", hDesignData(), commentsFor("holoplot")); presentShareLink(link, this); });
+    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hLoadDesignData(d); hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; }catch(e){} renderHoloplot(); }); });
     root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); }); });
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
@@ -936,8 +1090,10 @@ function renderHoloplotSoft(){
       renderHoloplot(); });
   });
   var grid=root.querySelector(".readout-grid");
-  if(grid){ var vals=[stats.avg+" dB",stats.uni+" dB",stats.min+" dB",stats.max+" dB",stats.coverage+"%",stats.spill+"%"];
+  if(grid){ var vals=[stats.avg+" dB",stats.uni+" dB",stats.min+" dB",stats.max+" dB",stats.coverage+"%",stats.spill+"%",(stats.goal||0)+"%"];
     grid.querySelectorAll(".readout .v").forEach(function(el,i){ if(vals[i]!==undefined) el.textContent=vals[i]; }); }
+  var gz=document.getElementById("h-goal-score"); if(gz&&stats.goal!==undefined) gz.textContent=stats.goal+"%";
+  (comp.zones||[]).forEach(function(z){ var el=root.querySelector('[data-zone-avg="'+z.name+'"]'); if(el) el.textContent=z.avg; });
 }
 </script>
 <script>
@@ -1318,7 +1474,7 @@ function renderDrillsPage(){
   var comp=hCompute(), stats=comp.stats, done=doneSet();
   var h='<div class="page-scroll"><h2 style="margin:0;font-size:20px">🎯 Drills — both topics in one place</h2><p style="color:var(--dim);font-size:14px;margin:6px 0 0">HOLOPLOT drills check your live coverage map. AutoCAD drills check your live drawing. Do the work in the workspace, then claim here or there — both stay in sync.</p>';
   h+='<h3 style="margin:18px 0 0">◉ HOLOPLOT coverage drills</h3><div class="grid3">';
-  H_DRILLS.forEach(function(d){ var pass=d.test(stats)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2); var isDone=done.has(d.id);
+  H_DRILLS.forEach(function(d){ var pass=d.test(stats,comp)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2); var isDone=done.has(d.id);
     h+='<div class="card" style="margin-top:8px;padding:14px"><p style="margin:0;font-weight:700">'+esc(d.title)+'</p><p style="font-size:14px;color:var(--dim);margin:4px 0 0">'+esc(d.goal)+'</p><p class="mono" style="font-size:13px;margin:6px 0 0">Now: avg '+stats.avg+' dB · ±'+stats.uni+' dB · spill '+stats.spill+'%</p><button data-agg-hdrill="'+d.id+'" '+((!pass||isDone)?"disabled":"")+' class="btn" style="margin-top:10px;width:100%">'+(isDone?"Completed ✓":pass?"Claim drill ✓":"Keep steering in HOLOPLOT…")+'</button></div>'; });
   h+='</div><h3 style="margin:18px 0 0">⌖ AutoCAD drafting drills</h3><div class="grid2">';
   cDrills().forEach(function(d){ var isDone=done.has(d.id);
@@ -1344,7 +1500,7 @@ function renderProjectsPage(){
   block("holoplot","◉ HOLOPLOT designs")+block("autocad","⌖ AutoCAD drawings")+
   '<button class="btn" id="proj-export-all" style="width:100%;margin-top:18px">⬇ Export everything (designs, drawings &amp; all comments) as JSON</button></div>';
   el.querySelectorAll("[data-proj-load]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-load").split(":"); var ws=p[0], id=Number(p[1]); var s=store.saves[ws].find(function(x){return x.id===id;}); if(!s) return;
-    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hs.venueId=d.venueId; hs.arrays=d.arrays; hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
+    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hLoadDesignData(d); hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
     if(ws==="holoplot") renderHoloplot(); else renderAutocad(); setPage(ws); }); });
   el.querySelectorAll("[data-proj-del]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-del").split(":"); deleteSave(p[0], Number(p[1])); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); }); });
   el.querySelectorAll("[data-proj-share]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-share").split(":"); var s=store.saves[p[0]].find(function(x){return x.id===Number(p[1]);}); if(!s) return; var dobj={}; try{ dobj=JSON.parse(s.data); }catch(e){} presentShareLink(buildShareLink(p[0], s.name, dobj, s.comments||[]), b); }); });
@@ -1465,7 +1621,7 @@ document.addEventListener("touchend",function(){ window.setTimeout(captureSelect
 function applyShared(p){
   if(!p||!p.ws||!p.data) return false;
   pendingShared=p;
-  if(p.ws==="holoplot"){ if(p.data.venueId) hs.venueId=p.data.venueId; if(p.data.arrays) hs.arrays=p.data.arrays; hs.saveName=(p.name||"Shared design")+" (shared copy)"; renderHoloplot(); }
+  if(p.ws==="holoplot"){ hLoadDesignData(p.data); hs.saveName=(p.name||"Shared design")+" (shared copy)"; renderHoloplot(); }
   else { if(p.data.shapes) cs.shapes=p.data.shapes; if(p.data.layers) cs.layers=p.data.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=(p.name||"Shared drawing")+" (shared copy)"; renderAutocad(); }
   var b=document.getElementById("shared-banner"); b.hidden=false;
   document.getElementById("shared-banner-text").textContent="“"+(p.name||"Untitled")+"” — "+(p.ws==="holoplot"?"HOLOPLOT design":"AutoCAD drawing")+" with "+((p.comments||[]).length)+" comment(s) in the link. This is a snapshot: save a copy to keep and edit it in your own library; edits do not flow back to the sender.";
