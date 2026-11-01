@@ -164,6 +164,15 @@
   .render-btn.pulsing{ animation:renderPulse 1.1s ease-out infinite; background:var(--amber); }
   @media (prefers-reduced-motion: reduce){ .render-btn.pulsing{ animation:none; outline:3px solid var(--amber); outline-offset:2px; } }
   #undo-toast{ position:fixed; right:14px; bottom:calc(env(safe-area-inset-bottom,0px) + 14px); z-index:80; display:flex; gap:10px; align-items:center; background:#0F2A33; border:2px solid var(--cyan); color:#E6E8EB; border-radius:14px; padding:10px 12px; box-shadow:0 14px 34px rgba(0,0,0,.5); max-width:min(430px,92vw); font-size:14px; font-weight:600; }
+  /* ---- keyboard / Stream Deck layer: flash, focus ring, command chip ---- */
+  .kbd-flash{ transform:scale(.95) !important; filter:brightness(1.45) !important; outline:3px solid var(--cyan) !important; outline-offset:1px; transition:none !important; }
+  .slider-row.kbd-focused-row{ outline:3px solid var(--cyan); outline-offset:1px; box-shadow:0 0 0 4px rgba(34,211,238,.25); }
+  #kbd-chip{ position:fixed; top:calc(env(safe-area-inset-top,0px) + 128px); left:50%; transform:translateX(-50%); z-index:95; background:#0F2A33; border:2px solid var(--cyan); color:#A5F3FC; border-radius:99px; padding:9px 18px; font-size:15px; font-weight:800; box-shadow:0 12px 30px rgba(0,0,0,.5); pointer-events:none; white-space:nowrap; max-width:94vw; overflow:hidden; text-overflow:ellipsis; }
+  .keys-map{ text-align:left; }
+  .keys-map h4{ margin:14px 0 4px; font-size:13px; letter-spacing:.05em; color:#67E8F9; }
+  .keys-map h4:first-child{ margin-top:4px; }
+  .keys-map p{ margin:3px 0; font-size:13.5px; line-height:1.55; color:#E6E8EB; }
+  .keys-map kbd{ background:#22262F; border:1px solid #4B5563; border-bottom-width:2px; border-radius:6px; padding:1px 6px; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; color:#FCD34D; white-space:nowrap; }
   #undo-toast button{ flex:none; }
   /* the CAD canvas strip is shorter than the HOLOPLOT map: always a horizontal row there,
      so the controls can never spill onto the command history / command line below */
@@ -318,6 +327,8 @@
 
 <div id="undo-toast" hidden role="status" aria-live="polite"><span id="undo-toast-msg"></span><button id="undo-toast-btn" class="btn btn-sm" style="background:var(--cyan);color:#000;border:0">Undo</button><button id="undo-toast-close" class="btn btn-sm" aria-label="Dismiss undo message">✕</button></div>
 
+<div id="kbd-chip" hidden role="status" aria-live="polite">⌨ </div>
+
 <script>
 "use strict";
 /* ================= shared ================= */
@@ -402,7 +413,8 @@ var TUTOR_DICT=[
   {keys:["rectang","rectangle"],expl:"RECTANG draws a rectangle from two opposite corners. For a stage, click one corner then the opposite corner — or type exact coordinates — to get a precise 40 × 16 ft platform instead of a sketch."},
   {keys:["circle"],expl:"CIRCLE here stands in for a speaker, a column or a turning radius: pick the centre, then a point on the edge sets the radius. The Properties panel reports radius and area once drawn."},
   {keys:["hover","latched","momentary"],expl:"Hover values come in two flavours. Momentary: the value label shows only while your pointer or finger is on the item and disappears when you move away. Latched: tap or click once and the label stays pinned until you tap it again — better on touch screens and when comparing two beams."},
-  {keys:["long-press","long press","edit values"],expl:"Edit Values mode is where value labels become editable. Switch to the Edit Values tab, then press and hold (long-press, about half a second) any beam or dimension value label — an editor opens so you can type a new value and save it. Practice mode keeps labels read-only so you cannot change a design by accident."}
+  {keys:["long-press","long press","edit values"],expl:"Edit Values mode is where value labels become editable. Switch to the Edit Values tab, then press and hold (long-press, about half a second) any beam or dimension value label — an editor opens so you can type a new value and save it. Practice mode keeps labels read-only so you cannot change a design by accident."},
+  {keys:["stream deck","keyboard shortcut","keys & stream deck","hotkey"],expl:"The full keyboard and Stream Deck map is in the Keys & Stream Deck card — tap that topic below. Every key drives the exact same on-screen control, deck buttons send the Option/Alt chords and F13–F19, and keys go quiet while you are typing in a field or the AutoCAD command line."}
 ];
 function localExplain(raw){
   var t=raw.toLowerCase();
@@ -898,6 +910,7 @@ function renderHoloplot(){
     '<span class="mchip">Render: '+(hs.renderMode==="ondemand"?"On Demand":"Live")+'</span>'+
     (hs.renderDirty?'<span class="mchip hot">STALE — '+pendingN+' change'+(pendingN===1?"":"s")+' pending</span>':"")+
     '<span class="mchip">Res: '+(hs.resMode==="high"?"High":"Low")+'</span>'+
+    '<span class="mchip" id="h-focus-chip">⌨ Focus: '+esc(({az:"Azimuth",tilt:"Tilt",hBeam:"Beam width",gain:"Gain",x:"Pos X",y:"Pos Y"})[hs.kbdFocus||"az"]||"Azimuth")+'</span>'+
     (hs.linked.length>=2?'<span class="mchip hot">Linked: '+esc(linkedNames.join(" + "))+'</span>':"")+
   '</div><div class="ws-layout"><div class="top-zone">';
   html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">'+
@@ -1088,8 +1101,9 @@ function renderHoloplot(){
     sliders.forEach(function(s){
       var isPos=(s[1]==="x"||s[1]==="y"), sv=isPos?cur[s[1]]:hCurBeam()[s[1]];
       var locked=!!cbm.probe&&(s[1]==="az"||s[1]==="tilt");
+      var foc=((hs.kbdFocus||"az")===s[1]);
       var slAttrs=(s[1]==="gain")?('min="0" max="1000" step="1" value="'+gainToPos(sv)+'"'):('min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+sv+'"');
-      html+='<div class="slider-row"'+(locked?' style="opacity:.55"':"")+'><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+(locked?' · 🎯 Locked to probe':"")+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+sv+s[4]+'</span></div>'+
+      html+='<div class="slider-row'+(foc?" kbd-focused-row":"")+'" data-fader="'+s[1]+'"'+(locked?' style="opacity:.55"':"")+'><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+(locked?' · 🎯 Locked to probe':"")+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+sv+s[4]+'</span></div>'+
       '<div style="display:flex;align-items:center;gap:8px"><button type="button" class="stepper" data-step="'+s[1]+':-1" '+(locked?"disabled":"")+' aria-label="Decrease '+s[0]+'">−</button>'+
       '<input id="h-sl-'+s[1]+'" type="range" '+slAttrs+' data-slider="'+s[1]+'" '+(locked?"disabled":"")+' title="Drag to adjust — double-tap to reset to home" aria-describedby="fader-tip" style="flex:1;min-width:0"/>'+
       '<button type="button" class="stepper" data-step="'+s[1]+':1" '+(locked?"disabled":"")+' aria-label="Increase '+s[0]+'">+</button></div></div>';
@@ -1895,7 +1909,39 @@ document.getElementById("tab-autocad2").addEventListener("click",function(){ set
 
 /* tutor */
 var tutorOn=true, tutorSel="", tutorExpl="", tutorOpen=false;
-var TUTOR_TOPICS=["Azimuth","Tilt","Beam width","SPL","Uniformity","Spill","Coverage","Dimension","Layer","SNAP","ORTHO","Command line"];
+var TUTOR_TOPICS=["Azimuth","Tilt","Beam width","SPL","Uniformity","Spill","Coverage","Dimension","Layer","SNAP","ORTHO","Command line","Keys & Stream Deck"];
+function keysMapHTML(){
+  return '<div class="keys-map">'+
+  '<h4>PAGES &amp; GLOBAL — keyboard and deck send the same ⌥ chords</h4>'+
+  '<p><kbd>⌥1</kbd> HOLOPLOT · <kbd>⌥2</kbd> Probe · <kbd>⌥3</kbd> AutoCAD · <kbd>⌥4</kbd> Lessons · <kbd>⌥5</kbd> Drills · <kbd>⌥6</kbd> Projects · <kbd>⌥7</kbd> Comments</p>'+
+  '<p><kbd>⌥E</kbd> Edit Values on/off · <kbd>⌥T</kbd> Tutor on/off · <kbd>⌥Z</kbd> Undo (the live Undo toast first; on the AutoCAD page, CAD undo)</p>'+
+  '<h4>HOLOPLOT PAGE</h4>'+
+  '<p>Arrays: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> = L / R / Centre — deck <kbd>F13</kbd> <kbd>F14</kbd> <kbd>F15</kbd>. Beams: <kbd>Shift+1</kbd> <kbd>Shift+2</kbd> <kbd>Shift+3</kbd> — deck <kbd>F16</kbd> <kbd>F17</kbd> <kbd>F18</kbd>.</p>'+
+  '<p>Layers: <kbd>4</kbd> Main on/off · <kbd>5</kbd> Balcony on/off · <kbd>6</kbd> Fill on/off (same keys the deck BEAMS page sends).</p>'+
+  '<p>Focused fader: <kbd>[</kbd> <kbd>]</kbd> cycle Azimuth → Tilt → Beam width → Gain → Pos X → Pos Y (the focused fader is ringed and named in the mode bar). <kbd>−</kbd> <kbd>=</kbd> step it (Shift = coarse ×5).</p>'+
+  '<p>Aim: <kbd>←</kbd> <kbd>→</kbd> azimuth, <kbd>↑</kbd> <kbd>↓</kbd> tilt (Shift = 5° steps).</p>'+
+  '<p><kbd>⌥L</kbd> Link selected array · <kbd>F</kbd> / <kbd>⌥F</kbd> Fan focused parameter across the group · <kbd>X</kbd> / <kbd>⌥X</kbd> Invert Pan · <kbd>C</kbd> / <kbd>⌥C</kbd> Invert Tilt (group only).</p>'+
+  '<p><kbd>F19</kbd> / <kbd>Shift+R</kbd> Res Low/High · <kbd>V</kbd> Live / On Demand toggle · <kbd>⌥⇧L</kbd> set Live · <kbd>⌥⇧D</kbd> set On Demand (explicit pair for the deck) · <kbd>R</kbd> / <kbd>⌥R</kbd> Render now.</p>'+
+  '<p>Probe: <kbd>P</kbd> / <kbd>⌥⇧P</kbd> add / remove probe · <kbd>⌥P</kbd> tag / untag selected beam · <kbd>⌥←</kbd><kbd>⌥→</kbd><kbd>⌥↑</kbd><kbd>⌥↓</kbd> nudge probe 0.5 m (Shift = 2 m).</p>'+
+  '<h4>PROBE PAGE</h4>'+
+  '<p>Slices: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> = Top / Front / Side — deck <kbd>F13</kbd> <kbd>F14</kbd> <kbd>F15</kbd>. <kbd>−</kbd> <kbd>=</kbd> step slice offset (Shift = coarse) · <kbd>0</kbd> centre on probe.</p>'+
+  '<p><kbd>[</kbd> <kbd>]</kbd> cycle beams · <kbd>S</kbd> solo the cycled beam · <kbd>A</kbd> all beams.</p>'+
+  '<h4>AUTOCAD PAGE</h4>'+
+  '<p>Tools (plain letters — the command-line typing guard keeps them safe): <kbd>L</kbd> Line · <kbd>C</kbd> Circle · <kbd>R</kbd> Rectang · <kbd>P</kbd> Pline · <kbd>A</kbd> Arc · <kbd>D</kbd> Dimension · <kbd>T</kbd> Text · <kbd>E</kbd> Erase.</p>'+
+  '<p><kbd>⌥S</kbd> Snap · <kbd>⌥O</kbd> Ortho · <kbd>⌥G</kbd> Grid · <kbd>0</kbd> Zoom Extents · <kbd>⌥Z</kbd> Undo.</p>'+
+  '<h4>TYPING GUARD &amp; THE DECK PROFILE</h4>'+
+  '<p>While focus is in any field, value editor or the AutoCAD command line, plain and letter keys type normally and no shortcut fires. A physical Stream Deck drives this map from a desktop browser: give each deck button a System → Hotkey action sending the ⌥ chord or F-key shown above (inert in other apps), keep the Stream Deck software running and the browser tab focused. The button map below downloads the same layout as JSON.</p>'+
+  '<button id="keys-dl" class="btn" style="margin-top:10px;background:var(--cyan);color:#000;border:0">⬇ Download deck key map (JSON)</button>'+
+  '</div>';
+}
+function deckKeyMapJSON(){
+  return {name:"HOLOPLOT + AutoCAD Practice — Stream Deck key map v1",note:"One Hotkey action per deck button, sending the chord shown. App binds deck dialect and plain keys to the same commands.",pages:[
+    {name:"Pages / Global",keys:[{"⌥1":"HOLOPLOT page"},{"⌥2":"Probe page"},{"⌥3":"AutoCAD page"},{"⌥4":"Lessons"},{"⌥5":"Drills"},{"⌥6":"Projects"},{"⌥7":"Comments"},{"⌥E":"Edit Values toggle"},{"⌥T":"Tutor toggle"},{"⌥Z":"Undo"}]},
+    {name:"HOLOPLOT",keys:[{"F13":"Array L"},{"F14":"Array R"},{"F15":"Centre array"},{"F16":"Beam 1"},{"F17":"Beam 2"},{"F18":"Beam 3"},{"4":"Main layer"},{"5":"Balcony layer"},{"6":"Fill layer"},{"F19":"Res Low/High"},{"⌥L":"Link selected array"},{"⌥F":"Fan focused parameter"},{"⌥X":"Invert Pan"},{"⌥C":"Invert Tilt"},{"⌥⇧L":"Set Live"},{"⌥⇧D":"Set On Demand"},{"⌥R":"Render"},{"⌥⇧P":"Probe add/remove"},{"⌥P":"Tag/untag beam"}]},
+    {name:"Probe",keys:[{"F13":"Top slice"},{"F14":"Front slice"},{"F15":"Side slice"}]},
+    {name:"AutoCAD",keys:[{"L":"Line"},{"C":"Circle"},{"R":"Rectang"},{"P":"Pline"},{"A":"Arc"},{"D":"Dimension"},{"T":"Text"},{"E":"Erase"},{"⌥S":"Snap"},{"⌥O":"Ortho"},{"⌥G":"Grid"}]}
+  ]};
+}
 function askTutor(text){
   var clean=(text||"").trim(); if(!clean) return;
   tutorSel=clean; tutorOpen=true;
@@ -1917,10 +1963,11 @@ function renderTutor(){
       '<button id="tutor-close" class="btn btn-sm" aria-label="Close virtual tutor">Close ✕</button></div>'+
       '<p class="mono" style="font-size:12px;margin:8px 0 0;color:#9AA3B2">YOU HIGHLIGHTED</p>'+
       '<p style="font-size:14px;font-weight:600;margin:2px 0 0;color:#E6E8EB">“'+esc(tutorSel)+'”</p>'+
-      '<p style="font-size:14px;margin:12px 0 0;line-height:1.6;color:#E6E8EB">'+esc(tutorExpl)+'</p>'+
+      (/keys & stream deck/i.test(tutorSel)?keysMapHTML():'<p style="font-size:14px;margin:12px 0 0;line-height:1.6;color:#E6E8EB">'+esc(tutorExpl)+'</p>')+
       '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px"><button id="tutor-again" class="btn" style="background:var(--cyan);color:#000;border:0">Explain this</button>'+
       '<button id="tutor-clear" class="btn">Clear highlight</button></div></div>';
     document.getElementById("tutor-close").addEventListener("click",function(){ tutorOpen=false; renderTutor(); });
+    var kdl=document.getElementById("keys-dl"); if(kdl) kdl.addEventListener("click",function(){ downloadJSON("stream-deck-key-map.json", deckKeyMapJSON()); });
     document.getElementById("tutor-again").addEventListener("click",function(){ askTutor(tutorSel); });
     document.getElementById("tutor-clear").addEventListener("click",function(){ tutorExpl=""; tutorSel=""; tutorOpen=false; renderTutor(); });
   } else {
@@ -1979,6 +2026,249 @@ renderAutocad();
 renderTutor();
 setWorkspace("holoplot");
 checkSharedLink();
+</script>
+<script>
+"use strict";
+/* ================= KEYBOARD + STREAM DECK LAYER =================
+   ONE keydown dispatcher. Every binding drives the EXACT SAME on-screen
+   control (its .click()) or, when that control lives on a deck tab that is
+   not currently shown, the exact statements that control's handler runs —
+   so linking math, fan, probe balance and parity can never drift.
+   Dialects: plain keys (keyboard) and ⌥-chords / F13–F19 (Stream Deck)
+   resolve to the same commands. No Cmd/Ctrl combos. */
+var KBD_PARAMS=[{k:"az",label:"Azimuth",step:1,unit:"°"},{k:"tilt",label:"Tilt",step:1,unit:"°"},{k:"hBeam",label:"Beam width",step:1,unit:"°"},{k:"gain",label:"Gain",step:0.5,unit:" dB"},{k:"x",label:"Pos X",step:1,unit:" m"},{k:"y",label:"Pos Y",step:1,unit:" m"}];
+if(!hs.kbdFocus) hs.kbdFocus="az";
+function kbdFocusParam(){ for(var i=0;i<KBD_PARAMS.length;i++) if(KBD_PARAMS[i].k===hs.kbdFocus) return KBD_PARAMS[i]; return KBD_PARAMS[0]; }
+function kbdChip(name){
+  var c=document.getElementById("kbd-chip"); if(!c) return;
+  c.textContent="⌨ "+name; c.hidden=false;
+  if(window._kbdChipT) window.clearTimeout(window._kbdChipT);
+  window._kbdChipT=window.setTimeout(function(){ c.hidden=true; },1700);
+}
+function kbdFlashEl(el){ if(!el||!el.classList) return; el.classList.add("kbd-flash"); window.setTimeout(function(){ el.classList.remove("kbd-flash"); },420); }
+function kbdFlashSel(sel){ if(sel) kbdFlashEl(document.querySelector(sel)); }
+/* click the real control; fallback runs only when the control is on a hidden deck tab */
+function kbdClick(sel,name,fallback){
+  var el=sel?document.querySelector(sel):null;
+  if(el&&!el.disabled){ el.click(); kbdFlashSel(sel); }
+  else if(fallback){ fallback(); kbdFlashSel(sel); }
+  else if(el){ kbdFlashEl(el); }
+  kbdChip(name);
+}
+function kbdClickTimes(sel,times){
+  for(var i=0;i<times;i++){ var el=document.querySelector(sel); if(!el||el.disabled) break; el.click(); }
+  kbdFlashSel(sel);
+}
+function kbdTyping(){
+  var a=document.activeElement; if(!a) return false;
+  if(a.isContentEditable) return true;
+  var tag=a.tagName;
+  if(tag==="TEXTAREA"||tag==="SELECT") return true;
+  if(tag==="INPUT"){ var t=(a.getAttribute("type")||"text").toLowerCase(); return ["text","number","search","email","url","password","tel","date",""].indexOf(t)>=0; }
+  return false;
+}
+/* ---- shared command implementations ---- */
+function kbdSelectArray(id,name){
+  kbdClick('[data-sel-arr="'+id+'"]',"Select "+name,function(){ hs.sel=id; hs.editing=null; renderHoloplot(); });
+}
+function kbdSelectBeam(idx){
+  kbdClick('[data-beam-sel="'+idx+'"]',"Select Beam "+(idx+1),function(){ hs.selBeam=idx; hs.editing=null; renderHoloplot(); });
+}
+function kbdToggleLayer(L){
+  kbdClick('[data-layer-tog="'+L+'"]',L+" layer "+(hs.layerOn[L]===false?"ON":"OFF"),null);
+}
+function kbdCycleFocus(dir){
+  var keys=KBD_PARAMS.map(function(p){return p.k;});
+  var i=keys.indexOf(hs.kbdFocus); if(i<0) i=0;
+  i=((i+dir)%keys.length+keys.length)%keys.length;
+  hs.kbdFocus=keys[i];
+  renderHoloplot();
+  kbdFlashSel('[data-fader="'+hs.kbdFocus+'"]');
+  kbdChip("Focus: "+KBD_PARAMS[i].label);
+}
+function kbdStepFocused(dir,coarse){
+  var p=kbdFocusParam(), n=coarse?5:1, sel='[data-step="'+p.k+":"+(dir>0?"1":"-1")+'"]';
+  kbdClickTimes(sel,n);
+  var amt=Math.round(p.step*n*10)/10;
+  kbdChip(p.label+" "+(dir>0?"+":"−")+amt+p.unit);
+}
+function kbdAim(param,dir,coarse){
+  var n=coarse?5:1, sel='[data-step="'+param+":"+(dir>0?"1":"-1")+'"]';
+  kbdClickTimes(sel,n);
+  kbdChip((param==="az"?"Azimuth":"Tilt")+" "+(dir>0?"+":"−")+(coarse?5:1)+"°");
+}
+function kbdFan(){
+  var p=kbdFocusParam();
+  var fanKey=(p.k==="az"||p.k==="tilt"||p.k==="gain")?p.k:null;
+  if(fanKey){ kbdClick('[data-fan="'+fanKey+'"]',"Fan "+p.label,null); return; }
+  if(p.k==="hBeam"){ if(hs.linked.length>=2){ hFan("hBeam"); renderHoloplot(); } kbdChip("Fan Beam width"); return; }
+  kbdChip("Fan — position cannot fan");
+}
+function kbdRenderModeSet(mode){
+  var sel=mode==="live"?"#h-mode-live":"#h-mode-ondemand";
+  kbdClick(sel,mode==="live"?"Render: Live":"Render: On Demand",null);
+}
+function kbdRender(){ kbdClick(document.getElementById("h-render-btn")?"#h-render-btn":"#h-render-now","Render",null); }
+function kbdProbeToggle(){
+  if(hs.probe) kbdClick("#h-probe-remove","Probe removed",null);
+  else kbdClick("#h-probe-add","Probe added",null);
+}
+function kbdProbeNudge(dx,dy){
+  if(!hs.probe){ kbdChip("Probe nudge — no probe"); return; }
+  var v=hVenue();
+  hs.probe.x=Math.round(Math.min(v.w/2-1,Math.max(-v.w/2+1,hs.probe.x+dx))*10)/10;
+  hs.probe.y=Math.round(Math.min(v.d-1,Math.max(1,hs.probe.y+dy))*10)/10;
+  hProbeSync();
+  if(currentPage==="probe") renderProbePage(); else renderHoloplot();
+  kbdChip("Probe → "+hs.probe.x+" m, "+hs.probe.y+" m");
+}
+function kbdProbeBeamKeys(){
+  var out=[]; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b,bi){ out.push({key:a.id+":"+bi,label:a.name+" Beam "+(bi+1)}); }); }); return out;
+}
+function kbdProbeCycle(dir){
+  var list=kbdProbeBeamKeys(); if(!list.length) return;
+  var i=(typeof probePage._cyc==="number")?probePage._cyc:0;
+  i=((i+dir)%list.length+list.length)%list.length;
+  probePage._cyc=i;
+  kbdFlashSel('[data-solo="'+list[i].key+'"]');
+  kbdChip("Beam: "+list[i].label+" (S = solo)");
+}
+function kbdDispatch(e){
+  if(e.metaKey||e.ctrlKey) return;                 /* browser territory */
+  if(kbdTyping()) return;                            /* typing guard — Esc keeps native meaning */
+  var code=e.code||"", key=e.key||"";
+  var page=currentPage;
+  function done(){ e.preventDefault(); }
+  /* ---- F13–F19: deck selection dialect ---- */
+  var fnum=/^F(1[3-9])$/.test(key)?Number(key.slice(1)):0;
+  if(fnum){
+    if(page==="holoplot"){
+      if(fnum===13){ kbdSelectArray(1,"Array L"); done(); return; }
+      if(fnum===14){ kbdSelectArray(2,"Array R"); done(); return; }
+      if(fnum===15){ kbdSelectArray(3,"Centre"); done(); return; }
+      if(fnum>=16&&fnum<=18){ kbdSelectBeam(fnum-16); done(); return; }
+      if(fnum===19){ kbdClick(hs.resMode==="high"?"#h-res-low":"#h-res-high",hs.resMode==="high"?"Res: Low":"Res: High",null); done(); return; }
+    }
+    if(page==="probe"){
+      var planes=["top","front","side"];
+      if(fnum>=13&&fnum<=15){ kbdClick('[data-pplane="'+planes[fnum-13]+'"]',"Slice: "+planes[fnum-13],null); done(); return; }
+    }
+    return;
+  }
+  /* ---- ⌥ chords: deck dialect + keyboard Option chords ---- */
+  if(e.altKey){
+    var digit=/^Digit([1-7])$/.exec(code);
+    if(digit){
+      var pages=["holoplot","probe","autocad","lessons","drills","projects","comments"];
+      var labels=["HOLOPLOT","Probe","AutoCAD","Lessons","Drills","Projects","Comments"];
+      var pi=Number(digit[1])-1;
+      kbdClick('.pagebar [data-page="'+pages[pi]+'"]',"Page: "+labels[pi],null); done(); return;
+    }
+    if(e.shiftKey&&page==="holoplot"){
+      if(code==="KeyL"){ kbdRenderModeSet("live"); done(); return; }
+      if(code==="KeyD"){ kbdRenderModeSet("ondemand"); done(); return; }
+      if(code==="KeyP"){ kbdProbeToggle(); done(); return; }
+    }
+    if(code==="KeyE"){
+      if(page==="autocad"){ var ce=cs.viewMode==="edit"; kbdClick('#c-display [data-act="'+(ce?"mode-practice":"mode-edit")+'"]',"Edit Values "+(ce?"OFF":"ON"),null); }
+      else { var he=hs.viewMode==="edit"; kbdClick('#h-display [data-act="'+(he?"mode-practice":"mode-edit")+'"]',"Edit Values "+(he?"OFF":"ON"),null); }
+      done(); return;
+    }
+    if(code==="KeyT"){ var tb=document.getElementById("tutor-toggle"); if(tb){ tb.click(); kbdFlashEl(tb); } kbdChip("Tutor "+(tutorOn?"ON":"OFF")); done(); return; }
+    if(code==="KeyZ"){
+      var toast=document.getElementById("undo-toast");
+      if(toast&&!toast.hidden){ kbdClick("#undo-toast-btn","Undo",null); }
+      else if(page==="autocad"){ kbdClick("#c-undo","CAD Undo",null); }
+      else kbdChip("Undo — nothing to undo");
+      done(); return;
+    }
+    if((page==="holoplot"||page==="probe")&&(key.indexOf("Arrow")===0||/^Arrow/.test(code))){
+      var st=e.shiftKey?2:0.5;
+      if(code==="ArrowLeft"||key==="ArrowLeft") kbdProbeNudge(-st,0);
+      else if(code==="ArrowRight"||key==="ArrowRight") kbdProbeNudge(st,0);
+      else if(code==="ArrowUp"||key==="ArrowUp") kbdProbeNudge(0,-st);
+      else if(code==="ArrowDown"||key==="ArrowDown") kbdProbeNudge(0,st);
+      done(); return;
+    }
+    if(page==="holoplot"){
+      if(code==="KeyL"){ kbdClick('[data-link-tog="'+hs.sel+'"]',"Link toggle: "+hCur().name,function(){ var i=hs.linked.indexOf(hs.sel); if(i>=0) hs.linked.splice(i,1); else hs.linked.push(hs.sel); if(hs.linked.length<2){ hs.invertPan=false; hs.invertTilt=false; } renderHoloplot(); }); done(); return; }
+      if(code==="KeyF"){ kbdFan(); done(); return; }
+      if(code==="KeyX"){ kbdClick('[data-invert="az"]',"Invert Pan "+(hs.invertPan?"OFF":"ON"),null); done(); return; }
+      if(code==="KeyC"){ kbdClick('[data-invert="tilt"]',"Invert Tilt "+(hs.invertTilt?"OFF":"ON"),null); done(); return; }
+      if(code==="KeyR"){ kbdRender(); done(); return; }
+      if(code==="KeyP"){ kbdClick("#h-tag-probe",hCurBeam().probe?"Untag beam from Probe":"Tag beam to Probe",function(){ var b=hCurBeam(); if(!hs.probe) return; b.probe=!b.probe; hProbeSync(); renderHoloplot(); }); done(); return; }
+    }
+    if(page==="autocad"){
+      if(code==="KeyS"){ kbdClick("#c-snap","Snap "+(cs.snap?"OFF":"ON"),null); done(); return; }
+      if(code==="KeyO"){ kbdClick("#c-ortho","Ortho "+(cs.ortho?"OFF":"ON"),null); done(); return; }
+      if(code==="KeyG"){ kbdClick("#c-grid","Grid "+(cs.showGrid?"OFF":"ON"),null); done(); return; }
+    }
+    return;
+  }
+  /* ---- plain keys: page-scoped ---- */
+  if(page==="holoplot"){
+    var d=/^Digit([0-9])$/.exec(code);
+    if(d){
+      var n=Number(d[1]);
+      if(e.shiftKey){ if(n>=1&&n<=3){ kbdSelectBeam(n-1); done(); } return; }
+      if(n===1){ kbdSelectArray(1,"Array L"); done(); return; }
+      if(n===2){ kbdSelectArray(2,"Array R"); done(); return; }
+      if(n===3){ kbdSelectArray(3,"Centre"); done(); return; }
+      if(n===4){ kbdToggleLayer("Main"); done(); return; }
+      if(n===5){ kbdToggleLayer("Balcony"); done(); return; }
+      if(n===6){ kbdToggleLayer("Fill"); done(); return; }
+      return;
+    }
+    if(code==="BracketLeft"){ kbdCycleFocus(-1); done(); return; }
+    if(code==="BracketRight"){ kbdCycleFocus(1); done(); return; }
+    if(code==="Minus"){ kbdStepFocused(-1,e.shiftKey); done(); return; }
+    if(code==="Equal"){ kbdStepFocused(1,e.shiftKey); done(); return; }
+    if(code==="ArrowLeft"){ kbdAim("az",-1,e.shiftKey); done(); return; }
+    if(code==="ArrowRight"){ kbdAim("az",1,e.shiftKey); done(); return; }
+    if(code==="ArrowUp"){ kbdAim("tilt",1,e.shiftKey); done(); return; }
+    if(code==="ArrowDown"){ kbdAim("tilt",-1,e.shiftKey); done(); return; }
+    if(code==="KeyF"){ kbdFan(); done(); return; }
+    if(code==="KeyX"){ kbdClick('[data-invert="az"]',"Invert Pan "+(hs.invertPan?"OFF":"ON"),null); done(); return; }
+    if(code==="KeyC"){ kbdClick('[data-invert="tilt"]',"Invert Tilt "+(hs.invertTilt?"OFF":"ON"),null); done(); return; }
+    if(code==="KeyR"){
+      if(e.shiftKey){ kbdClick(hs.resMode==="high"?"#h-res-low":"#h-res-high",hs.resMode==="high"?"Res: Low":"Res: High",null); }
+      else kbdRender();
+      done(); return;
+    }
+    if(code==="KeyV"){ kbdRenderModeSet(hs.renderMode==="live"?"ondemand":"live"); done(); return; }
+    if(code==="KeyP"){ kbdProbeToggle(); done(); return; }
+    return;
+  }
+  if(page==="probe"){
+    var d2=/^Digit([0-9])$/.exec(code);
+    if(d2&&!e.shiftKey){
+      var n2=Number(d2[1]), planes2=["top","front","side"];
+      if(n2>=1&&n2<=3){ kbdClick('[data-pplane="'+planes2[n2-1]+'"]',"Slice: "+planes2[n2-1],null); done(); return; }
+      if(n2===0){ kbdClick("#p-centre","Centre on probe",function(){ probePage.offset=0; renderProbePage(); }); done(); return; }
+      return;
+    }
+    if(code==="Minus"){ kbdClickTimes('[data-poff="-0.5"]',e.shiftKey?5:1); kbdChip("Slice offset −"+(e.shiftKey?"2.5":"0.5")+" m"); done(); return; }
+    if(code==="Equal"){ kbdClickTimes('[data-poff="0.5"]',e.shiftKey?5:1); kbdChip("Slice offset +"+(e.shiftKey?"2.5":"0.5")+" m"); done(); return; }
+    if(code==="BracketLeft"){ kbdProbeCycle(-1); done(); return; }
+    if(code==="BracketRight"){ kbdProbeCycle(1); done(); return; }
+    if(code==="KeyS"){
+      var list=kbdProbeBeamKeys(); if(!list.length) return;
+      var idx=(typeof probePage._cyc==="number")?probePage._cyc:0; if(idx>=list.length) idx=0;
+      kbdClick('[data-solo="'+list[idx].key+'"]',"Solo: "+list[idx].label,function(){ probePage.solo=(probePage.solo===list[idx].key?null:list[idx].key); renderProbePage(); });
+      done(); return;
+    }
+    if(code==="KeyA"){ kbdClick("#p-allbeams","All beams",function(){ probePage.solo=null; renderProbePage(); }); done(); return; }
+    return;
+  }
+  if(page==="autocad"){
+    if(code==="Digit0"&&!e.shiftKey){ kbdClick("#c-zoom-reset","Zoom Extents",null); done(); return; }
+    var tools={KeyL:["line","Line"],KeyC:["circle","Circle"],KeyR:["rect","Rectang"],KeyP:["polyline","Pline"],KeyA:["arc","Arc"],KeyD:["dim","Dimension"],KeyT:["text","Text"],KeyE:["erase","Erase"]};
+    var t=tools[code];
+    if(t){ kbdClick('[data-tool="'+t[0]+'"]',"Tool: "+t[1],null); done(); return; }
+    return;
+  }
+}
+document.addEventListener("keydown",kbdDispatch);
 </script>
 </body>
 </html>
