@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>HOLOPLOT and AutoCAD Practice — GitHub Web App</title>
+<style>
+  :root{
+    --bg:#0E1013; --surface:#171A20; --surface2:#22262F; --border:#333945;
+    --text:#E9ECF1; --dim:#9AA3B2; --cyan:#22D3EE; --cyan-dim:#164E63; --amber:#F59E0B; --amber-dim:#78350F;
+    --red:#7F1D1D; --red-text:#FECACA; --green:#34D399;
+    --map-bg:#0B1220;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#EEF0F3; --surface:#FFFFFF; --surface2:#E7EAef; --surface2:#E7EAEF; --border:#C9CFDA;
+      --text:#171B22; --dim:#5B6574;
+      --map-bg:#0B1220;
+    }
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--text);
+    font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif; }
+  .mono{ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  button{ font:inherit; color:inherit; cursor:pointer; }
+  input,select{ font:inherit; color:var(--text); }
+  input[type="range"]{ height:48px; accent-color:var(--cyan); cursor:pointer; }
+  input[type="range"]::-webkit-slider-thumb{ width:34px; height:34px; }
+  input[type="checkbox"]{ width:26px; height:26px; accent-color:var(--cyan); }
+  .wrap{ max-width:1400px; margin:0 auto; padding:0 10px 40px; }
+  @media(min-width:640px){ .wrap{ padding:0 16px 40px; } }
+
+  header{ position:sticky; top:0; z-index:40; background:#121418; border-bottom:1px solid #333945;
+    padding-top:env(safe-area-inset-top,0px); }
+  .header-in{ max-width:1400px; margin:0 auto; padding:12px; display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+  .ws-switch{ display:flex; border-radius:16px; overflow:hidden; border:1px solid #333945; width:100%; }
+  @media(min-width:640px){ .ws-switch{ width:auto; } }
+  .ws-switch button{ flex:1; min-height:56px; padding:12px 20px; font-size:16px; font-weight:700; border:0; background:#1B1E24; color:#E6E8EB; white-space:nowrap; }
+  .ws-switch button.on-h{ background:var(--cyan-dim); color:#67E8F9; }
+  .ws-switch button.on-c{ background:var(--amber-dim); color:#FCD34D; }
+  .progress-box{ flex:1; min-width:150px; order:3; width:100%; }
+  @media(min-width:640px){ .progress-box{ order:0; width:auto; } }
+  .progress-track{ height:10px; border-radius:99px; background:#232730; margin-top:4px; overflow:hidden; }
+  .progress-fill{ height:100%; border-radius:99px; transition:width .3s; }
+  .tutor-toggle{ min-height:56px; padding:12px 20px; border-radius:16px; font-size:16px; font-weight:700; border:1px solid #333945; background:#22262F; color:#E6E8EB; }
+  .tutor-toggle.on{ background:var(--cyan-dim); color:#67E8F9; }
+  .edition-note{ font-size:11px; color:#9AA3B2; display:none; }
+  @media(min-width:1024px){ .edition-note{ display:block; } }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; }
+  .btn{ min-height:52px; padding:12px 18px; border-radius:12px; font-size:15px; font-weight:700; background:var(--surface2); border:1px solid var(--border); }
+  .btn:disabled{ opacity:.4; cursor:default; }
+  .btn-sm{ min-height:48px; padding:10px 14px; font-size:14px; }
+  .tog-on{ background:var(--cyan-dim) !important; color:#67E8F9 !important; }
+  .field{ width:100%; border-radius:12px; padding:12px; min-height:52px; font-size:16px; background:var(--surface2); border:1px solid var(--border); }
+  .deck{ display:flex; border-radius:16px; overflow:hidden; border:1px solid var(--border); background:var(--surface); box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .deck button{ flex:1; min-height:64px; padding:10px 6px; font-size:14px; font-weight:700; line-height:1.25; background:var(--surface); border:0; border-left:1px solid var(--border); }
+  .deck button:first-child{ border-left:0; }
+  @media(min-width:640px){ .deck button{ font-size:16px; } }
+  .deck button.on-h{ background:var(--cyan-dim); color:#67E8F9; }
+  .deck button.on-c{ background:var(--amber-dim); color:#FCD34D; }
+  .mode-switch{ display:flex; border-radius:16px; overflow:hidden; border:1px solid var(--border); width:100%; }
+  @media(min-width:640px){ .mode-switch{ width:auto; } }
+  .mode-switch button{ flex:1; min-height:56px; padding:12px 20px; font-size:16px; font-weight:700; border:0; background:var(--surface); color:var(--text); }
+  .mode-switch button.on-p{ background:var(--cyan-dim); color:#67E8F9; }
+  .mode-switch button.on-e{ background:var(--red); color:var(--red-text); }
+  .edit-banner{ background:#2A1215; border:1px solid var(--red); color:var(--red-text); border-radius:12px; padding:12px 16px; font-size:14px; }
+  @media (prefers-color-scheme: light){ .edit-banner{ background:#FDECEC; color:#7F1D1D; } }
+  .chip{ border-radius:12px; padding:14px; min-height:96px; background:var(--surface2); border:1px solid var(--border); cursor:pointer; text-align:left; }
+  .chip.lit-h{ background:var(--cyan-dim); }
+  .chip.lit-c{ background:var(--amber-dim); }
+  .chip.editing{ border:2px solid #F87171; }
+  .readout-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px; background:var(--surface); }
+  @media(min-width:640px){ .readout-grid{ grid-template-columns:repeat(6,1fr); } }
+  .readout{ background:var(--surface2); border-radius:12px; padding:12px 8px; text-align:center; }
+  .readout .v{ font-weight:700; font-size:19px; }
+  .readout .l{ font-size:11px; color:var(--dim); margin-top:2px; }
+  .slider-row{ margin-top:12px; background:var(--surface2); border-radius:12px; padding:10px 12px; }
+  .stepper{ width:48px; height:48px; border-radius:12px; font-size:22px; font-weight:700; background:var(--surface); border:1px solid var(--border); flex:none; }
+  .tool-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+  @media(min-width:640px){ .tool-grid{ grid-template-columns:repeat(6,1fr); } }
+  @media(min-width:1024px){ .tool-grid{ grid-template-columns:repeat(12,1fr); } }
+  .tool-grid button{ min-height:64px; padding:10px 4px; border-radius:16px; font-size:14px; font-weight:700; line-height:1.25; background:var(--surface); border:1px solid var(--border); }
+  .tool-grid button.on{ background:var(--amber-dim); color:#FCD34D; border:2px solid var(--amber); }
+  .legend-bar{ display:flex; flex-wrap:wrap; gap:6px 14px; padding:8px 12px; font-size:11px; align-items:center; background:#0F172A; color:#CBD5E1; }
+  .swatch{ display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:5px; }
+  .lesson{ background:var(--surface2); border-radius:12px; padding:14px; }
+  .tutor-pill{ position:fixed; left:50%; transform:translateX(-50%); z-index:50; min-height:56px; padding:14px 24px;
+    border-radius:99px; font-size:16px; font-weight:700; background:var(--cyan-dim); color:#A5F3FC; border:2px solid var(--cyan);
+    box-shadow:0 10px 30px rgba(0,0,0,.45); max-width:94vw; bottom:calc(env(safe-area-inset-bottom,0px) + 16px); }
+  .grid2{ display:grid; gap:12px; } @media(min-width:768px){ .grid2{ grid-template-columns:1fr 1fr; } }
+  .grid3{ display:grid; gap:12px; } @media(min-width:768px){ .grid3{ grid-template-columns:repeat(3,1fr); } }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  a{ color:var(--cyan); }
+  code{ background:var(--surface2); padding:1px 6px; border-radius:6px; font-size:.92em; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-in">
+    <div class="ws-switch" role="tablist" aria-label="Workspace switcher">
+      <button id="tab-holoplot" role="tab">◉ HOLOPLOT Plan</button>
+      <button id="tab-autocad" role="tab">⌖ AutoCAD</button>
+    </div>
+    <div class="progress-box">
+      <div class="mono" style="display:flex;justify-content:space-between;font-size:11px;color:#9AA3B2"><span>PRACTICE PROGRESS</span><span id="progress-label"></span></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <button id="tutor-toggle" class="tutor-toggle" aria-pressed="true">🎓 Tutor ON</button>
+    <p class="edition-note mono">BASIC WEB PRACTICE EDITION<br/>Not HOLOPLOT / Autodesk software — concepts &amp; muscle memory</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="ws-holoplot"></div>
+  <div id="ws-autocad" hidden></div>
+
+  <section id="tutor-section" aria-label="Virtual tutor" style="margin-top:20px"></section>
+
+  <section class="card" style="margin-top:20px;padding:18px" aria-label="Run this app from GitHub Pages">
+    <h2 style="margin:0 0 6px;font-size:17px">📦 This page is the GitHub Pages package</h2>
+    <p style="margin:0;font-size:15px;line-height:1.55;color:var(--dim)">
+      Everything — both workspaces, the tutor, drills and lessons — lives in this one self-contained
+      <code>index.html</code>, with no server and no build step. To host it yourself on GitHub Pages:
+      create a repository, add this file as <code>index.html</code>, then in the repo go to
+      <strong>Settings → Pages</strong> and deploy from the <code>main</code> branch. Your designs and
+      practice progress save in this browser on this device, so they travel with the device, not the site.
+    </p>
+  </section>
+</main>
+
+<button id="tutor-pill" class="tutor-pill" hidden></button>
+
+<script>
+"use strict";
+/* ================= shared ================= */
+function splColor(spl){
+  if(spl<55) return "#1e293b";
+  if(spl<65) return "#1d4ed8";
+  if(spl<75) return "#0891b2";
+  if(spl<85) return "#16a34a";
+  if(spl<92) return "#eab308";
+  if(spl<98) return "#f97316";
+  return "#ef4444";
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* ---------- on-device storage (static site: no server) ---------- */
+var LS_KEY="holoplot-autocad-practice-github-v1";
+var store={ progress:[], saves:{ holoplot:[], autocad:[] } };
+try{ var raw=localStorage.getItem(LS_KEY); if(raw){ var p=JSON.parse(raw); if(p&&p.progress&&p.saves) store=p; } }catch(e){}
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+function doneSet(){ return new Set(store.progress); }
+function markDone(id){ if(!store.progress.includes(id)){ store.progress.push(id); persist(); } renderProgress(); }
+function addSave(ws,name,data){ store.saves[ws].push({id:Date.now(),name:name,data:data}); persist(); }
+function deleteSave(ws,id){ store.saves[ws]=store.saves[ws].filter(function(s){return s.id!==id;}); persist(); }
+
+/* ---------- virtual tutor: built-in explanations, no server ---------- */
+var TUTOR_DICT=[
+  {keys:["azimuth"],expl:"Azimuth steers a beam left or right in plan (top-down) view, measured in degrees from straight ahead. Negative aims left, positive aims right. Try it: move Array L to about -18° and Array R to +18° so the two beams split the stalls instead of both firing down the middle."},
+  {keys:["tilt","elevation"],expl:"Tilt (elevation) aims a beam up or down in side view. Raise tilt to throw energy up to a balcony or raked seating; lower it for flat stalls. Too much tilt spills onto the ceiling, too little leaves the back rows quiet."},
+  {keys:["beam width","horizontal beam","vertical beam"],expl:"Beam width is how wide a beam spreads, in degrees. Narrow beams throw farther with less spill but can leave gaps; wide beams fill evenly up close but spill onto walls. Match the width to the zone you are covering."},
+  {keys:["beamforming"],expl:"3D Audio-Beamforming is HOLOPLOT's core idea: hundreds of drivers in one array are driven individually so the array synthesises beams of sound and aims them at chosen zones — and keeps other areas quiet. You design coverage, not just speaker placement."},
+  {keys:["spl","sound pressure"],expl:"SPL (Sound Pressure Level) is loudness in decibels (dB) at a point in the room. On the coverage map each colour is an SPL band. Your goal is usually one even colour across the audience — not the loudest possible number."},
+  {keys:["uniformity"],expl:"Uniformity is how even the SPL is across a zone — here half the gap between the loudest and quietest audience cells, in ± dB. Lower is better: within about ±3 dB feels even; big numbers mean hot spots and dead spots."},
+  {keys:["spill"],expl:"Spill is sound landing where you do not want it — outside the audience, on walls, stage or neighbours — above 75 dB here. High spill wastes energy, hurts intelligibility and can cause complaints. Narrower beams and careful azimuth reduce it."},
+  {keys:["coverage"],expl:"Coverage is the share of the audience area reaching a usable level (here at least 78 dB). High coverage with low spill is the win: everyone hears it, nobody outside the zone gets blasted."},
+  {keys:["gain"],expl:"Gain is the level trim for an array or beam, in dB. Use it to balance zones against each other — for example pulling a near stalls beam down so a far balcony beam can match it — rather than turning everything up."},
+  {keys:["x1","x2","array"],expl:"X1 and X2 are HOLOPLOT array modules. One array can emit several independent beams at different zones, levels and EQ. In this practice app each box is one array you can steer with azimuth, tilt, beam width and gain."},
+  {keys:["dimension","dim"],expl:"A dimension measures the real distance between two points so a crew can build from the drawing. In AutoCAD, use DIM, click the two points, and the measured length (in feet here) is written on the drawing. Always dimension the things that get built: stage width, hang points, clearances."},
+  {keys:["layer"],expl:"Layers organise a drawing like transparent sheets: Walls, Speakers, Seating, Stage, Dimensions and Notes each get their own layer, colour and visibility switch. Draw each kind of object on its own layer so views can be turned on and off for different readers."},
+  {keys:["snap"],expl:"SNAP forces points onto a regular grid (2 ft here) so geometry lines up cleanly instead of landing at ragged fractions. ORTHO is different: it locks lines to horizontal or vertical only."},
+  {keys:["ortho"],expl:"ORTHO locks drawing to horizontal and vertical only — essential for walls, stages and seating rows. Turn it off when you genuinely need a diagonal, like a thrust stage edge."},
+  {keys:["command line","command:"],expl:"The command line is how AutoCAD pros actually drive the app: type a command (L for LINE, C for CIRCLE, REC for RECTANG), press Enter, then follow the prompts or type exact coordinates like 10,10. It is faster and more precise than hunting toolbars."},
+  {keys:["polyline","pline"],expl:"A polyline (PLINE) is one connected object made of several line segments — good for cable runs, sight lines and room outlines. Click each point, then finish the polyline to close the sequence as a single selectable object."},
+  {keys:["rectang","rectangle"],expl:"RECTANG draws a rectangle from two opposite corners. For a stage, click one corner then the opposite corner — or type exact coordinates — to get a precise 40 × 16 ft platform instead of a sketch."},
+  {keys:["circle"],expl:"CIRCLE here stands in for a speaker, a column or a turning radius: pick the centre, then a point on the edge sets the radius. The Properties panel reports radius and area once drawn."},
+  {keys:["hover","latched","momentary"],expl:"Hover values come in two flavours. Momentary: the value label shows only while your pointer or finger is on the item and disappears when you move away. Latched: tap or click once and the label stays pinned until you tap it again — better on touch screens and when comparing two beams."},
+  {keys:["long-press","long press","edit values"],expl:"Edit Values mode is where value labels become editable. Switch to the Edit Values tab, then press and hold (long-press, about half a second) any beam or dimension value label — an editor opens so you can type a new value and save it. Practice mode keeps labels read-only so you cannot change a design by accident."}
+];
+function localExplain(raw){
+  var t=raw.toLowerCase();
+  for(var i=0;i<TUTOR_DICT.length;i++){ var e=TUTOR_DICT[i];
+    for(var j=0;j<e.keys.length;j++){ if(t.indexOf(e.keys[j])>=0) return e.expl; } }
+  return null;
+}
+
+/* ---------- long-press helper ---------- */
+function makeLongPress(){
+  var timers={}, fired={};
+  return {
+    start:function(key,fn){ fired[key]=false; timers[key]=window.setTimeout(function(){ fired[key]=true; fn(); },600); },
+    cancel:function(key){ if(timers[key]) window.clearTimeout(timers[key]); },
+    wasFired:function(key){ return !!fired[key]; }
+  };
+}
+
+/* ---------- display controls (shared markup builder) ---------- */
+function displayControlsHTML(ns){
+  return ''+
+  '<div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">'+
+    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">'+
+      '<div class="mode-switch" role="tablist" aria-label="Practice or edit values mode">'+
+        '<button data-act="mode-practice" role="tab">▶ Practice</button>'+
+        '<button data-act="mode-edit" role="tab">✎ Edit Values</button>'+
+      '</div>'+
+      '<span style="font-size:14px;color:var(--dim)" data-role="mode-hint"></span>'+
+    '</div>'+
+    '<p class="edit-banner" data-role="edit-banner" role="status" hidden>✎ EDIT VALUES MODE — long-press (press and hold ~0.6s) a value label, or tap its Edit button, type the new value, then Save. Switch back to Practice when you are done.</p>'+
+    '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px" aria-label="Display toggles for keys, legends and hover text">'+
+      '<button class="btn btn-sm" data-act="tog-legend" aria-pressed="true">Legend: ON</button>'+
+      '<button class="btn btn-sm" data-act="tog-keys" aria-pressed="true">Keys &amp; Labels: ON</button>'+
+      '<button class="btn btn-sm" data-act="tog-hover" aria-pressed="true">Hover values: ON</button>'+
+      '<span style="font-size:14px;font-weight:700">Hover text:</span>'+
+      '<div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--border)" role="group" aria-label="Hover text mode: momentary or latched">'+
+        '<button class="btn btn-sm" data-act="hover-momentary" style="border:0;border-radius:0">Momentary</button>'+
+        '<button class="btn btn-sm" data-act="hover-latch" style="border:0;border-radius:0">Latched</button>'+
+      '</div>'+
+      '<span style="font-size:14px;color:var(--dim)" data-role="hover-hint"></span>'+
+    '</div>'+
+  '</div>';
+}
+function wireDisplayControls(root, st, rerender){
+  function sync(){
+    root.querySelector('[data-act="mode-practice"]').className = st.viewMode==="practice" ? "on-p" : "";
+    root.querySelector('[data-act="mode-edit"]').className = st.viewMode==="edit" ? "on-e" : "";
+    root.querySelector('[data-act="mode-practice"]').setAttribute("aria-selected", st.viewMode==="practice");
+    root.querySelector('[data-act="mode-edit"]').setAttribute("aria-selected", st.viewMode==="edit");
+    root.querySelector('[data-role="mode-hint"]').textContent = st.viewMode==="edit"
+      ? "Edit Values mode: press and hold (long-press) any beam or dimension value label below to change its value."
+      : "Practice mode: value labels are read-only.";
+    root.querySelector('[data-role="edit-banner"]').hidden = st.viewMode!=="edit";
+    var lg=root.querySelector('[data-act="tog-legend"]'); lg.textContent="Legend: "+(st.showLegend?"ON":"OFF"); lg.classList.toggle("tog-on",st.showLegend); lg.setAttribute("aria-pressed",st.showLegend);
+    var ky=root.querySelector('[data-act="tog-keys"]'); ky.textContent="Keys & Labels: "+(st.showKeys?"ON":"OFF"); ky.classList.toggle("tog-on",st.showKeys); ky.setAttribute("aria-pressed",st.showKeys);
+    var hv=root.querySelector('[data-act="tog-hover"]'); hv.textContent="Hover values: "+(st.showHover?"ON":"OFF"); hv.classList.toggle("tog-on",st.showHover); hv.setAttribute("aria-pressed",st.showHover);
+    root.querySelector('[data-act="hover-momentary"]').classList.toggle("tog-on", st.hoverMode==="momentary");
+    root.querySelector('[data-act="hover-latch"]').classList.toggle("tog-on", st.hoverMode==="latch");
+    root.querySelector('[data-role="hover-hint"]').textContent = st.hoverMode==="momentary"
+      ? "Momentary: values show only while you touch / hover the item."
+      : "Latched: tap an item once and its values stay pinned until you tap it again.";
+  }
+  root.querySelector('[data-act="mode-practice"]').addEventListener("click",function(){ st.viewMode="practice"; sync(); rerender(); });
+  root.querySelector('[data-act="mode-edit"]').addEventListener("click",function(){ st.viewMode="edit"; sync(); rerender(); });
+  root.querySelector('[data-act="tog-legend"]').addEventListener("click",function(){ st.showLegend=!st.showLegend; sync(); rerender(); });
+  root.querySelector('[data-act="tog-keys"]').addEventListener("click",function(){ st.showKeys=!st.showKeys; sync(); rerender(); });
+  root.querySelector('[data-act="tog-hover"]').addEventListener("click",function(){ st.showHover=!st.showHover; sync(); rerender(); });
+  root.querySelector('[data-act="hover-momentary"]').addEventListener("click",function(){ st.hoverMode="momentary"; sync(); rerender(); });
+  root.querySelector('[data-act="hover-latch"]').addEventListener("click",function(){ st.hoverMode="latch"; sync(); rerender(); });
+  sync();
+  return sync;
+}
+
+/* ---------- lessons renderer ---------- */
+function lessonsHTML(items, openId){
+  var done=doneSet();
+  var cards=items.map(function(l){
+    var isDone=done.has(l.id), isOpen=openId===l.id;
+    return '<article class="lesson">'+
+      '<button data-lesson-toggle="'+l.id+'" aria-expanded="'+isOpen+'" style="width:100%;text-align:left;font-weight:700;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:48px;background:none;border:0;padding:4px 0"><span>'+esc(l.title)+'</span><span style="font-size:20px;color:'+(isDone?"var(--green)":"inherit")+'">'+(isDone?"✓ Done":(isOpen?"▾":"▸"))+'</span></button>'+
+      (isOpen ? '<p style="font-size:16px;margin:8px 0 0;line-height:1.6">'+esc(l.body)+'</p>'+
+        '<button data-lesson-done="'+l.id+'" '+(isDone?"disabled":"")+' class="btn" style="margin-top:12px;background:var(--cyan);color:#111;border:0">'+(isDone?"Completed ✓":"Mark complete")+'</button>' : '')+
+    '</article>';
+  }).join("");
+  return '<section class="card" style="margin-top:16px;padding:16px"><h2 style="margin:0;font-size:16px">📚 LESSONS — read, try it on the canvas, mark complete</h2><div class="grid2" style="margin-top:12px">'+cards+'</div></section>';
+}
+function wireLessons(container, items, state, rerender){
+  container.querySelectorAll("[data-lesson-toggle]").forEach(function(b){
+    b.addEventListener("click",function(){ var id=b.getAttribute("data-lesson-toggle"); state.openLesson = state.openLesson===id?null:id; rerender(); });
+  });
+  container.querySelectorAll("[data-lesson-done]").forEach(function(b){
+    b.addEventListener("click",function(){ markDone(b.getAttribute("data-lesson-done")); rerender(); });
+  });
+}
+</script>
+<script>
+"use strict";
+/* ================= HOLOPLOT ================= */
+var VENUES=[
+  {id:"theatre",label:"Theatre — 800 cap",w:36,d:38,zones:[{name:"Stalls",x:-13,y:10,w:26,h:18},{name:"Balcony",x:-11,y:30,w:22,h:6}]},
+  {id:"arena",label:"Arena Bowl",w:56,d:48,zones:[{name:"Floor",x:-16,y:14,w:32,h:20},{name:"Lower Bowl",x:-24,y:36,w:48,h:8}]},
+  {id:"church",label:"Worship — Long Nave",w:22,d:44,zones:[{name:"Nave",x:-8,y:10,w:16,h:28},{name:"Choir",x:-6,y:40,w:12,h:4}]},
+  {id:"festival",label:"Outdoor Festival",w:60,d:55,zones:[{name:"Main Field",x:-25,y:15,w:50,h:32}]},
+  {id:"corp",label:"Corporate Ballroom",w:30,d:26,zones:[{name:"Seating",x:-12,y:8,w:24,h:15}]}
+];
+var H_LESSONS=[
+  {id:"h1",title:"1 · What HOLOPLOT does differently",body:"Conventional line arrays throw sound in a fixed pattern. HOLOPLOT X1/X2 use 3D Audio-Beamforming: hundreds of drivers are driven individually so you synthesize beams and aim them at zones — and create quiet zones where you don't want sound. In Plan, you don't just place a speaker, you design coverage."},
+  {id:"h2",title:"2 · Beams, azimuth & tilt",body:"Azimuth steers a beam left/right in plan view. Tilt / elevation aims it up/down in side view — critical for balconies and raked seating. Try it: drag Tilt to +8° and watch the Balcony zone light up while Stalls cool down."},
+  {id:"h3",title:"3 · Beam width = control vs. throw",body:"Narrow beams (small °) throw farther with less spill but leave gaps between zones. Wide beams fill evenly up close but spill onto walls and ceilings, hurting intelligibility. Uniformity within ±3 dB across a zone is a pro target."},
+  {id:"h4",title:"4 · Multiple beams from one array",body:"One HOLOPLOT array can emit several independent beams at different zones, levels and EQ. That's why the drill below asks you to run two arrays / beams: one for Stalls, one for Balcony, at matched SPL."},
+  {id:"h5",title:"5 · Reading an SPL map honestly",body:"Red isn't 'better' — it's louder. Aim for one even colour across the audience, low energy outside it, and no hot spot at FOH. Check Avg, Uniformity (±) and Spill in the readout after every move, just like in Plan's simulation."}
+];
+var H_DRILLS=[
+  {id:"hd1",title:"Drill A — Even Stalls",goal:"Avg SPL 82–92 dB in the audience AND uniformity ≤ 6 dB",test:function(s){return s.avg>=82&&s.avg<=92&&s.uni<=6;}},
+  {id:"hd2",title:"Drill B — Tame the spill",goal:"Keep avg ≥ 80 dB while spill cells (>75 dB outside audience) ≤ 18%",test:function(s){return s.avg>=80&&s.spill<=18;}},
+  {id:"hd3",title:"Drill C — Two-zone balance",goal:"Run 2+ arrays on, avg 84–94 dB, uniformity ≤ 4.5 dB",test:function(s){return s.avg>=84&&s.avg<=94&&s.uni<=4.5;},needs2:true}
+];
+
+var hs={
+  venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design",
+  showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
+  hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1",
+  arrays:[
+    {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
+    {id:2,name:"Array R",model:"X2",x:6,y:4,az:10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
+    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,on:false}
+  ]
+};
+var hLP=makeLongPress();
+function hVenue(){ return VENUES.find(function(v){return v.id===hs.venueId;})||VENUES[0]; }
+function hCur(){ return hs.arrays.find(function(a){return a.id===hs.sel;})||hs.arrays[0]; }
+function hArrVisible(id){ return hs.showHover && ((hs.hoverMode==="momentary"&&hs.hovered===id)||(hs.hoverMode==="latch"&&hs.latched.indexOf(id)>=0)||hs.editing===id); }
+
+function hCompute(){
+  var venue=hVenue(), list=[];
+  for(var gx=-venue.w/2; gx<venue.w/2; gx+=2) for(var gy=0; gy<venue.d; gy+=2){
+    var px=gx+1, py=gy+1, energy=0;
+    hs.arrays.forEach(function(a){ if(!a.on) return;
+      var dx=px-a.x, dy=py-a.y, dist=Math.sqrt(dx*dx+dy*dy+16);
+      var beamAng=Math.atan2(dx,dy)*180/Math.PI;
+      var diff=beamAng-a.az; while(diff>180)diff-=360; while(diff<-180)diff+=360;
+      var fall=-14*Math.pow(diff/Math.max(8,a.hBeam),2);
+      var spl=104+a.gain-20*Math.log10(Math.max(2,dist))+Math.max(-32,fall);
+      energy+=Math.pow(10,spl/10);
+    });
+    var splv=energy>0?10*Math.log10(energy):42;
+    var inAud=venue.zones.some(function(z){return px>=z.x&&px<=z.x+z.w&&py>=z.y&&py<=z.y+z.h;});
+    list.push({x:px,y:py,spl:splv,inAud:inAud});
+  }
+  var aud=list.filter(function(c){return c.inAud;}), out=list.filter(function(c){return !c.inAud;});
+  var avg=aud.length?aud.reduce(function(s,c){return s+c.spl;},0)/aud.length:0;
+  var mn=aud.length?Math.min.apply(null,aud.map(function(c){return c.spl;})):0;
+  var mx=aud.length?Math.max.apply(null,aud.map(function(c){return c.spl;})):0;
+  var spill=out.length?Math.round(out.filter(function(c){return c.spl>75;}).length/out.length*100):0;
+  var coverage=aud.length?Math.round(aud.filter(function(c){return c.spl>=78;}).length/aud.length*100):0;
+  return {cells:list, stats:{avg:Math.round(avg*10)/10, uni:Math.round((mx-mn)/2*10)/10, min:Math.round(mn), max:Math.round(mx), spill:spill, coverage:coverage}};
+}
+
+function hPlanSVG(cells){
+  var venue=hVenue();
+  var SX=function(mx){return 300+mx*9;}, SY=function(my){return 30+my*11;};
+  var s='<svg viewBox="0 0 600 470" style="width:100%;display:block;margin:0 auto;max-height:62dvh;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
+  cells.forEach(function(c){ s+='<rect x="'+SX(c.x-1)+'" y="'+SY(c.y-1)+'" width="18" height="22" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
+  venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
+    if(hs.showKeys) s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+'</text>'; });
+  s+='<rect x="'+SX(-venue.w/2)+'" y="'+SY(0)+'" width="'+(venue.w*9)+'" height="62" fill="#111827" stroke="#475569"/><text x="300" y="'+SY(2.5)+'" fill="#94A3B8" font-size="12" text-anchor="middle" font-weight="700">STAGE</text>';
+  hs.arrays.forEach(function(a){ if(!a.on) return; var rad=a.az*Math.PI/180, len=210;
+    var bx=SX(a.x)+Math.sin(rad)*len, by=SY(a.y)+Math.cos(rad)*len, spread=a.hBeam*Math.PI/180*len;
+    s+='<polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'" fill="#22D3EE" opacity="0.13"/><line x1="'+SX(a.x)+'" y1="'+SY(a.y)+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4" opacity="0.7"/>'; });
+  hs.arrays.forEach(function(a){
+    s+='<g data-arr="'+a.id+'" style="cursor:pointer;opacity:'+(a.on?1:0.35)+'">';
+    s+='<rect x="'+(SX(a.x)-30)+'" y="'+(SY(a.y)-17)+'" width="60" height="34" rx="6" fill="transparent"/>';
+    s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
+    if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+4)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(a.model)+'</text>';
+    if(hArrVisible(a.id)){
+      var tx=Math.min(396,SX(a.x)+16), ty=Math.max(6,SY(a.y)-52);
+      s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="196" height="62" rx="6" fill="#0F172A" stroke="#22D3EE"/>'+
+        '<text x="'+(tx+8)+'" y="'+(ty+16)+'" fill="#A5F3FC" font-size="10" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+'</text>'+
+        '<text x="'+(tx+8)+'" y="'+(ty+30)+'" fill="#E6E8EB" font-size="10">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</text>'+
+        '<text x="'+(tx+8)+'" y="'+(ty+44)+'" fill="#E6E8EB" font-size="10">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</text>'+
+        '<text x="'+(tx+8)+'" y="'+(ty+57)+'" fill="#8A919E" font-size="9">'+(hs.hoverMode==="latch"?"Latched — tap array again to unpin":"Momentary — shows while hovering")+'</text></g>';
+    }
+    s+='</g>';
+  });
+  return s+'</svg>';
+}
+function hSideSVG(){
+  var venue=hVenue();
+  var s='<svg viewBox="0 0 600 470" style="width:100%;display:block;margin:0 auto;max-height:62dvh" role="img" aria-label="Side view showing tilt">';
+  s+='<line x1="40" y1="400" x2="570" y2="400" stroke="#475569" stroke-width="2"/>';
+  s+='<rect x="40" y="330" width="90" height="70" fill="#111827" stroke="#475569"/><text x="85" y="370" fill="#94A3B8" font-size="11" text-anchor="middle">STAGE</text>';
+  venue.zones.forEach(function(z,i){ var top=i===1?250:368;
+    s+='<rect x="'+(120+z.y*8)+'" y="'+top+'" width="'+(z.h*8)+'" height="'+(i===1?28:32)+'" fill="#334155" stroke="#fff" stroke-dasharray="4 3"/><text x="'+(124+z.y*8)+'" y="'+(top-6)+'" fill="#fff" font-size="11">'+esc(z.name)+'</text>'; });
+  hs.arrays.filter(function(a){return a.on;}).forEach(function(a){ var rad=-a.tilt*Math.PI/180, x=110, y=300;
+    var bx=x+Math.cos(rad)*340, by=y+Math.sin(rad)*340;
+    s+='<polygon points="'+x+','+y+' '+bx+','+(by-38)+' '+bx+','+(by+38)+'" fill="#22D3EE" opacity="0.14"/><line x1="'+x+'" y1="'+y+'" x2="'+bx+'" y2="'+by+'" stroke="#22D3EE" stroke-dasharray="4 4"/><rect x="'+(x-14)+'" y="'+(y-18)+'" width="28" height="36" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff"/><text x="'+x+'" y="'+(y+52)+'" fill="#E6E8EB" font-size="10" text-anchor="middle">'+esc(a.name)+' · tilt '+a.tilt+'°</text>'; });
+  s+='<text x="300" y="40" fill="#E6E8EB" font-size="13" text-anchor="middle" font-weight="700">SIDE VIEW — raise Tilt to hit the balcony, lower it for stalls</text>';
+  return s+'</svg>';
+}
+
+function renderHoloplot(){
+  var root=document.getElementById("ws-holoplot");
+  var venue=hVenue(), comp=hCompute(), stats=comp.stats, cur=hCur(), done=doneSet();
+  var html='';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:stretch">'+
+    '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
+    '<select id="h-venue" class="field" style="flex:1">'+VENUES.map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
+    '<button id="h-side" class="btn" style="min-height:56px">'+(hs.showSide?"Side view: ON — tap for Plan":"Show side view (tilt)")+'</button></div>';
+  html+='<p class="mono" style="font-size:13px;margin:8px 0 0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below · the map stays on top, controls layer underneath like a mixer surface</p>';
+  html+='<div id="h-display">'+displayControlsHTML("h")+'</div>';
+
+  html+='<section style="border-radius:16px;overflow:hidden;background:var(--map-bg);border:1px solid var(--border);margin-top:12px" aria-label="HOLOPLOT coverage map">';
+  html+= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
+  if(hs.showLegend){
+    html+='<div class="legend-bar" aria-label="SPL legend">'+
+      '<span><span class="swatch" style="background:#1d4ed8"></span>&lt;65 dB</span>'+
+      '<span><span class="swatch" style="background:#0891b2"></span>65–75 dB</span>'+
+      '<span><span class="swatch" style="background:#16a34a"></span>75–85 dB target</span>'+
+      '<span><span class="swatch" style="background:#eab308"></span>85–92 dB</span>'+
+      '<span><span class="swatch" style="background:#f97316"></span>92–98 dB hot</span>'+
+      '<span><span class="swatch" style="background:#ef4444"></span>98+ dB too hot</span>'+
+      '<span style="margin-left:auto">Dashed = audience zone</span></div>';
+  } else {
+    html+='<p class="mono" style="padding:8px 12px;margin:0;font-size:11px;background:#0F172A;color:#8A919E">SPL legend hidden — turn Legend ON above to show the colour key.</p>';
+  }
+  var metrics=[["AVG SPL",stats.avg+" dB"],["UNIFORMITY ±",stats.uni+" dB"],["MIN",stats.min+" dB"],["MAX",stats.max+" dB"],["COVERAGE ≥78",stats.coverage+"%"],["SPILL >75 OUT",stats.spill+"%"]];
+  html+='<div class="readout-grid">'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
+
+  /* beam value chips */
+  html+='<div style="padding:12px;background:var(--surface);border-top:1px solid var(--border)">';
+  html+='<h3 style="margin:0;font-size:16px">Beam values '+(hs.hoverMode==="latch"?"— tap a label to pin (latch) it":"— touch a label to see its values")+'</h3>';
+  html+='<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(hs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its values.":"In Practice mode these labels are read-only. Switch to Edit Values to change them by long-press.")+'</p>';
+  html+='<div class="grid3" style="margin-top:10px">';
+  hs.arrays.forEach(function(a){
+    var vis=hArrVisible(a.id);
+    html+='<div class="chip'+(vis?" lit-h":"")+(hs.editing===a.id?" editing":"")+'" data-chip="'+a.id+'" role="button" tabindex="0" aria-label="Beam values for '+esc(a.name)+': azimuth '+a.az+' degrees, tilt '+a.tilt+' degrees, gain '+a.gain+' dB, beam '+a.hBeam+' by '+a.vBeam+' degrees">'+
+      '<p style="margin:0;font-weight:700;font-size:16px">'+esc(a.name)+' · '+esc(a.model)+(a.on?" · ON":" · OFF")+'</p>'+
+      '<p class="mono" style="font-size:14px;margin:4px 0 0">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</p>'+
+      '<p class="mono" style="font-size:14px;margin:0">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</p>'+
+      (vis?'<p style="font-size:12px;margin:6px 0 0;color:#A5F3FC">'+(hs.hoverMode==="latch"?"📌 Latched: this label stays pinned — tap again to unpin.":"Momentary: showing while you touch it — lift off and it hides.")+'</p>':"")+
+      (hs.viewMode==="edit"?'<button class="btn btn-sm" data-edit-arr="'+a.id+'" style="margin-top:10px;background:var(--red);color:var(--red-text)" aria-label="Edit values for '+esc(a.name)+'">✎ Edit values</button>':"")+
+    '</div>';
+  });
+  html+='</div>';
+  if(hs.editMsg) html+='<p style="font-size:14px;margin:8px 0 0;font-weight:600;color:var(--green)" role="status">'+esc(hs.editMsg)+'</p>';
+  var ea=hs.arrays.find(function(a){return a.id===hs.editing;});
+  if(ea){
+    var fields=[["az","Azimuth °",ea.az],["tilt","Tilt °",ea.tilt],["hBeam","H beam width °",ea.hBeam],["vBeam","V beam width °",ea.vBeam],["gain","Gain dB",ea.gain],["x","Position X m",ea.x],["y","Position Y m",ea.y]];
+    html+='<form id="h-editform" style="border-radius:12px;padding:12px;margin-top:12px;background:#1F1517;border:1px solid var(--red)" aria-label="Edit beam values for '+esc(ea.name)+'">'+
+      '<p style="margin:0;font-weight:700;font-size:16px">✎ Editing '+esc(ea.name)+' — type new values, then Save</p>'+
+      '<div class="grid2" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">'+
+      fields.map(function(f){return '<label style="font-size:14px;font-weight:600">'+f[1]+'<input name="'+f[0]+'" type="number" step="0.5" value="'+f[2]+'" class="field" style="margin-top:6px" aria-label="'+f[1]+' for '+esc(ea.name)+'"/></label>';}).join("")+
+      '<label style="font-size:14px;font-weight:600">Powered on<br/><input id="h-edit-on" type="checkbox" '+(ea.on?"checked":"")+' style="margin-top:10px" aria-label="Powered on for '+esc(ea.name)+'"/></label>'+
+      '</div><div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">'+
+      '<button type="submit" class="btn" style="background:var(--cyan);color:#000;border:0;flex:1">Save values</button>'+
+      '<button type="button" id="h-edit-cancel" class="btn" style="flex:1">Cancel</button></div></form>';
+  }
+  html+='</div></section>';
+
+  /* decks */
+  html+='<div style="margin-top:12px"><div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+
+    [["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div><div style="margin-top:12px">';
+
+  if(hs.deck==="arrays"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>';
+    html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px">'+hs.arrays.map(function(a){
+      return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+'</button>';}).join("")+'</div>';
+    html+='<div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
+      '<label style="display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;min-height:48px"><input type="checkbox" id="h-on" '+(cur.on?"checked":"")+'/> Powered on</label>'+
+      '<div style="flex:1;min-width:180px"><label style="font-size:14px;font-weight:600" for="h-model">Module — '+esc(cur.name)+'</label>'+
+      '<select id="h-model" class="field" style="margin-top:6px">'+["X1","X2","X1 + Sub"].map(function(m){return '<option'+(m===cur.model?" selected":"")+'>'+m+'</option>';}).join("")+'</select></div></div>';
+    var sliders=[["Azimuth (steer L/R)","az",-40,40,"°",1],["Tilt (steer up/down)","tilt",-15,25,"°",1],["Horizontal beam width","hBeam",10,60,"°",1],["Vertical beam width","vBeam",8,40,"°",1],["Gain","gain",-12,12," dB",0.5],["Position left/right","x",-Math.floor(venue.w/2)+3,Math.floor(venue.w/2)-3," m",1],["Position depth (from stage)","y",1,14," m",1]];
+    html+='<div class="grid2">';
+    sliders.forEach(function(s){
+      html+='<div class="slider-row"><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:14px"><label for="h-sl-'+s[1]+'" style="font-weight:600">'+s[0]+'</label><span class="mono" style="font-weight:700;font-size:18px" data-slval="'+s[1]+'">'+cur[s[1]]+s[4]+'</span></div>'+
+      '<div style="display:flex;align-items:center;gap:8px"><button type="button" class="stepper" data-step="'+s[1]+':-1" aria-label="Decrease '+s[0]+'">−</button>'+
+      '<input id="h-sl-'+s[1]+'" type="range" min="'+s[2]+'" max="'+s[3]+'" step="'+s[5]+'" value="'+cur[s[1]]+'" data-slider="'+s[1]+'" style="flex:1;min-width:0"/>'+
+      '<button type="button" class="stepper" data-step="'+s[1]+':1" aria-label="Increase '+s[0]+'">+</button></div></div>';
+    });
+    html+='</div><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px">'+
+      '<button id="h-reset" class="btn" style="flex:1">Reset beams</button>'+
+      '<button id="h-balcony" class="btn" style="flex:1;background:var(--cyan);color:#000;border:0">Try: add balcony beam</button></div></section>';
+  }
+  if(hs.deck==="drills"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Coverage drills"><h2 style="margin:0;font-size:16px">🎯 COVERAGE DRILLS</h2><div class="grid3" style="margin-top:4px">';
+    H_DRILLS.forEach(function(d){
+      var pass=d.test(stats)&&(!d.needs2||hs.arrays.filter(function(a){return a.on;}).length>=2);
+      var isDone=done.has(d.id);
+      html+='<div style="margin-top:8px;border-radius:12px;padding:14px;background:var(--surface2)"><div style="display:flex;justify-content:space-between;gap:8px"><p style="margin:0;font-weight:700;font-size:16px">'+esc(d.title)+'</p><span style="font-size:12px;font-weight:700;color:'+(isDone?"var(--green)":pass?"var(--amber)":"var(--dim)")+'">'+(isDone?"✓ DONE":pass?"READY ✓":"IN PROGRESS")+'</span></div>'+
+      '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+esc(d.goal)+'</p>'+
+      '<p class="mono" style="font-size:14px;margin:6px 0 0">Now: avg '+stats.avg+' dB · ±'+stats.uni+' dB · spill '+stats.spill+'% · arrays on '+hs.arrays.filter(function(a){return a.on;}).length+'</p>'+
+      '<button data-drill="'+d.id+'" '+((!pass||isDone)?"disabled":"")+' class="btn" style="margin-top:12px;width:100%;background:var(--cyan-dim);color:#67E8F9">'+(isDone?"Completed":pass?"Claim drill ✓":"Keep steering…")+'</button></div>';
+    });
+    html+='</div></section>';
+  }
+  if(hs.deck==="save"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Save this design"><h2 style="margin:0;font-size:16px">💾 SAVE THIS DESIGN</h2>'+
+      '<label class="sr-only" for="h-savename">Design name</label><input id="h-savename" class="field" style="margin-top:12px" value="'+esc(hs.saveName)+'"/>'+
+      '<button id="h-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--cyan);color:#000;border:0">Save design</button>'+
+      '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
+    store.saves.holoplot.forEach(function(s){
+      html+='<div style="display:flex;gap:8px;margin-top:10px"><button data-load-save="'+s.id+'" class="btn" style="flex:1;text-align:left">Load: '+esc(s.name)+'</button><button data-del-save="'+s.id+'" class="btn" aria-label="Delete '+esc(s.name)+'">✕</button></div>';
+    });
+    html+='</section>';
+  }
+  html+='</div></div>';
+  html+='<div id="h-lessons">'+lessonsHTML(H_LESSONS, hs.openLesson)+'</div>';
+  root.innerHTML=html;
+
+  /* wiring */
+  document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; renderHoloplot(); });
+  document.getElementById("h-side").addEventListener("click",function(){ hs.showSide=!hs.showSide; renderHoloplot(); });
+  wireDisplayControls(document.getElementById("h-display"), hs, renderHoloplot);
+  root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); renderHoloplot(); }); });
+
+  root.querySelectorAll("[data-arr]").forEach(function(g){
+    var id=Number(g.getAttribute("data-arr"));
+    g.addEventListener("click",function(){ if(hLP.wasFired("arr"+id)) return; hs.sel=id;
+      if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
+      renderHoloplot(); });
+    g.addEventListener("mouseenter",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    g.addEventListener("mouseleave",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } hLP.cancel("arr"+id); });
+    g.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("arr"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
+    g.addEventListener("pointerup",function(){ hLP.cancel("arr"+id); });
+  });
+  root.querySelectorAll("[data-chip]").forEach(function(ch){
+    var id=Number(ch.getAttribute("data-chip"));
+    ch.addEventListener("mouseenter",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    ch.addEventListener("mouseleave",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } hLP.cancel("chip"+id); });
+    ch.addEventListener("focus",function(){ if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    ch.addEventListener("blur",function(){ if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
+    ch.addEventListener("click",function(){ if(hLP.wasFired("chip"+id)) return; hs.sel=id;
+      if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
+      renderHoloplot(); });
+    ch.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("chip"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
+    ch.addEventListener("pointerup",function(){ hLP.cancel("chip"+id); });
+    ch.addEventListener("contextmenu",function(e){ if(hs.viewMode==="edit"){ e.preventDefault(); hs.sel=id; hs.editing=id; renderHoloplot(); } });
+  });
+  root.querySelectorAll("[data-edit-arr]").forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation(); hs.sel=Number(b.getAttribute("data-edit-arr")); hs.editing=hs.sel; renderHoloplot(); }); });
+  var ef=document.getElementById("h-editform");
+  if(ef){ ef.addEventListener("submit",function(e){ e.preventDefault();
+      var fd=new FormData(ef); var a=hs.arrays.find(function(x){return x.id===hs.editing;}); if(!a) return;
+      function num(n,fb){ var v=Number(fd.get(n)); return isFinite(v)?v:fb; }
+      a.az=num("az",a.az); a.tilt=num("tilt",a.tilt); a.hBeam=num("hBeam",a.hBeam); a.vBeam=num("vBeam",a.vBeam); a.gain=num("gain",a.gain); a.x=num("x",a.x); a.y=num("y",a.y);
+      a.on=document.getElementById("h-edit-on").checked;
+      hs.editMsg="Saved "+a.name+": Az "+a.az+"°, Tilt "+a.tilt+"°, Gain "+a.gain+" dB — coverage map updated."; hs.editing=null; renderHoloplot(); });
+    document.getElementById("h-edit-cancel").addEventListener("click",function(){ hs.editing=null; renderHoloplot(); });
+  }
+  if(hs.deck==="arrays"){
+    document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; renderHoloplot(); });
+    document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; renderHoloplot(); });
+    root.querySelectorAll("[data-slider]").forEach(function(inp){
+      inp.addEventListener("input",function(){ var key=inp.getAttribute("data-slider"); hCur()[key]=Number(inp.value);
+        var lbl=root.querySelector('[data-slval="'+key+'"]'); if(lbl){ var s=[["az","°"],["tilt","°"],["hBeam","°"],["vBeam","°"],["gain"," dB"],["x"," m"],["y"," m"]].find(function(p){return p[0]===key;}); lbl.textContent=inp.value+(s?s[1]:""); }
+        renderHoloplotSoft(); });
+      inp.addEventListener("change",function(){ renderHoloplot(); });
+    });
+    root.querySelectorAll("[data-step]").forEach(function(b){ b.addEventListener("click",function(){
+      var parts=b.getAttribute("data-step").split(":"), key=parts[0], dir=Number(parts[1]);
+      var meta={az:[-40,40,1],tilt:[-15,25,1],hBeam:[10,60,1],vBeam:[8,40,1],gain:[-12,12,0.5],x:[-Math.floor(hVenue().w/2)+3,Math.floor(hVenue().w/2)-3,1],y:[1,14,1]}[key];
+      var v=Math.min(meta[1],Math.max(meta[0],Math.round((hCur()[key]+dir*meta[2])/meta[2])*meta[2])); hCur()[key]=v; renderHoloplot(); }); });
+    document.getElementById("h-reset").addEventListener("click",function(){ hs.arrays=hs.arrays.map(function(a){ return Object.assign({},a,{az:a.id===1?-10:a.id===2?10:0, tilt:a.id===3?10:0, hBeam:28, gain:a.id===3?-2:0}); }); renderHoloplot(); });
+    document.getElementById("h-balcony").addEventListener("click",function(){ hCur().on=true; hs.arrays=hs.arrays.map(function(a){ return a.id===3?Object.assign({},a,{on:true,tilt:12,gain:2}):a; }); renderHoloplot(); });
+  }
+  if(hs.deck==="drills"){ root.querySelectorAll("[data-drill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-drill")); renderHoloplot(); }); }); }
+  if(hs.deck==="save"){
+    document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
+    document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify({venueId:hs.venueId, arrays:hs.arrays})); renderHoloplot(); });
+    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hs.venueId=d.venueId; hs.arrays=d.arrays; }catch(e){} renderHoloplot(); }); });
+    root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); }); });
+  }
+  wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
+}
+/* soft re-render while dragging a fader: refresh map + readouts + chips only by full render but keep the slider — instead update on release; live-update value label only (map refresh on change). */
+function renderHoloplotSoft(){ /* value labels update inline; full refresh happens on slider release */ }
+</script>
+<script>
+"use strict";
+/* ================= AUTOCAD ================= */
+var DEFAULT_LAYERS=[
+  {name:"Walls",color:"#E6E8EB",visible:true},
+  {name:"Speakers",color:"#22D3EE",visible:true},
+  {name:"Seating",color:"#A78BFA",visible:true},
+  {name:"Stage",color:"#F59E0B",visible:true},
+  {name:"Dimensions",color:"#34D399",visible:true},
+  {name:"Notes",color:"#F472B6",visible:true}
+];
+var C_LESSONS=[
+  {id:"c1",title:"1 · The command line is the app",body:"AutoCAD pros rarely hunt toolbars — they type: L ↵ (LINE), C ↵ (CIRCLE), REC ↵ (RECTANG), PL ↵ (PLINE), M ↵ (MOVE), E ↵ (ERASE), TR ↵ (TRIM), D ↵ (DIMENSION). Type commands in the bar below the canvas and watch it prompt you, exactly like the real thing."},
+  {id:"c2",title:"2 · Coordinates & precision",body:"Everything is placed by coordinates. Clicking is sketching; typing is drafting. When a command asks for a point, type e.g. 10,10 then 50,10 for an exact 40-unit line. Units here are feet — the stage plots and room plans you draw at work."},
+  {id:"c3",title:"3 · Object snaps & ORTHO",body:"OSNAP snaps to endpoints, centers and grid so geometry connects cleanly. ORTHO locks you to horizontal/vertical — essential for walls and stages. Toggle SNAP and ORTHO under the canvas and feel the difference as you draw."},
+  {id:"c4",title:"4 · Layers like a professional",body:"Never draw everything on one layer. Walls, Speakers, Seating, Stage, Dimensions and Notes each get a layer, colour and visibility switch — so a client can see seating without your speaker rigging notes. Change the active layer before you draw."},
+  {id:"c5",title:"5 · Draw the gig, not just shapes",body:"Your real AutoCAD work is AV: a stage rectangle, speaker hangs as circles, seating blocks, dimensions a crew can build from. Use the Stage Plot template, then dimension the stage width — that's the drawing a PM actually wants."}
+];
+var nextShapeId=100; function nid(){ return ++nextShapeId; }
+
+var cs={
+  shapes:[], layers:JSON.parse(JSON.stringify(DEFAULT_LAYERS)), activeLayer:"Walls", tool:"line",
+  pending:[], poly:[], selected:null, snap:true, ortho:false, showGrid:true, cursor:{x:0,y:0},
+  cmd:"", history:["AutoCAD Practice — type HELP and press Enter. Click a tool, then click the canvas.","Command:"],
+  undoStack:[], textVal:"SPEAKER L",
+  showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
+  hovered:null, latched:[], editing:null, editMsg:"", deck:"layers", saveName:"My stage plot", openLesson:"c1"
+};
+var cLP=makeLongPress();
+function cLog(){ var lines=Array.prototype.slice.call(arguments); cs.history=cs.history.concat(lines).slice(-60); }
+function cPushUndo(){ cs.undoStack=cs.undoStack.slice(-30); cs.undoStack.push(JSON.parse(JSON.stringify(cs.shapes))); }
+function layerColor(n){ var l=cs.layers.find(function(x){return x.name===n;}); return l?l.color:"#fff"; }
+function layerVisible(n){ var l=cs.layers.find(function(x){return x.name===n;}); return l?l.visible:true; }
+function shapeInfo(s){
+  if(s.type==="line"||s.type==="dim") return "Length "+Math.hypot(s.x2-s.x1,s.y2-s.y1).toFixed(1)+" ft";
+  if(s.type==="circle") return "Radius "+s.r+" ft · Area "+(Math.PI*s.r*s.r).toFixed(1)+" ft²";
+  if(s.type==="rect") return Math.abs(s.x2-s.x1).toFixed(0)+" × "+Math.abs(s.y2-s.y1).toFixed(0)+" ft · Area "+Math.abs((s.x2-s.x1)*(s.y2-s.y1)).toFixed(0)+" ft²";
+  if(s.type==="polyline") return s.points.length+" points";
+  return s.text;
+}
+function cShapeVisible(id){ return cs.showHover && ((cs.hoverMode==="momentary"&&cs.hovered===id)||(cs.hoverMode==="latch"&&cs.latched.indexOf(id)>=0)||cs.editing===id); }
+function cAddShape(s){ cPushUndo(); cs.shapes.push(s); cs.selected=s.id; }
+function cHandlePoint(p){
+  if(cs.tool==="select"||cs.tool==="erase") return;
+  if(cs.tool==="text"){ cAddShape({id:nid(),type:"text",x1:p.x,y1:p.y,x2:p.x,y2:p.y,r:0,text:cs.textVal,layer:cs.activeLayer,points:[]}); cLog("Text placed at "+p.x+","+p.y,"Command:"); renderAutocad(); return; }
+  if(cs.tool==="polyline"){ cs.poly.push(p); cLog("Point "+cs.poly.length+": "+p.x+","+p.y+" — double-click or press Finish Polyline"); renderAutocad(); return; }
+  if(cs.pending.length===0){ cs.pending=[p]; cLog(cs.tool.toUpperCase()+" — specify next point:"); renderAutocad(); return; }
+  var a=cs.pending[0];
+  if(cs.tool==="line") cAddShape({id:nid(),type:"line",x1:a.x,y1:a.y,x2:p.x,y2:p.y,r:0,text:"",layer:cs.activeLayer,points:[]});
+  else if(cs.tool==="rect") cAddShape({id:nid(),type:"rect",x1:a.x,y1:a.y,x2:p.x,y2:p.y,r:0,text:"",layer:cs.activeLayer,points:[]});
+  else if(cs.tool==="circle"){ var r=Math.hypot(p.x-a.x,p.y-a.y); cAddShape({id:nid(),type:"circle",x1:a.x,y1:a.y,x2:p.x,y2:p.y,r:Math.round(r*10)/10,text:"",layer:cs.activeLayer,points:[]}); }
+  else if(cs.tool==="dim") cAddShape({id:nid(),type:"dim",x1:a.x,y1:a.y,x2:p.x,y2:p.y,r:0,text:Math.hypot(p.x-a.x,p.y-a.y).toFixed(1)+" ft",layer:"Dimensions",points:[]});
+  else if(cs.tool==="arc") cAddShape({id:nid(),type:"arc",x1:a.x,y1:a.y,x2:p.x,y2:p.y,r:Math.hypot(p.x-a.x,p.y-a.y)/2,text:"",layer:cs.activeLayer,points:[]});
+  cs.pending=[]; cLog(cs.tool.toUpperCase()+" created.","Command:"); renderAutocad();
+}
+function cFinishPoly(){ if(cs.poly.length>=2){ cAddShape({id:nid(),type:"polyline",x1:cs.poly[0].x,y1:cs.poly[0].y,x2:cs.poly[cs.poly.length-1].x,y2:cs.poly[cs.poly.length-1].y,r:0,text:"",layer:cs.activeLayer,points:cs.poly.slice()}); } cs.poly=[]; cLog("Polyline closed.","Command:"); renderAutocad(); }
+function cUndo(){ var prev=cs.undoStack[cs.undoStack.length-1]; if(prev){ cs.shapes=prev; cs.undoStack=cs.undoStack.slice(0,-1); cLog("Undo."); } renderAutocad(); }
+function cLoadTemplate(kind){
+  cPushUndo(); var t=[];
+  if(kind==="stage"){ t=[
+    {id:nid(),type:"rect",x1:20,y1:18,x2:60,y2:34,r:0,text:"",layer:"Stage",points:[]},
+    {id:nid(),type:"circle",x1:16,y1:14,x2:16,y2:14,r:4,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"circle",x1:64,y1:14,x2:64,y2:14,r:4,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"text",x1:34,y1:27,x2:34,y2:27,r:0,text:"STAGE 40 × 16 ft",layer:"Notes",points:[]},
+    {id:nid(),type:"rect",x1:22,y1:42,x2:58,y2:52,r:0,text:"",layer:"Seating",points:[]},
+    {id:nid(),type:"text",x1:32,y1:48,x2:32,y2:48,r:0,text:"AUDIENCE",layer:"Notes",points:[]}
+  ]; } else if(kind==="room"){ t=[
+    {id:nid(),type:"rect",x1:10,y1:8,x2:70,y2:52,r:0,text:"",layer:"Walls",points:[]},
+    {id:nid(),type:"line",x1:36,y1:52,x2:44,y2:52,r:0,text:"",layer:"Walls",points:[]},
+    {id:nid(),type:"text",x1:37,y1:50,x2:37,y2:50,r:0,text:"DOOR",layer:"Notes",points:[]},
+    {id:nid(),type:"rect",x1:14,y1:12,x2:26,y2:20,r:0,text:"",layer:"Seating",points:[]},
+    {id:nid(),type:"rect",x1:54,y1:12,x2:66,y2:20,r:0,text:"",layer:"Seating",points:[]}
+  ]; } else { t=[
+    {id:nid(),type:"circle",x1:20,y1:20,x2:20,y2:20,r:5,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"circle",x1:40,y1:20,x2:40,y2:20,r:5,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"circle",x1:60,y1:20,x2:60,y2:20,r:5,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"line",x1:20,y1:20,x2:60,y2:20,r:0,text:"",layer:"Speakers",points:[]},
+    {id:nid(),type:"text",x1:28,y1:32,x2:28,y2:32,r:0,text:"ARRAY — 3 BOXES",layer:"Notes",points:[]}
+  ]; }
+  cs.shapes=t; cLog("Template loaded: "+kind.toUpperCase()+". Now add a DIMENSION across the stage/room."); renderAutocad();
+}
+function cToWorld(e, svg){
+  var r=svg.getBoundingClientRect();
+  var x=(e.clientX-r.left)/r.width*80, y=(e.clientY-r.top)/r.height*60;
+  if(cs.ortho&&cs.pending[0]){ var p=cs.pending[0]; if(Math.abs(x-p.x)>Math.abs(y-p.y)) y=p.y; else x=p.x; }
+  if(cs.snap){ x=Math.round(x/2)*2; y=Math.round(y/2)*2; }
+  return {x:Math.round(x*10)/10, y:Math.round(y*10)/10};
+}
+function cRunCommand(raw){
+  var c=raw.trim(); if(!c) return; cLog("> "+c);
+  var up=c.toUpperCase();
+  var coord=c.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if(coord){ cHandlePoint({x:Number(coord[1]),y:Number(coord[2])}); return; }
+  if(up==="HELP"){ cLog("Commands: LINE (L), CIRCLE (C), RECTANG (REC), PLINE (PL), ARC (A), DIM, TEXT, ERASE (E), SELECT, UNDO (U), CLEAR, SNAP ON/OFF, ORTHO ON/OFF, TEMPLATE STAGE / ROOM / SPEAKERS","Or type a point like 10,10 while a draw command is active."); }
+  else if(up==="L"||up==="LINE"){ cs.tool="line"; cLog("LINE — specify first point (click or type x,y):"); }
+  else if(up==="C"||up==="CIRCLE"){ cs.tool="circle"; cLog("CIRCLE — specify center point:"); }
+  else if(up==="REC"||up==="RECTANG"||up==="RECT"){ cs.tool="rect"; cLog("RECTANG — specify first corner:"); }
+  else if(up==="PL"||up==="PLINE"){ cs.tool="polyline"; cLog("PLINE — specify points, then Finish Polyline:"); }
+  else if(up==="A"||up==="ARC"){ cs.tool="arc"; cLog("ARC — specify start point:"); }
+  else if(up==="DIM"||up==="D"){ cs.tool="dim"; cLog("DIMENSION — pick two points to measure:"); }
+  else if(up==="E"||up==="ERASE"){ cs.tool="erase"; cLog("ERASE — click an object to delete it."); }
+  else if(up==="SELECT"){ cs.tool="select"; cLog("SELECT — click an object to inspect it."); }
+  else if(up==="U"||up==="UNDO"){ cUndo(); return; }
+  else if(up==="CLEAR"){ cPushUndo(); cs.shapes=[]; cLog("All objects erased."); }
+  else if(up==="SNAP ON"){ cs.snap=true; cLog("Snap ON"); }
+  else if(up==="SNAP OFF"){ cs.snap=false; cLog("Snap OFF"); }
+  else if(up==="ORTHO ON"){ cs.ortho=true; cLog("Ortho ON"); }
+  else if(up==="ORTHO OFF"){ cs.ortho=false; cLog("Ortho OFF"); }
+  else if(up.indexOf("TEMPLATE")===0){ cLoadTemplate(up.indexOf("ROOM")>=0?"room":up.indexOf("SPEAKER")>=0?"speakers":"stage"); return; }
+  else cLog('Unknown command "'+c+'" — type HELP.');
+  renderAutocad();
+}
+
+function cCanvasSVG(){
+  var s='<svg id="cad-svg" viewBox="0 0 80 60" style="width:100%;display:block;margin:0 auto;max-height:58dvh;touch-action:none;user-select:none;cursor:crosshair" role="img" aria-label="AutoCAD drawing canvas">';
+  if(cs.showGrid){
+    for(var i=0;i<=40;i++) s+='<line x1="'+(i*2)+'" y1="0" x2="'+(i*2)+'" y2="60" stroke="#1F2430" stroke-width="'+(i%5===0?0.12:0.05)+'"/>';
+    for(var j=0;j<=30;j++) s+='<line x1="0" y1="'+(j*2)+'" x2="80" y2="'+(j*2)+'" stroke="#1F2430" stroke-width="'+(j%5===0?0.12:0.05)+'"/>';
+  }
+  s+='<line id="ch-v" x1="'+cs.cursor.x+'" y1="0" x2="'+cs.cursor.x+'" y2="60" stroke="#F59E0B" stroke-width="0.08" opacity="0.6"/>';
+  s+='<line id="ch-h" x1="0" y1="'+cs.cursor.y+'" x2="80" y2="'+cs.cursor.y+'" stroke="#F59E0B" stroke-width="0.08" opacity="0.6"/>';
+  if(cs.pending[0]) s+='<circle cx="'+cs.pending[0].x+'" cy="'+cs.pending[0].y+'" r="0.7" fill="#F59E0B"/>';
+  cs.poly.forEach(function(p){ s+='<circle cx="'+p.x+'" cy="'+p.y+'" r="0.5" fill="#F59E0B"/>'; });
+  if(cs.poly.length>1) s+='<polyline points="'+cs.poly.map(function(p){return p.x+","+p.y;}).join(" ")+'" fill="none" stroke="#F59E0B" stroke-width="0.25"/>';
+  cs.shapes.filter(function(sh){return layerVisible(sh.layer);}).forEach(function(sh){
+    var col=layerColor(sh.layer), w=sh.id===cs.selected?0.45:0.28, attrs='data-shape="'+sh.id+'" stroke="'+col+'" stroke-width="'+w+'" fill="none" style="cursor:pointer"';
+    if(sh.type==="line") s+='<line x1="'+sh.x1+'" y1="'+sh.y1+'" x2="'+sh.x2+'" y2="'+sh.y2+'" '+attrs+'/>';
+    else if(sh.type==="dim"){ s+='<g data-shape="'+sh.id+'" style="cursor:pointer"><line x1="'+sh.x1+'" y1="'+sh.y1+'" x2="'+sh.x2+'" y2="'+sh.y2+'" stroke="'+col+'" stroke-width="0.22"/>'+
+      (cs.showKeys?'<text x="'+((sh.x1+sh.x2)/2)+'" y="'+(Math.min(sh.y1,sh.y2)-0.8)+'" fill="'+col+'" font-size="2.4" text-anchor="middle">'+esc(sh.text)+'</text>':"")+
+      (cShapeVisible(sh.id)?'<text x="'+((sh.x1+sh.x2)/2)+'" y="'+(Math.max(sh.y1,sh.y2)+3.4)+'" fill="#A5F3FC" font-size="2.2" text-anchor="middle">Dimension: '+esc(sh.text)+' · ('+sh.x1+','+sh.y1+') → ('+sh.x2+','+sh.y2+')</text>':"")+'</g>'; }
+    else if(sh.type==="rect") s+='<rect x="'+Math.min(sh.x1,sh.x2)+'" y="'+Math.min(sh.y1,sh.y2)+'" width="'+Math.abs(sh.x2-sh.x1)+'" height="'+Math.abs(sh.y2-sh.y1)+'" '+attrs+'/>';
+    else if(sh.type==="circle") s+='<g data-shape="'+sh.id+'" style="cursor:pointer"><circle cx="'+sh.x1+'" cy="'+sh.y1+'" r="'+sh.r+'" stroke="'+col+'" stroke-width="'+w+'" fill="none"/><line x1="'+(sh.x1-0.8)+'" y1="'+sh.y1+'" x2="'+(sh.x1+0.8)+'" y2="'+sh.y1+'" stroke="'+col+'" stroke-width="0.15"/><line x1="'+sh.x1+'" y1="'+(sh.y1-0.8)+'" x2="'+sh.x1+'" y2="'+(sh.y1+0.8)+'" stroke="'+col+'" stroke-width="0.15"/></g>';
+    else if(sh.type==="arc") s+='<path d="M '+sh.x1+' '+sh.y1+' A '+Math.max(2,sh.r)+' '+Math.max(2,sh.r)+' 0 0 1 '+sh.x2+' '+sh.y2+'" '+attrs+'/>';
+    else if(sh.type==="polyline") s+='<polyline points="'+sh.points.map(function(p){return p.x+","+p.y;}).join(" ")+'" '+attrs+'/>';
+    else if(sh.type==="text") s+='<text data-shape="'+sh.id+'" x="'+sh.x1+'" y="'+sh.y1+'" fill="'+col+'" font-size="2.6" font-weight="700" style="cursor:pointer">'+(cs.showKeys?esc(sh.text):"•")+'</text>';
+  });
+  var hov=cs.shapes.find(function(sh){return cShapeVisible(sh.id)&&layerVisible(sh.layer);});
+  if(hov){ var tx=Math.min(46,(hov.x1+hov.x2)/2), ty=Math.max(4,Math.min(hov.y1,hov.y2)-9);
+    s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="33" height="8.5" rx="1" fill="#0F172A" stroke="#F59E0B"/><text x="'+(tx+1.2)+'" y="'+(ty+3.2)+'" fill="#FCD34D" font-size="2.2" font-weight="700">'+hov.type.toUpperCase()+' · '+esc(shapeInfo(hov))+'</text><text x="'+(tx+1.2)+'" y="'+(ty+6.6)+'" fill="#E6E8EB" font-size="2">('+hov.x1+','+hov.y1+') → ('+hov.x2+','+hov.y2+') · '+esc(hov.layer)+'</text></g>'; }
+  return s+'</svg>';
+}
+
+var CAD_TOOLS=[["select","↖ Select"],["line","╱ Line"],["circle","○ Circle"],["rect","▭ Rectang"],["polyline","⌁ Pline"],["arc","⌒ Arc"],["dim","↔ Dim"],["text","T Text"],["erase","⌫ Erase"]];
+function cDrills(){
+  return [
+    {id:"cd1",title:"Drill 1 — Stage rectangle",pass:cs.shapes.some(function(s){return s.type==="rect"&&Math.abs(Math.abs(s.x2-s.x1)-40)<=6&&Math.abs(Math.abs(s.y2-s.y1)-16)<=6;}),hint:"Draw a RECTANG about 40 × 16 ft (or load Stage template)"},
+    {id:"cd2",title:"Drill 2 — Speaker circle",pass:cs.shapes.some(function(s){return s.type==="circle";}),hint:"Draw any CIRCLE on the Speakers layer"},
+    {id:"cd3",title:"Drill 3 — Dimension it",pass:cs.shapes.some(function(s){return s.type==="dim";}),hint:"Use DIM and click two points"},
+    {id:"cd4",title:"Drill 4 — Label it",pass:cs.shapes.some(function(s){return s.type==="text";}),hint:"Use TEXT tool and place a label"}
+  ];
+}
+
+function renderAutocad(){
+  var root=document.getElementById("ws-autocad");
+  var done=doneSet(), sel=cs.shapes.find(function(s){return s.id===cs.selected;});
+  var html='<p class="mono" style="font-size:13px;margin:12px 0 0;color:var(--dim)">Pick a tool from the big dock, draw on the canvas, then switch layers below — Layers, Properties, Dimensions — like pages on a mixing surface</p>';
+  html+='<div class="tool-grid" role="toolbar" aria-label="Drawing tools">'+
+    CAD_TOOLS.map(function(t){return '<button data-tool="'+t[0]+'" aria-pressed="'+(cs.tool===t[0])+'" class="'+(cs.tool===t[0]?"on":"")+'">'+t[1]+'</button>';}).join("")+
+    '<button id="c-undo">↩ Undo</button><button id="c-finish" style="grid-column:span 2">Finish Polyline</button><button id="c-clear">Clear</button></div>';
+  html+='<div id="c-display">'+displayControlsHTML("c")+'</div>';
+  if(cs.showKeys) html+='<p class="mono" style="font-size:13px;margin:10px 0 0;border-radius:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);color:var(--dim)" aria-label="Command key legend">KEY: L Line · C Circle · REC Rectang · PL Pline · A Arc · D Dim · E Erase · U Undo · SNAP grid lock · ORTHO horizontal/vertical lock</p>';
+
+  html+='<section style="border-radius:16px;overflow:hidden;background:#0A0A0C;border:1px solid var(--border);margin-top:12px">';
+  html+=cCanvasSVG();
+  html+='<div style="background:#111318;border-top:1px solid var(--border)"><div id="c-history" class="mono" style="height:128px;overflow-y:auto;padding:10px 12px;font-size:12px;line-height:1.6;color:#A5F3FC" aria-live="polite">'+
+    cs.history.map(function(h){return '<div>'+esc(h)+'</div>';}).join("")+
+    '<div style="color:#8A919E">Cursor: '+cs.cursor.x.toFixed(0)+', '+cs.cursor.y.toFixed(0)+' ft · Tool: '+cs.tool.toUpperCase()+' · Layer: '+esc(cs.activeLayer)+' · Objects: '+cs.shapes.length+'</div></div>'+
+    '<form id="c-cmdform" style="display:flex;border-top:1px solid var(--border)"><span class="mono" style="padding:16px 12px;font-size:16px;font-weight:700;color:var(--amber);align-self:center">Command:</span>'+
+    '<label class="sr-only" for="c-cmd">AutoCAD command line</label><input id="c-cmd" class="mono" value="'+esc(cs.cmd)+'" placeholder="Type LINE, CIRCLE, HELP, or 10,10 … then Enter" autocomplete="off" style="flex:1;min-width:0;background:transparent;outline:none;border:0;font-size:16px;padding:16px 4px;color:var(--text)"/>'+
+    '<button type="submit" style="padding:0 24px;min-height:56px;font-weight:700;font-size:16px;background:var(--amber-dim);color:#FCD34D;border:0">Enter ↵</button></form></div>';
+  html+='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;background:var(--surface)">'+
+    '<button id="c-snap" class="btn btn-sm'+(cs.snap?" tog-on":"")+'" aria-pressed="'+cs.snap+'">SNAP '+(cs.snap?"ON":"OFF")+' (2 ft)</button>'+
+    '<button id="c-ortho" class="btn btn-sm'+(cs.ortho?" tog-on":"")+'" aria-pressed="'+cs.ortho+'">ORTHO '+(cs.ortho?"ON":"OFF")+'</button>'+
+    '<button id="c-grid" class="btn btn-sm" aria-pressed="'+cs.showGrid+'">GRID '+(cs.showGrid?"ON":"OFF")+'</button>'+
+    '<span class="mono" style="font-size:14px;font-weight:700;color:var(--dim)">Templates:</span>'+
+    '<button class="btn btn-sm" data-template="stage">Stage Plot</button><button class="btn btn-sm" data-template="room">Room Plan</button><button class="btn btn-sm" data-template="speakers">Speaker Array</button></div>';
+  html+='</section>';
+
+  html+='<div style="margin-top:12px"><div class="deck" role="tablist" aria-label="AutoCAD control layers">'+
+    [["layers","▦ Layers"],["props","ⓘ Properties"],["dims","↔ Dimensions"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-cdeck="'+t[0]+'" aria-selected="'+(cs.deck===t[0])+'" class="'+(cs.deck===t[0]?"on-c":"")+'">'+t[1]+'</button>';}).join("")+'</div>';
+  if(sel&&cs.deck!=="props"&&cs.deck!=="dims")
+    html+='<button id="c-selshortcut" class="btn" style="width:100%;margin-top:10px;text-align:left;background:var(--amber-dim);color:#FCD34D;border:1px solid var(--amber)" aria-label="Selected '+sel.type+' object, '+esc(shapeInfo(sel))+'. Open Properties layer">Selected: '+sel.type.toUpperCase()+' · '+esc(shapeInfo(sel))+' · '+esc(sel.layer)+' — tap to open Properties ›</button>';
+  html+='<div style="margin-top:12px">';
+
+  if(cs.deck==="layers"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Layers"><h2 style="margin:0;font-size:16px">LAYERS — colour key / legend</h2>';
+    if(!cs.showLegend) html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">Layer legend hidden — turn Legend ON above to show the colour key and visibility switches.</p>';
+    else { html+='<div class="grid2">';
+      cs.layers.forEach(function(l){
+        html+='<div style="display:flex;align-items:center;gap:10px;margin-top:6px"><span style="width:16px;height:16px;border-radius:50%;flex:none;background:'+l.color+'"></span>'+
+        '<button data-layer="'+esc(l.name)+'" aria-pressed="'+(cs.activeLayer===l.name)+'" class="btn" style="flex:1;text-align:left;'+(cs.activeLayer===l.name?"":"background:transparent;border-color:transparent")+'">'+esc(l.name)+(cs.activeLayer===l.name?"  ● active":"")+'</button>'+
+        '<button data-layervis="'+esc(l.name)+'" aria-pressed="'+l.visible+'" aria-label="Toggle '+esc(l.name)+' layer visibility" class="btn btn-sm">'+(l.visible?"👁 On":"Off")+'</button></div>';
+      });
+      html+='</div>'; }
+    html+='<label style="display:block;font-size:14px;font-weight:600;margin-top:20px" for="c-textval">Text label (for TEXT tool)</label><input id="c-textval" class="field" style="margin-top:6px" value="'+esc(cs.textVal)+'"/></section>';
+  }
+  if(cs.deck==="props"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Properties"><h2 style="margin:0;font-size:16px">PROPERTIES</h2>';
+    if(sel){ html+='<div style="font-size:16px;margin-top:8px;display:flex;flex-direction:column;gap:6px"><p style="margin:0"><span style="color:var(--dim)">Type:</span> <span class="mono" style="font-weight:700">'+sel.type.toUpperCase()+'</span></p><p style="margin:0"><span style="color:var(--dim)">Layer:</span> '+esc(sel.layer)+'</p><p style="margin:0"><span style="color:var(--dim)">Measure:</span> '+esc(shapeInfo(sel))+'</p><p class="mono" style="margin:0;font-size:14px;color:var(--dim)">From ('+sel.x1+','+sel.y1+') to ('+sel.x2+','+sel.y2+')</p>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;padding-top:8px"><button id="c-godims" class="btn" style="flex:1;background:var(--amber-dim);color:#FCD34D">Open in Dimensions ›</button><button id="c-erasesel" class="btn" style="flex:1;background:var(--red);color:var(--red-text)">Erase selected</button></div></div>';
+    } else html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">Tap any object to inspect it. Draw with the tool dock above, or type commands below the canvas.</p>';
+    html+='</section>';
+  }
+  if(cs.deck==="dims"){
+    html+='<section class="card" style="padding:16px" aria-label="Dimension and point values" role="tabpanel"><h2 style="margin:0;font-size:16px">Dimensions &amp; points '+(cs.hoverMode==="latch"?"— tap to pin (latch)":"— touch to inspect")+'</h2>'+
+      '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(cs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its coordinates / size.":"Read-only in Practice mode. Load a template or draw, then touch a label — switch to Edit Values to change values by long-press.")+'</p>';
+    if(cs.shapes.length===0) html+='<p style="font-size:16px;margin:8px 0 0;color:var(--dim)">No objects yet. Load the Stage Plot template above the canvas and dimension &amp; point labels will appear here.</p>';
+    html+='<div class="grid2" style="margin-top:10px">';
+    cs.shapes.forEach(function(s){
+      var vis=cShapeVisible(s.id);
+      html+='<div class="chip'+(vis?" lit-c":"")+(cs.editing===s.id?" editing":"")+'" data-dchip="'+s.id+'" role="button" tabindex="0" aria-label="Dimension values for '+s.type+' object: '+esc(shapeInfo(s))+', from '+s.x1+','+s.y1+' to '+s.x2+','+s.y2+'">'+
+        '<p style="margin:0;font-weight:700;font-size:16px">'+s.type.toUpperCase()+' · '+esc(shapeInfo(s))+'</p>'+
+        '<p class="mono" style="font-size:14px;margin:2px 0 0">('+s.x1+', '+s.y1+') → ('+s.x2+', '+s.y2+')'+((s.type==="circle"||s.type==="arc")?' · r '+s.r+' ft':"")+' · '+esc(s.layer)+(s.text?' · “'+esc(s.text)+'”':"")+'</p>'+
+        (vis?'<p style="font-size:12px;margin:6px 0 0;color:#FCD34D">'+(cs.hoverMode==="latch"?"📌 Latched: pinned — tap again to unpin.":"Momentary: showing while you touch it.")+'</p>':"")+
+        (cs.viewMode==="edit"?'<button class="btn btn-sm" data-edit-shape="'+s.id+'" style="margin-top:10px;background:var(--red);color:var(--red-text)" aria-label="Edit values for '+s.type+' object '+esc(shapeInfo(s))+'">✎ Edit values</button>':"")+
+      '</div>';
+    });
+    html+='</div>';
+    if(cs.editMsg) html+='<p style="font-size:14px;margin:8px 0 0;font-weight:600;color:var(--green)" role="status">'+esc(cs.editMsg)+'</p>';
+    var es=cs.shapes.find(function(s){return s.id===cs.editing;});
+    if(es){
+      html+='<form id="c-editform" style="border-radius:12px;padding:12px;margin-top:12px;background:#1F1517;border:1px solid var(--red)" aria-label="Edit dimension values for '+es.type+' object">'+
+        '<p style="margin:0;font-weight:700;font-size:16px">✎ Editing '+es.type.toUpperCase()+' — '+esc(shapeInfo(es))+'</p><div class="grid2" style="margin-top:10px">'+
+        [["x1","Start X ft",es.x1],["y1","Start Y ft",es.y1],["x2","End X ft",es.x2],["y2","End Y ft",es.y2]].map(function(f){return '<label style="font-size:14px;font-weight:600">'+f[1]+'<input name="'+f[0]+'" type="number" step="0.5" value="'+f[2]+'" class="field" style="margin-top:6px" aria-label="'+f[1]+' for selected object"/></label>';}).join("")+
+        ((es.type==="circle"||es.type==="arc")?'<label style="font-size:14px;font-weight:600">Radius ft<input name="r" type="number" step="0.5" min="0" value="'+es.r+'" class="field" style="margin-top:6px" aria-label="Radius in feet for selected object"/></label>':'<input type="hidden" name="r" value="'+es.r+'"/>')+
+        (es.type==="dim"?'<p style="font-size:14px;align-self:center;color:var(--dim);margin:0">Dimension text recalculates from the two points on Save.</p>':"")+
+        (es.type==="text"?'<label style="font-size:14px;font-weight:600">Label text<input name="text" type="text" value="'+esc(es.text)+'" class="field" style="margin-top:6px" aria-label="Label text for selected object"/></label>':'<input type="hidden" name="text" value="'+esc(es.text)+'"/>')+
+        '</div><div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button type="submit" class="btn" style="background:var(--amber);color:#000;border:0;flex:1">Save values</button><button type="button" id="c-edit-cancel" class="btn" style="flex:1">Cancel</button></div></form>';
+    }
+    html+='</section>';
+  }
+  if(cs.deck==="drills"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Drafting drills"><h2 style="margin:0;font-size:16px">🎯 DRAFTING DRILLS — auto-checked</h2><div class="grid2">';
+    cDrills().forEach(function(d){ var isDone=done.has(d.id);
+      html+='<div style="display:flex;align-items:center;gap:12px;margin-top:8px;border-radius:12px;padding:12px;background:var(--surface2)"><span style="font-size:20px">'+((d.pass||isDone)?"✅":"⬜")+'</span><div style="flex:1"><p style="margin:0;font-size:16px;font-weight:700">'+esc(d.title)+'</p><p style="margin:2px 0 0;font-size:14px;color:var(--dim)">'+esc(d.hint)+'</p></div>'+
+      '<button data-cdrill="'+d.id+'" '+((!d.pass||isDone)?"disabled":"")+' class="btn" style="background:var(--amber-dim);color:#FCD34D;flex:none">'+(isDone?"Done":"Claim")+'</button></div>'; });
+    html+='</div></section>';
+  }
+  if(cs.deck==="save"){
+    html+='<section class="card" style="padding:16px" role="tabpanel" aria-label="Save drawing"><h2 style="margin:0;font-size:16px">💾 SAVE DRAWING</h2>'+
+      '<label class="sr-only" for="c-savename">Drawing name</label><input id="c-savename" class="field" style="margin-top:12px" value="'+esc(cs.saveName)+'"/>'+
+      '<button id="c-save" class="btn" style="width:100%;margin-top:10px;min-height:56px;background:var(--amber);color:#000;border:0">Save drawing ('+cs.shapes.length+' objects)</button>'+
+      '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Saved on this device, in this browser.</p>';
+    store.saves.autocad.forEach(function(s){ html+='<div style="display:flex;gap:8px;margin-top:10px"><button data-cload="'+s.id+'" class="btn" style="flex:1;text-align:left">Load: '+esc(s.name)+'</button><button data-cdel="'+s.id+'" class="btn" aria-label="Delete '+esc(s.name)+'">✕</button></div>'; });
+    html+='</section>';
+  }
+  html+='</div></div>';
+  html+='<div id="c-lessons">'+lessonsHTML(C_LESSONS, cs.openLesson)+'</div>';
+  root.innerHTML=html;
+
+  /* wiring */
+  wireDisplayControls(document.getElementById("c-display"), cs, renderAutocad);
+  root.querySelectorAll("[data-tool]").forEach(function(b){ b.addEventListener("click",function(){ cs.tool=b.getAttribute("data-tool"); cs.pending=[]; cLog(b.textContent.trim()+" active."); renderAutocad(); }); });
+  document.getElementById("c-undo").addEventListener("click",cUndo);
+  document.getElementById("c-finish").addEventListener("click",cFinishPoly);
+  document.getElementById("c-clear").addEventListener("click",function(){ cPushUndo(); cs.shapes=[]; renderAutocad(); });
+  document.getElementById("c-snap").addEventListener("click",function(){ cs.snap=!cs.snap; renderAutocad(); });
+  document.getElementById("c-ortho").addEventListener("click",function(){ cs.ortho=!cs.ortho; renderAutocad(); });
+  document.getElementById("c-grid").addEventListener("click",function(){ cs.showGrid=!cs.showGrid; renderAutocad(); });
+  root.querySelectorAll("[data-template]").forEach(function(b){ b.addEventListener("click",function(){ cLoadTemplate(b.getAttribute("data-template")); }); });
+  root.querySelectorAll("[data-cdeck]").forEach(function(b){ b.addEventListener("click",function(){ cs.deck=b.getAttribute("data-cdeck"); renderAutocad(); }); });
+  var sc=document.getElementById("c-selshortcut"); if(sc) sc.addEventListener("click",function(){ cs.deck="props"; renderAutocad(); });
+  var cmdInput=document.getElementById("c-cmd");
+  cmdInput.addEventListener("input",function(e){ cs.cmd=e.target.value; });
+  document.getElementById("c-cmdform").addEventListener("submit",function(e){ e.preventDefault(); var v=cs.cmd; cs.cmd=""; cRunCommand(v); });
+  var hist=document.getElementById("c-history"); hist.scrollTop=hist.scrollHeight;
+
+  var svg=document.getElementById("cad-svg");
+  svg.addEventListener("pointermove",function(e){ var p=cToWorld(e,svg); if(p.x!==cs.cursor.x||p.y!==cs.cursor.y){ cs.cursor=p;
+    var cv=document.getElementById("ch-v"), ch=document.getElementById("ch-h");
+    if(cv){ cv.setAttribute("x1",p.x); cv.setAttribute("x2",p.x); } if(ch){ ch.setAttribute("y1",p.y); ch.setAttribute("y2",p.y); }
+    var status=hist.lastElementChild; if(status) status.textContent="Cursor: "+p.x.toFixed(0)+", "+p.y.toFixed(0)+" ft · Tool: "+cs.tool.toUpperCase()+" · Layer: "+cs.activeLayer+" · Objects: "+cs.shapes.length;
+  } });
+  svg.addEventListener("pointerdown",function(e){ var shEl=(e.target&&e.target.closest)?e.target.closest("[data-shape]"):null; if(shEl) return; var p=cToWorld(e,svg); if(cs.tool==="erase"||cs.tool==="select") return; cHandlePoint(p); });
+  svg.querySelectorAll("[data-shape]").forEach(function(el){
+    var id=Number(el.getAttribute("data-shape"));
+    el.addEventListener("mouseenter",function(){ if(cs.hovered!==id){ cs.hovered=id; renderAutocad(); } });
+    el.addEventListener("mouseleave",function(){ if(cs.hovered!==null){ cs.hovered=null; renderAutocad(); } cLP.cancel("shape"+id); });
+    el.addEventListener("pointerdown",function(){ if(cs.viewMode==="edit") cLP.start("shape"+id,function(){ cs.selected=id; cs.editing=id; cs.deck="dims"; renderAutocad(); }); });
+    el.addEventListener("pointerup",function(){ cLP.cancel("shape"+id); });
+    el.addEventListener("click",function(){ if(cLP.wasFired("shape"+id)) return;
+      if(cs.tool==="erase"){ cPushUndo(); cs.shapes=cs.shapes.filter(function(x){return x.id!==id;}); cLog("Object erased."); }
+      else { cs.selected=id; if(cs.hoverMode==="latch"&&cs.showHover){ var i=cs.latched.indexOf(id); if(i>=0)cs.latched.splice(i,1); else cs.latched.push(id); } }
+      renderAutocad(); });
+  });
+  root.querySelectorAll("[data-dchip]").forEach(function(ch){
+    var id=Number(ch.getAttribute("data-dchip"));
+    ch.addEventListener("mouseenter",function(){ if(cs.hovered!==id){ cs.hovered=id; renderAutocad(); } });
+    ch.addEventListener("mouseleave",function(){ if(cs.hovered!==null){ cs.hovered=null; renderAutocad(); } cLP.cancel("dchip"+id); });
+    ch.addEventListener("focus",function(){ if(cs.hovered!==id){ cs.hovered=id; renderAutocad(); } });
+    ch.addEventListener("blur",function(){ if(cs.hovered!==null){ cs.hovered=null; renderAutocad(); } });
+    ch.addEventListener("click",function(){ if(cLP.wasFired("dchip"+id)) return; cs.selected=id;
+      if(cs.hoverMode==="latch"&&cs.showHover){ var i=cs.latched.indexOf(id); if(i>=0)cs.latched.splice(i,1); else cs.latched.push(id); }
+      renderAutocad(); });
+    ch.addEventListener("pointerdown",function(){ if(cs.viewMode==="edit") cLP.start("dchip"+id,function(){ cs.selected=id; cs.editing=id; renderAutocad(); }); });
+    ch.addEventListener("pointerup",function(){ cLP.cancel("dchip"+id); });
+    ch.addEventListener("contextmenu",function(e){ if(cs.viewMode==="edit"){ e.preventDefault(); cs.selected=id; cs.editing=id; renderAutocad(); } });
+  });
+  root.querySelectorAll("[data-edit-shape]").forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation(); cs.selected=Number(b.getAttribute("data-edit-shape")); cs.editing=cs.selected; renderAutocad(); }); });
+  var ef=document.getElementById("c-editform");
+  if(ef){ ef.addEventListener("submit",function(e){ e.preventDefault(); var fd=new FormData(ef);
+      var es=cs.shapes.find(function(s){return s.id===cs.editing;}); if(!es) return;
+      function num(n,fb){ var v=Number(fd.get(n)); return isFinite(v)?v:fb; }
+      var nx1=num("x1",es.x1), ny1=num("y1",es.y1), nx2=num("x2",es.x2), ny2=num("y2",es.y2), nr=num("r",es.r);
+      var ntext=String(fd.get("text")||es.text), isDim=es.type==="dim";
+      var autoDim=Math.hypot(nx2-nx1,ny2-ny1).toFixed(1)+" ft";
+      cPushUndo();
+      cs.shapes=cs.shapes.map(function(x){ return x.id===es.id?Object.assign({},x,{x1:nx1,y1:ny1,x2:nx2,y2:ny2,r:nr,text:isDim?autoDim:ntext}):x; });
+      cs.editMsg="Saved "+es.type.toUpperCase()+": ("+nx1+","+ny1+") → ("+nx2+","+ny2+")"+(isDim?" · dimension now "+autoDim:"")+" — drawing updated.";
+      cs.editing=null; cLog("Edited "+es.type.toUpperCase()+" via Edit Values mode."); renderAutocad(); });
+    document.getElementById("c-edit-cancel").addEventListener("click",function(){ cs.editing=null; renderAutocad(); });
+  }
+  if(cs.deck==="layers"){
+    root.querySelectorAll("[data-layer]").forEach(function(b){ b.addEventListener("click",function(){ cs.activeLayer=b.getAttribute("data-layer"); renderAutocad(); }); });
+    root.querySelectorAll("[data-layervis]").forEach(function(b){ b.addEventListener("click",function(){ var n=b.getAttribute("data-layervis"); cs.layers=cs.layers.map(function(x){return x.name===n?Object.assign({},x,{visible:!x.visible}):x;}); renderAutocad(); }); });
+    document.getElementById("c-textval").addEventListener("input",function(e){ cs.textVal=e.target.value; });
+  }
+  if(cs.deck==="props"&&sel){
+    var gd=document.getElementById("c-godims"); if(gd) gd.addEventListener("click",function(){ cs.deck="dims"; renderAutocad(); });
+    var er=document.getElementById("c-erasesel"); if(er) er.addEventListener("click",function(){ cPushUndo(); cs.shapes=cs.shapes.filter(function(x){return x.id!==sel.id;}); cs.selected=null; renderAutocad(); });
+  }
+  if(cs.deck==="drills"){ root.querySelectorAll("[data-cdrill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-cdrill")); renderAutocad(); }); }); }
+  if(cs.deck==="save"){
+    document.getElementById("c-savename").addEventListener("input",function(e){ cs.saveName=e.target.value; });
+    document.getElementById("c-save").addEventListener("click",function(){ addSave("autocad", cs.saveName||"Untitled drawing", JSON.stringify({shapes:cs.shapes,layers:cs.layers})); renderAutocad(); });
+    root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){} renderAutocad(); }); });
+    root.querySelectorAll("[data-cdel]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("autocad", Number(b.getAttribute("data-cdel"))); renderAutocad(); }); });
+  }
+  wireLessons(document.getElementById("c-lessons"), C_LESSONS, cs, renderAutocad);
+}
+</script>
+<script>
+"use strict";
+/* ================= app shell: workspaces, progress, tutor ================= */
+var TOTAL_ITEMS=H_LESSONS.length+C_LESSONS.length+H_DRILLS.length+4;
+var currentWs="holoplot";
+function renderProgress(){
+  var n=doneSet().size, pct=Math.round(n/TOTAL_ITEMS*100);
+  document.getElementById("progress-label").textContent=n+"/"+TOTAL_ITEMS+" · "+pct+"%";
+  var f=document.getElementById("progress-fill"); f.style.width=pct+"%"; f.style.background=currentWs==="holoplot"?"var(--cyan)":"var(--amber)";
+}
+function setWorkspace(ws){
+  currentWs=ws;
+  document.getElementById("ws-holoplot").hidden=ws!=="holoplot";
+  document.getElementById("ws-autocad").hidden=ws!=="autocad";
+  var th=document.getElementById("tab-holoplot"), tc=document.getElementById("tab-autocad");
+  th.className=ws==="holoplot"?"on-h":""; tc.className=ws==="autocad"?"on-c":"";
+  th.setAttribute("aria-selected",ws==="holoplot"); tc.setAttribute("aria-selected",ws==="autocad");
+  renderProgress();
+}
+document.getElementById("tab-holoplot").addEventListener("click",function(){ setWorkspace("holoplot"); });
+document.getElementById("tab-autocad").addEventListener("click",function(){ setWorkspace("autocad"); });
+
+/* tutor */
+var tutorOn=true, tutorSel="", tutorExpl="", tutorOpen=false;
+var TUTOR_TOPICS=["Azimuth","Tilt","Beam width","SPL","Uniformity","Spill","Dimension","Layer","SNAP","ORTHO","Command line"];
+function askTutor(text){
+  var clean=(text||"").trim(); if(!clean) return;
+  tutorSel=clean; tutorOpen=true;
+  tutorExpl=localExplain(clean)||"That one is not in the tutor's built-in notes yet. Try a single term — like SPL, azimuth, tilt, beam width, dimension, layer, SNAP, ORTHO or command line — and the tutor will walk through it in plain language.";
+  renderTutor();
+}
+function renderTutor(){
+  var sec=document.getElementById("tutor-section"), pill=document.getElementById("tutor-pill");
+  if(!tutorOn){ sec.innerHTML=""; pill.hidden=true; return; }
+  if(tutorSel&&!tutorOpen){
+    pill.hidden=false;
+    pill.textContent="🎓 Explain: “"+(tutorSel.length>42?tutorSel.slice(0,42)+"…":tutorSel)+"”";
+    pill.setAttribute("aria-label","Explain highlighted text with the virtual tutor: "+tutorSel.slice(0,60));
+  } else pill.hidden=true;
+  if(tutorOpen){
+    sec.innerHTML='<div style="border-radius:16px;padding:16px;background:#0F2A33;border:1px solid var(--cyan)">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><h2 style="margin:0;font-size:16px;color:#E6E8EB">🎓 Virtual Tutor</h2>'+
+      '<button id="tutor-close" class="btn btn-sm" aria-label="Close virtual tutor">Close ✕</button></div>'+
+      '<p class="mono" style="font-size:12px;margin:8px 0 0;color:#9AA3B2">YOU HIGHLIGHTED</p>'+
+      '<p style="font-size:14px;font-weight:600;margin:2px 0 0;color:#E6E8EB">“'+esc(tutorSel)+'”</p>'+
+      '<p style="font-size:14px;margin:12px 0 0;line-height:1.6;color:#E6E8EB">'+esc(tutorExpl)+'</p>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px"><button id="tutor-again" class="btn" style="background:var(--cyan);color:#000;border:0">Explain this</button>'+
+      '<button id="tutor-clear" class="btn">Clear highlight</button></div></div>';
+    document.getElementById("tutor-close").addEventListener("click",function(){ tutorOpen=false; renderTutor(); });
+    document.getElementById("tutor-again").addEventListener("click",function(){ askTutor(tutorSel); });
+    document.getElementById("tutor-clear").addEventListener("click",function(){ tutorExpl=""; tutorSel=""; tutorOpen=false; renderTutor(); });
+  } else {
+    sec.innerHTML='<div class="card" style="padding:16px"><h2 style="margin:0;font-size:14px">🎓 Virtual Tutor — highlight any text, get it explained</h2>'+
+      '<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">Select (highlight) any word or line anywhere in the app — a lesson, a slider label, a readout — then tap the 🎓 Explain pill that appears. Or tap a topic:</p>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">'+TUTOR_TOPICS.map(function(t){return '<button class="btn btn-sm" data-topic="'+esc(t)+'" aria-label="Ask tutor about '+esc(t)+'">'+esc(t)+'</button>';}).join("")+'</div></div>';
+    sec.querySelectorAll("[data-topic]").forEach(function(b){ b.addEventListener("click",function(){ askTutor(b.getAttribute("data-topic")); }); });
+  }
+}
+document.getElementById("tutor-pill").addEventListener("click",function(){ askTutor(tutorSel); });
+document.getElementById("tutor-toggle").addEventListener("click",function(){
+  tutorOn=!tutorOn; if(!tutorOn) tutorOpen=false;
+  var b=document.getElementById("tutor-toggle"); b.textContent="🎓 Tutor "+(tutorOn?"ON":"OFF"); b.classList.toggle("on",tutorOn); b.setAttribute("aria-pressed",tutorOn);
+  renderTutor();
+});
+document.getElementById("tutor-toggle").classList.add("on");
+function captureSelection(){
+  if(!tutorOn) return;
+  var s=(window.getSelection?window.getSelection().toString():"").trim();
+  if(s.length>=3&&s.length<=300){ if(s!==tutorSel){ tutorSel=s; tutorOpen=false; renderTutor(); } }
+}
+var selTimer=null;
+document.addEventListener("selectionchange",function(){ window.clearTimeout(selTimer); selTimer=window.setTimeout(captureSelection,350); });
+document.addEventListener("mouseup",captureSelection);
+document.addEventListener("touchend",function(){ window.setTimeout(captureSelection,300); });
+
+/* init */
+renderHoloplot();
+renderAutocad();
+renderTutor();
+setWorkspace("holoplot");
+</script>
+</body>
+</html>
