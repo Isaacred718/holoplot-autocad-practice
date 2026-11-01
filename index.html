@@ -121,6 +121,15 @@
   a{ color:var(--cyan); }
   code{ background:var(--surface2); padding:1px 6px; border-radius:6px; font-size:.92em; overflow-wrap:anywhere; }
   svg{ touch-action:none; }
+  .map-shell,.cad-shell{ position:relative; }
+  .zoom-controls{ position:absolute; top:10px; right:10px; z-index:8; display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+  .zoom-btn{ min-width:52px; min-height:52px; padding:6px 10px; border-radius:12px; font-size:24px; font-weight:800; line-height:1; background:rgba(23,26,32,.92); color:#E9ECF1; border:1px solid #4B5563; box-shadow:0 4px 14px rgba(0,0,0,.35); touch-action:manipulation; }
+  .zoom-btn:active{ background:var(--cyan-dim); color:#67E8F9; }
+  .zoom-reset{ font-size:13px; letter-spacing:.04em; }
+  .zoom-pct{ text-align:center; font-size:12px; font-weight:700; padding:4px 6px; border-radius:8px; background:rgba(15,23,42,.88); color:#A5F3FC; border:1px solid #334155; }
+  /* the CAD canvas strip is shorter than the HOLOPLOT map: always a horizontal row there,
+     so the controls can never spill onto the command history / command line below */
+  .cad-shell .zoom-controls{ flex-direction:row; align-items:center; top:8px; right:8px; }
   /* display-controls strip: one compact, aligned row */
   .display-controls{ display:flex; flex-direction:column; gap:6px; flex:0 0 auto; }
   .display-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-width:0; }
@@ -190,6 +199,10 @@
     .mode-switch{ flex-basis:100%; }
     .readout .v{ font-size:11px; }
     .deck button{ font-size:12px; }
+    /* short phone shells: zoom controls become one horizontal row inside the map's top edge,
+       so the column can never spill over the legend or clip the % readout */
+    .zoom-controls{ flex-direction:row; align-items:center; top:8px; right:8px; }
+    .zoom-pct{ align-self:center; }
   }
 </style>
 </head>
@@ -322,6 +335,56 @@ function localExplain(raw){
    the element being tapped before its click lands, swallowing the tap. */
 function touchHoverNone(){ return !!(window.matchMedia && window.matchMedia("(hover: none)").matches); }
 
+/* ---------- zoom / pan for maps & canvas (viewBox transform) ---------- */
+function clampViewBox(st,W,H){ var vw=W/st.k, vh=H/st.k; if(st.x<0)st.x=0; if(st.y<0)st.y=0; if(st.x>W-vw)st.x=W-vw; if(st.y>H-vh)st.y=H-vh; if(st.k<=1){ st.k=1; st.x=0; st.y=0; } }
+function zoomViewAt(st,W,H,fx,fy,nk){ nk=Math.max(1,Math.min(4,nk)); var vw=W/st.k, vh=H/st.k; var bx=st.x+fx*vw, by=st.y+fy*vh; st.k=nk; var nw=W/nk, nh=H/nk; st.x=bx-fx*nw; st.y=by-fy*nh; clampViewBox(st,W,H); }
+function viewBoxStr(st,W,H){ return st.x+" "+st.y+" "+(W/st.k)+" "+(H/st.k); }
+function attachZoomPan(svg,cfg){
+  var pointers=new Map(); var panning=false, pinching=false, hadPinch=false;
+  var downX=0, downY=0, downVX=0, downVY=0, lastDist=0, lastMX=0, lastMY=0, suppressUntil=0;
+  function apply(){ var st=cfg.getState(); svg.setAttribute("viewBox", viewBoxStr(st,cfg.W,cfg.H)); var pct=document.getElementById(cfg.pctId); if(pct) pct.textContent=Math.round(st.k*100)+"%"; }
+  svg.addEventListener("gesturestart",function(e){ e.preventDefault(); });
+  svg.addEventListener("pointerdown",function(e){
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(cfg.setActive) cfg.setActive(true);
+    if(pointers.size===1){ downX=e.clientX; downY=e.clientY; var st=cfg.getState(); downVX=st.x; downVY=st.y; panning=false; }
+    else if(pointers.size===2){ pinching=true; hadPinch=true; panning=false; var pts=Array.from(pointers.values());
+      lastDist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y); lastMX=(pts[0].x+pts[1].x)/2; lastMY=(pts[0].y+pts[1].y)/2;
+      try{ pointers.forEach(function(_,id){ svg.setPointerCapture(id); }); }catch(err){}
+      if(cfg.onGestureStart) cfg.onGestureStart(); }
+  });
+  svg.addEventListener("pointermove",function(e){
+    if(!pointers.has(e.pointerId)) return; pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    var st=cfg.getState(); var r=svg.getBoundingClientRect(); if(!r.width||!r.height) return;
+    if(pointers.size===1&&!pinching){
+      var dx=e.clientX-downX, dy=e.clientY-downY;
+      if(!panning&&Math.hypot(dx,dy)>7){ panning=true; if(cfg.onGestureStart) cfg.onGestureStart(); try{ svg.setPointerCapture(e.pointerId); }catch(err){} }
+      if(panning){ var vw=cfg.W/st.k, vh=cfg.H/st.k; st.x=downVX-dx/r.width*vw; st.y=downVY-dy/r.height*vh; clampViewBox(st,cfg.W,cfg.H); apply(); }
+    } else if(pointers.size===2){
+      var pts=Array.from(pointers.values()); var dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+      var mx=(pts[0].x+pts[1].x)/2, my=(pts[0].y+pts[1].y)/2;
+      var vw2=cfg.W/st.k, vh2=cfg.H/st.k; st.x-=(mx-lastMX)/r.width*vw2; st.y-=(my-lastMY)/r.height*vh2; clampViewBox(st,cfg.W,cfg.H);
+      if(lastDist>0&&dist>0){ zoomViewAt(st,cfg.W,cfg.H,(mx-r.left)/r.width,(my-r.top)/r.height,st.k*dist/lastDist); }
+      lastDist=dist; lastMX=mx; lastMY=my; apply();
+    }
+  });
+  function endPointer(e){
+    var wasGesture=panning||pinching; pointers.delete(e.pointerId);
+    if(pointers.size===0){
+      if(wasGesture||hadPinch) suppressUntil=Date.now()+400;
+      var isTap=!wasGesture&&!hadPinch&&e.type==="pointerup";
+      panning=false; pinching=false; hadPinch=false; if(cfg.setActive) cfg.setActive(false);
+      if(isTap&&cfg.onTap) cfg.onTap(e);
+    } else if(pointers.size===1){
+      var rem=Array.from(pointers.values())[0]; downX=rem.x; downY=rem.y; var st=cfg.getState(); downVX=st.x; downVY=st.y; panning=false; pinching=false;
+    }
+  }
+  svg.addEventListener("pointerup",endPointer);
+  svg.addEventListener("pointercancel",endPointer);
+  svg.addEventListener("click",function(e){ if(Date.now()<suppressUntil){ e.stopPropagation(); e.preventDefault(); suppressUntil=0; } },true);
+  svg.addEventListener("wheel",function(e){ e.preventDefault(); var r=svg.getBoundingClientRect(); if(!r.width) return; var st=cfg.getState(); zoomViewAt(st,cfg.W,cfg.H,(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height,st.k*(e.deltaY<0?1.15:1/1.15)); apply(); },{passive:false});
+  return {apply:apply};
+}
+
 /* ---------- long-press helper ---------- */
 function makeLongPress(){
   var timers={}, fired={};
@@ -438,7 +501,8 @@ var H_FADER_UNIT={az:"°",tilt:"°",hBeam:"°",vBeam:"°",gain:" dB",x:" m",y:" 
 var hs={
   venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
-  hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1",
+  hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1", _gesturing:false,
+  zoomPlan:{k:1,x:0,y:0}, zoomSide:{k:1,x:0,y:0},
   arrays:[
     {id:1,name:"Array L",model:"X2",x:-6,y:4,az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
     {id:2,name:"Array R",model:"X2",x:6,y:4,az:10,tilt:0,hBeam:28,vBeam:18,gain:0,on:true},
@@ -449,6 +513,13 @@ var hLP=makeLongPress();
 function hVenue(){ return VENUES.find(function(v){return v.id===hs.venueId;})||VENUES[0]; }
 function hCur(){ return hs.arrays.find(function(a){return a.id===hs.sel;})||hs.arrays[0]; }
 function hArrVisible(id){ return hs.showHover && ((hs.hoverMode==="momentary"&&hs.hovered===id)||(hs.hoverMode==="latch"&&hs.latched.indexOf(id)>=0)||hs.editing===id); }
+function hZoomState(){ return hs.showSide?hs.zoomSide:hs.zoomPlan; }
+function hApplyView(){ var st=hZoomState(); var svg=document.querySelector("#ws-holoplot .map-shell svg"); if(svg) svg.setAttribute("viewBox", viewBoxStr(st,600,470)); var pct=document.getElementById("h-zoom-pct"); if(pct) pct.textContent=Math.round(st.k*100)+"%"; }
+function hZoomBy(f){ var st=hZoomState(); zoomViewAt(st,600,470,0.5,0.5,st.k*f); hApplyView(); }
+function hZoomReset(){ var st=hZoomState(); st.k=1; st.x=0; st.y=0; hApplyView(); }
+function wireHoloZoom(svg){ if(!svg) return; attachZoomPan(svg,{ getState:function(){ return hZoomState(); }, W:600, H:470, pctId:"h-zoom-pct",
+  setActive:function(on){ hs._gesturing=on; },
+  onGestureStart:function(){ for(var i=1;i<=3;i++) hLP.cancel("arr"+i); } }); }
 
 function hCompute(){
   var venue=hVenue(), list=[];
@@ -478,7 +549,7 @@ function hCompute(){
 function hPlanSVG(cells){
   var venue=hVenue();
   var SX=function(mx){return 300+mx*9;}, SY=function(my){return 30+my*11;};
-  var s='<svg viewBox="0 0 600 470" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
+  var s='<svg id="h-svg" viewBox="'+viewBoxStr(hs.zoomPlan,600,470)+'" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none" role="img" aria-label="Top-down SPL coverage heatmap">';
   cells.forEach(function(c){ s+='<rect x="'+SX(c.x-1)+'" y="'+SY(c.y-1)+'" width="18" height="22" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
   venue.zones.forEach(function(z){ s+='<rect x="'+SX(z.x)+'" y="'+SY(z.y)+'" width="'+(z.w*9)+'" height="'+(z.h*11)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.5"/>';
     if(hs.showKeys) s+='<text x="'+(SX(z.x)+6)+'" y="'+(SY(z.y)+16)+'" fill="#fff" font-size="11" font-weight="700">'+esc(z.name)+'</text>'; });
@@ -492,12 +563,13 @@ function hPlanSVG(cells){
     s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
     if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+4)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(a.model)+'</text>';
     if(hArrVisible(a.id)){
-      var tx=Math.min(396,SX(a.x)+16), ty=Math.max(6,SY(a.y)-52);
-      s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="196" height="62" rx="6" fill="#0F172A" stroke="#22D3EE"/>'+
-        '<text x="'+(tx+8)+'" y="'+(ty+16)+'" fill="#A5F3FC" font-size="10" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+'</text>'+
-        '<text x="'+(tx+8)+'" y="'+(ty+30)+'" fill="#E6E8EB" font-size="10">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</text>'+
-        '<text x="'+(tx+8)+'" y="'+(ty+44)+'" fill="#E6E8EB" font-size="10">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</text>'+
-        '<text x="'+(tx+8)+'" y="'+(ty+57)+'" fill="#8A919E" font-size="9">'+(hs.hoverMode==="latch"?"Latched — tap array again to unpin":"Momentary — shows while hovering")+'</text></g>';
+      var zk=hs.zoomPlan.k, vx=hs.zoomPlan.x, vy=hs.zoomPlan.y, vw=600/zk, vh=470/zk, tw=196/zk, th=62/zk;
+      var tx=Math.max(vx+4/zk, Math.min(vx+vw-tw-4/zk, SX(a.x)+16/zk)), ty=Math.max(vy+4/zk, Math.min(vy+vh-th-4/zk, SY(a.y)-th-6/zk));
+      s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+th+'" rx="'+(6/zk)+'" fill="#0F172A" stroke="#22D3EE" stroke-width="'+(1/zk)+'"/>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+16/zk)+'" fill="#A5F3FC" font-size="'+(10/zk)+'" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+'</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+30/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Az '+a.az+'° · Tilt '+a.tilt+'° · Gain '+a.gain+' dB</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+44/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Beam '+a.hBeam+'° × '+a.vBeam+'° · Pos '+a.x+' m, '+a.y+' m</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+57/zk)+'" fill="#8A919E" font-size="'+(9/zk)+'">'+(hs.hoverMode==="latch"?"Latched — tap array again to unpin":"Momentary — shows while hovering")+'</text></g>';
     }
     s+='</g>';
   });
@@ -505,7 +577,7 @@ function hPlanSVG(cells){
 }
 function hSideSVG(){
   var venue=hVenue();
-  var s='<svg viewBox="0 0 600 470" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none" role="img" aria-label="Side view showing tilt">';
+  var s='<svg id="h-svg" viewBox="'+viewBoxStr(hs.zoomSide,600,470)+'" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none" role="img" aria-label="Side view showing tilt">';
   s+='<line x1="40" y1="400" x2="570" y2="400" stroke="#475569" stroke-width="2"/>';
   s+='<rect x="40" y="330" width="90" height="70" fill="#111827" stroke="#475569"/><text x="85" y="370" fill="#94A3B8" font-size="11" text-anchor="middle">STAGE</text>';
   venue.zones.forEach(function(z,i){ var top=i===1?250:368;
@@ -518,6 +590,7 @@ function hSideSVG(){
 }
 
 function renderHoloplot(){
+  hs._gesturing=false;
   var root=document.getElementById("ws-holoplot");
   var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
   var venue=hVenue(), comp=hCompute(), stats=comp.stats, cur=hCur(), done=doneSet();
@@ -526,10 +599,11 @@ function renderHoloplot(){
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
     '<select id="h-venue" class="field" style="flex:1">'+VENUES.map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
     '<button id="h-side" class="btn" style="min-height:52px">'+(hs.showSide?"Side view: ON — tap for Plan":"Show side view (tilt)")+'</button></div>';
-  html+='<p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below. The map shrinks to fit — only the layer panel underneath scrolls.</p>';
+  html+='<p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Tap an array in the plan to select it, then work it from the Arrays layer below. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
   html+='<div id="h-display">'+displayControlsHTML("h")+'</div>';
 
   html+='<section class="map-shell" style="background:var(--map-bg);border:1px solid var(--border)" aria-label="HOLOPLOT coverage map">';
+  html+='<div class="zoom-controls" role="group" aria-label="Map zoom controls — pinch, drag, or use these buttons"><button type="button" id="h-zoom-in" class="zoom-btn" aria-label="Zoom in on coverage map">+</button><button type="button" id="h-zoom-out" class="zoom-btn" aria-label="Zoom out on coverage map">−</button><button type="button" id="h-zoom-reset" class="zoom-btn zoom-reset" aria-label="Reset map view to fit, 100 percent">FIT</button><span id="h-zoom-pct" class="zoom-pct mono" aria-label="Current map zoom level">'+Math.round(hZoomState().k*100)+'%</span></div>';
   html+= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
@@ -634,9 +708,13 @@ function renderHoloplot(){
   var _nsp=root.querySelector("[data-scroll-panel]"); if(_nsp) _nsp.scrollTop=_spTop;
 
   /* wiring */
-  document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; renderHoloplot(); });
+  document.getElementById("h-venue").addEventListener("change",function(e){ hs.venueId=e.target.value; hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; renderHoloplot(); });
   document.getElementById("h-side").addEventListener("click",function(){ hs.showSide=!hs.showSide; renderHoloplot(); });
   wireDisplayControls(document.getElementById("h-display"), hs, renderHoloplot);
+  wireHoloZoom(root.querySelector(".map-shell svg"));
+  var hzi=document.getElementById("h-zoom-in"); if(hzi) hzi.addEventListener("click",function(){ hZoomBy(1.4); });
+  var hzo=document.getElementById("h-zoom-out"); if(hzo) hzo.addEventListener("click",function(){ hZoomBy(1/1.4); });
+  var hzr=document.getElementById("h-zoom-reset"); if(hzr) hzr.addEventListener("click",function(){ hZoomReset(); });
   root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); renderHoloplot(); }); });
 
   root.querySelectorAll("[data-arr]").forEach(function(g){
@@ -645,8 +723,8 @@ function renderHoloplot(){
       if(hs.hoverMode==="latch"&&hs.showHover){ var i=hs.latched.indexOf(id); if(i>=0)hs.latched.splice(i,1); else hs.latched.push(id); }
       else if(hs.showHover) hs.hovered=id; /* tap-to-show values on touch */
       renderHoloplot(); });
-    g.addEventListener("mouseenter",function(){ if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
-    g.addEventListener("mouseleave",function(){ hLP.cancel("arr"+id); if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
+    g.addEventListener("mouseenter",function(){ if(hs._gesturing) return; if(touchHoverNone()) return; if(hs.hovered!==id){ hs.hovered=id; renderHoloplot(); } });
+    g.addEventListener("mouseleave",function(){ hLP.cancel("arr"+id); if(hs._gesturing) return; if(touchHoverNone()) return; if(hs.hovered!==null){ hs.hovered=null; renderHoloplot(); } });
     g.addEventListener("pointerdown",function(){ if(hs.viewMode==="edit") hLP.start("arr"+id,function(){ hs.sel=id; hs.editing=id; renderHoloplot(); }); });
     g.addEventListener("pointerup",function(){ hLP.cancel("arr"+id); });
   });
@@ -724,7 +802,7 @@ function renderHoloplot(){
     document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
     document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify({venueId:hs.venueId, arrays:hs.arrays})); renderHoloplot(); });
     document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", {venueId:hs.venueId, arrays:hs.arrays}, commentsFor("holoplot")); presentShareLink(link, this); });
-    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hs.venueId=d.venueId; hs.arrays=d.arrays; }catch(e){} renderHoloplot(); }); });
+    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hs.venueId=d.venueId; hs.arrays=d.arrays; hs.zoomPlan={k:1,x:0,y:0}; hs.zoomSide={k:1,x:0,y:0}; }catch(e){} renderHoloplot(); }); });
     root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); }); });
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
@@ -736,7 +814,7 @@ function renderHoloplotSoft(){
   var shell=root.querySelector(".map-shell"); if(!shell) return;
   var oldSvg=shell.querySelector("svg"); if(!oldSvg) return;
   var tmp=document.createElement("div"); tmp.innerHTML= hs.showSide ? hSideSVG() : hPlanSVG(comp.cells);
-  var newSvg=tmp.querySelector("svg"); if(newSvg) shell.replaceChild(newSvg, oldSvg);
+  var newSvg=tmp.querySelector("svg"); if(newSvg){ shell.replaceChild(newSvg, oldSvg); wireHoloZoom(newSvg); }
   /* re-wire array hit targets on the fresh svg */
   root.querySelectorAll("[data-arr]").forEach(function(g){
     var id=Number(g.getAttribute("data-arr"));
@@ -776,7 +854,7 @@ var cs={
   cmd:"", history:["AutoCAD Practice — type HELP and press Enter. Click a tool, then click the canvas.","Command:"],
   undoStack:[], textVal:"SPEAKER L",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
-  hovered:null, latched:[], editing:null, editMsg:"", deck:"layers", saveName:"My stage plot", openLesson:"c1"
+  hovered:null, latched:[], editing:null, editMsg:"", deck:"layers", saveName:"My stage plot", openLesson:"c1", _gesturing:false, zoom:{k:1,x:0,y:0}
 };
 var cLP=makeLongPress();
 function cLog(){ var lines=Array.prototype.slice.call(arguments); cs.history=cs.history.concat(lines).slice(-60); }
@@ -829,15 +907,22 @@ function cLoadTemplate(kind){
     {id:nid(),type:"line",x1:20,y1:20,x2:60,y2:20,r:0,text:"",layer:"Speakers",points:[]},
     {id:nid(),type:"text",x1:28,y1:32,x2:28,y2:32,r:0,text:"ARRAY — 3 BOXES",layer:"Notes",points:[]}
   ]; }
-  cs.shapes=t; cLog("Template loaded: "+kind.toUpperCase()+". Now add a DIMENSION across the stage/room."); renderAutocad();
+  cs.zoom={k:1,x:0,y:0}; cs.shapes=t; cLog("Template loaded: "+kind.toUpperCase()+". Now add a DIMENSION across the stage/room."); renderAutocad();
 }
 function cToWorld(e, svg){
   var r=svg.getBoundingClientRect();
-  var x=(e.clientX-r.left)/r.width*80, y=(e.clientY-r.top)/r.height*60;
+  var x=cs.zoom.x+(e.clientX-r.left)/r.width*(80/cs.zoom.k), y=cs.zoom.y+(e.clientY-r.top)/r.height*(60/cs.zoom.k);
   if(cs.ortho&&cs.pending[0]){ var p=cs.pending[0]; if(Math.abs(x-p.x)>Math.abs(y-p.y)) y=p.y; else x=p.x; }
   if(cs.snap){ x=Math.round(x/2)*2; y=Math.round(y/2)*2; }
   return {x:Math.round(x*10)/10, y:Math.round(y*10)/10};
 }
+function cApplyView(){ var svg=document.getElementById("cad-svg"); if(svg) svg.setAttribute("viewBox", viewBoxStr(cs.zoom,80,60)); var pct=document.getElementById("c-zoom-pct"); if(pct) pct.textContent=Math.round(cs.zoom.k*100)+"%"; }
+function cZoomBy(f){ zoomViewAt(cs.zoom,80,60,0.5,0.5,cs.zoom.k*f); cApplyView(); }
+function cZoomReset(){ cs.zoom.k=1; cs.zoom.x=0; cs.zoom.y=0; cApplyView(); }
+function wireCadZoom(svg){ if(!svg) return; attachZoomPan(svg,{ getState:function(){ return cs.zoom; }, W:80, H:60, pctId:"c-zoom-pct",
+  setActive:function(on){ cs._gesturing=on; },
+  onGestureStart:function(){ cs.shapes.forEach(function(sh){ cLP.cancel("shape"+sh.id); }); },
+  onTap:function(e){ var shEl=(e.target&&e.target.closest)?e.target.closest("[data-shape]"):null; if(shEl) return; if(cs.tool==="erase"||cs.tool==="select") return; cHandlePoint(cToWorld(e,svg)); } }); }
 function cRunCommand(raw){
   var c=raw.trim(); if(!c) return; cLog("> "+c);
   var up=c.toUpperCase();
@@ -864,7 +949,7 @@ function cRunCommand(raw){
 }
 
 function cCanvasSVG(){
-  var s='<svg id="cad-svg" viewBox="0 0 80 60" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none;cursor:crosshair" role="img" aria-label="AutoCAD drawing canvas">';
+  var s='<svg id="cad-svg" viewBox="'+viewBoxStr(cs.zoom,80,60)+'" style="width:100%;height:100%;display:block;margin:0 auto;touch-action:none;user-select:none;cursor:crosshair" role="img" aria-label="AutoCAD drawing canvas">';
   if(cs.showGrid){
     for(var i=0;i<=40;i++) s+='<line x1="'+(i*2)+'" y1="0" x2="'+(i*2)+'" y2="60" stroke="#1F2430" stroke-width="'+(i%5===0?0.12:0.05)+'"/>';
     for(var j=0;j<=30;j++) s+='<line x1="0" y1="'+(j*2)+'" x2="80" y2="'+(j*2)+'" stroke="#1F2430" stroke-width="'+(j%5===0?0.12:0.05)+'"/>';
@@ -887,8 +972,9 @@ function cCanvasSVG(){
     else if(sh.type==="text") s+='<text data-shape="'+sh.id+'" x="'+sh.x1+'" y="'+sh.y1+'" fill="'+col+'" font-size="2.6" font-weight="700" style="cursor:pointer">'+(cs.showKeys?esc(sh.text):"•")+'</text>';
   });
   var hov=cs.shapes.find(function(sh){return cShapeVisible(sh.id)&&layerVisible(sh.layer);});
-  if(hov){ var tx=Math.min(46,(hov.x1+hov.x2)/2), ty=Math.max(4,Math.min(hov.y1,hov.y2)-9);
-    s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="33" height="8.5" rx="1" fill="#0F172A" stroke="#F59E0B"/><text x="'+(tx+1.2)+'" y="'+(ty+3.2)+'" fill="#FCD34D" font-size="2.2" font-weight="700">'+hov.type.toUpperCase()+' · '+esc(shapeInfo(hov))+'</text><text x="'+(tx+1.2)+'" y="'+(ty+6.6)+'" fill="#E6E8EB" font-size="2">('+hov.x1+','+hov.y1+') → ('+hov.x2+','+hov.y2+') · '+esc(hov.layer)+'</text></g>'; }
+  if(hov){ var zk2=cs.zoom.k, bw=33/zk2, bh=8.5/zk2;
+    var tx=Math.max(cs.zoom.x+0.5, Math.min(cs.zoom.x+80/zk2-bw-0.5,(hov.x1+hov.x2)/2)), ty=Math.max(cs.zoom.y+0.5, Math.min(cs.zoom.y+60/zk2-bh-0.5, Math.min(hov.y1,hov.y2)-bh-0.5));
+    s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="'+bw+'" height="'+bh+'" rx="'+(1/zk2)+'" fill="#0F172A" stroke="#F59E0B" stroke-width="'+(0.12/zk2)+'"/><text x="'+(tx+1.2/zk2)+'" y="'+(ty+3.2/zk2)+'" fill="#FCD34D" font-size="'+(2.2/zk2)+'" font-weight="700">'+hov.type.toUpperCase()+' · '+esc(shapeInfo(hov))+'</text><text x="'+(tx+1.2/zk2)+'" y="'+(ty+6.6/zk2)+'" fill="#E6E8EB" font-size="'+(2/zk2)+'">('+hov.x1+','+hov.y1+') → ('+hov.x2+','+hov.y2+') · '+esc(hov.layer)+'</text></g>'; }
   return s+'</svg>';
 }
 
@@ -903,10 +989,11 @@ function cDrills(){
 }
 
 function renderAutocad(){
+  cs._gesturing=false;
   var root=document.getElementById("ws-autocad");
   var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
   var done=doneSet(), sel=cs.shapes.find(function(s){return s.id===cs.selected;});
-  var html='<div class="ws-layout"><div class="top-zone"><p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Pick a tool, draw on the canvas, then switch layers below. The canvas shrinks to fit — only the layer panel underneath scrolls.</p>';
+  var html='<div class="ws-layout"><div class="top-zone"><p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Pick a tool, tap the canvas to draw, then switch layers below. Pinch with two fingers (or use the + / − / FIT buttons on the canvas) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still draws, a drag never does, and points land where your finger actually is.</p>';
   html+='<div class="tool-grid" role="toolbar" aria-label="Drawing tools">'+
     CAD_TOOLS.map(function(t){return '<button data-tool="'+t[0]+'" aria-pressed="'+(cs.tool===t[0])+'" class="'+(cs.tool===t[0]?"on":"")+'">'+t[1]+'</button>';}).join("")+
     '<button id="c-undo">↩ Undo</button><button id="c-finish" style="grid-column:span 2">Finish Polyline</button><button id="c-clear">Clear</button></div>';
@@ -914,6 +1001,7 @@ function renderAutocad(){
   if(cs.showKeys) html+='<p class="mono" style="font-size:12px;margin:0;border-radius:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);color:var(--dim)" aria-label="Command key legend">KEY: L Line · C Circle · REC Rectang · PL Pline · A Arc · D Dim · E Erase · U Undo · SNAP grid lock · ORTHO horizontal/vertical lock</p>';
 
   html+='<section class="cad-shell" style="background:#0A0A0C;border:1px solid var(--border)">';
+  html+='<div class="zoom-controls" role="group" aria-label="Canvas zoom controls — pinch, drag, or use these buttons"><button type="button" id="c-zoom-in" class="zoom-btn" aria-label="Zoom in on drawing canvas">+</button><button type="button" id="c-zoom-out" class="zoom-btn" aria-label="Zoom out on drawing canvas">−</button><button type="button" id="c-zoom-reset" class="zoom-btn zoom-reset" aria-label="Zoom extents — fit the whole drawing, 100 percent">FIT</button><span id="c-zoom-pct" class="zoom-pct mono" aria-label="Current canvas zoom level">'+Math.round(cs.zoom.k*100)+'%</span></div>';
   html+=cCanvasSVG();
   html+='<div style="background:#111318;border-top:1px solid var(--border)"><div id="c-history" class="mono" style="height:64px;overflow-y:auto;padding:6px 10px;font-size:12px;line-height:1.5;color:#A5F3FC;touch-action:pan-y;-webkit-overflow-scrolling:touch" aria-live="polite">'+
     cs.history.map(function(h){return '<div>'+esc(h)+'</div>';}).join("")+
@@ -1027,11 +1115,14 @@ function renderAutocad(){
     if(cv){ cv.setAttribute("x1",p.x); cv.setAttribute("x2",p.x); } if(ch){ ch.setAttribute("y1",p.y); ch.setAttribute("y2",p.y); }
     var status=hist.lastElementChild; if(status) status.textContent="Cursor: "+p.x.toFixed(0)+", "+p.y.toFixed(0)+" ft · Tool: "+cs.tool.toUpperCase()+" · Layer: "+cs.activeLayer+" · Objects: "+cs.shapes.length;
   } });
-  svg.addEventListener("pointerdown",function(e){ var shEl=(e.target&&e.target.closest)?e.target.closest("[data-shape]"):null; if(shEl) return; var p=cToWorld(e,svg); if(cs.tool==="erase"||cs.tool==="select") return; cHandlePoint(p); });
+  wireCadZoom(svg);
+  var czi=document.getElementById("c-zoom-in"); if(czi) czi.addEventListener("click",function(){ cZoomBy(1.4); });
+  var czo=document.getElementById("c-zoom-out"); if(czo) czo.addEventListener("click",function(){ cZoomBy(1/1.4); });
+  var czr=document.getElementById("c-zoom-reset"); if(czr) czr.addEventListener("click",function(){ cZoomReset(); });
   svg.querySelectorAll("[data-shape]").forEach(function(el){
     var id=Number(el.getAttribute("data-shape"));
-    el.addEventListener("mouseenter",function(){ if(cs.hovered!==id){ cs.hovered=id; renderAutocad(); } });
-    el.addEventListener("mouseleave",function(){ if(cs.hovered!==null){ cs.hovered=null; renderAutocad(); } cLP.cancel("shape"+id); });
+    el.addEventListener("mouseenter",function(){ if(cs._gesturing) return; if(cs.hovered!==id){ cs.hovered=id; renderAutocad(); } });
+    el.addEventListener("mouseleave",function(){ cLP.cancel("shape"+id); if(cs._gesturing) return; if(cs.hovered!==null){ cs.hovered=null; renderAutocad(); } });
     el.addEventListener("pointerdown",function(){ if(cs.viewMode==="edit") cLP.start("shape"+id,function(){ cs.selected=id; cs.editing=id; cs.deck="dims"; renderAutocad(); }); });
     el.addEventListener("pointerup",function(){ cLP.cancel("shape"+id); });
     el.addEventListener("click",function(){ if(cLP.wasFired("shape"+id)) return;
@@ -1080,7 +1171,7 @@ function renderAutocad(){
     document.getElementById("c-savename").addEventListener("input",function(e){ cs.saveName=e.target.value; });
     document.getElementById("c-save").addEventListener("click",function(){ addSave("autocad", cs.saveName||"Untitled drawing", JSON.stringify({shapes:cs.shapes,layers:cs.layers})); renderAutocad(); });
     document.getElementById("c-share").addEventListener("click",function(){ var link=buildShareLink("autocad", cs.saveName||"Untitled drawing", {shapes:cs.shapes,layers:cs.layers}, commentsFor("autocad")); presentShareLink(link, this); });
-    root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){} renderAutocad(); }); });
+    root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.zoom={k:1,x:0,y:0}; cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){} renderAutocad(); }); });
     root.querySelectorAll("[data-cdel]").forEach(function(b){ b.addEventListener("click",function(){ deleteSave("autocad", Number(b.getAttribute("data-cdel"))); renderAutocad(); }); });
   }
   wireLessons(document.getElementById("c-lessons"), C_LESSONS, cs, renderAutocad);
