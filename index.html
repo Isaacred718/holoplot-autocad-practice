@@ -467,15 +467,22 @@
   .holo-hub{ position:absolute; right:14px; bottom:122px; z-index:96; width:64px; height:64px; border-radius:50%; background:var(--cyan); color:#04222B; border:2px solid rgba(255,255,255,.65); box-shadow:0 10px 26px rgba(0,0,0,.5); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; padding:0; }
   .holo-hub .hub-ic{ font-size:23px; line-height:1; }
   .holo-hub .hub-lab{ font-size:9.5px; font-weight:800; letter-spacing:.05em; }
-  .holo-hub.open{ background:var(--surface2); color:var(--text); border-color:var(--cyan); }
-  .holo-radial{ position:absolute; inset:0; z-index:90; pointer-events:none; display:none; }
+  .holo-hub.open{ background:var(--surface2); color:var(--text); border-color:var(--cyan); z-index:80; } /* while the fan is open the hub drops BELOW the fan layer: the fan's centre button sits exactly on the hub and takes its clicks (close / back) */
+  /* the fan overlay is viewport-fixed: its containing block is the initial
+     containing block in every engine, so layer-local coordinates (hub rect
+     minus layer rect) resolve identically in WebKit and Chromium. As an
+     in-shell absolute layer the fan centre had to be clamped away from the
+     corner hub and the ring then collapsed under clamp + separation passes
+     (measured identical in both engines: centre 106px from the hub, wedge
+     radii 36–155px, one wedge buried under the centre button). */
+  .holo-radial{ position:fixed; inset:0; z-index:90; pointer-events:none; display:none; }
   .holo-radial.open{ display:block; }
   .rad-disc{ position:absolute; border-radius:50%; background:rgba(10,16,24,.74); border:1.5px solid rgba(103,232,249,.45); box-shadow:0 18px 44px rgba(0,0,0,.55); transform:translate(-50%,-50%); }
   .rad-wedge{ position:absolute; transform:translate(-50%,-50%); width:66px; height:66px; border-radius:50%; background:rgba(23,26,32,.96); color:#E9ECF1; border:1.5px solid #4B5563; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; }
   .rad-wedge .rad-ic{ font-size:20px; line-height:1; }
   .rad-wedge .rad-lab{ font-size:10.5px; font-weight:800; }
   .rad-wedge .rad-key{ position:absolute; top:3px; right:7px; font-size:9px; color:var(--dim); font-weight:700; }
-  .rad-centre{ position:absolute; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:var(--cyan); color:#04222B; border:0; font-size:20px; font-weight:900; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; }
+  .rad-centre{ position:absolute; transform:translate(-50%,-50%); width:64px; height:64px; border-radius:50%; background:var(--cyan); color:#04222B; border:2px solid rgba(255,255,255,.65); font-size:20px; font-weight:900; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; } /* same size as the hub it covers while the fan is open */
   @keyframes radIn{ from{ opacity:0; scale:.55; } to{ opacity:1; scale:1; } }
   @media (prefers-reduced-motion: reduce){ .rad-wedge,.rad-centre{ animation:none; } }
   .rad-wedge.rad-on{ background:var(--cyan-dim); color:#A5F3FC; border-color:var(--cyan); }
@@ -513,6 +520,7 @@
        (hub is 60px wide here; 84px of trailing room = hub + a clear gap) */
     .spk-strip::after{ content:""; flex:0 0 84px; }
     .rad-wedge{ width:60px; height:60px; }
+    .rad-centre{ width:60px; height:60px; }
   }
   /* HOLOPLOT: the map reclaims the old rail + panel space at every size
      (AutoCAD keeps its side-by-side rail — separate selectors) */
@@ -2530,64 +2538,55 @@ function hClosePopup(){ hs.popup=null; hs.viewOptsOpen=false; if(hs.tape.active)
 function hPopHead(title){ return '<div class="pop-head"><h3>'+title+'</h3><button type="button" class="btn pop-close" data-pop-close aria-label="Close this popup">✕</button></div>'; }
 function hDeckNavHTML(){ return '<div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+[["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div>'; }
 function hLayoutRadial(){
+  /* Fan geometry, engine-robust by construction:
+     - the fan is CENTRED ON THE HUB. The old layout clamped the centre into
+       the map shell (106px away from the corner hub at 1440px), then clamped
+       wedges into the SVG box and pushed them apart with separation passes
+       that knew the hub but not the centre — the ring collapsed (wedge radii
+       36–155px from the centre, one wedge buried under the centre button),
+       identically in Chromium and WebKit. No clamping, no separation now:
+       positions are exact, so both engines render the same fan.
+     - positions are LAYER-LOCAL: the layer is viewport-fixed (see CSS), so
+       its rect is the viewport in every engine and the hub centre converts
+       with one subtraction — no offsetParent ambiguity.
+     - the hub sits in a corner, so a full 360° ring cannot fit on screen:
+       wedges occupy the longest arc around the hub on which every wedge
+       stays fully inside the layer, at a radius searched so neighbouring
+       wedges never overlap. The disc stays centred on the hub and simply
+       runs off the corner edges, like a fan opened from the hub itself. */
   var layer=document.getElementById("h-radial"); if(!layer||!hs.radialOpen) return;
-  var shell=layer.parentElement; if(!shell) return;
-  var sr=shell.getBoundingClientRect(); if(sr.width<80||sr.height<80) return;
-  var hx=sr.width-46, hy=sr.height-152;
-  var hub=document.getElementById("h-hub");
-  if(hub){ var hr=hub.getBoundingClientRect(); if(hr.width){ hx=hr.left-sr.left+hr.width/2; hy=hr.top-sr.top+hr.height/2; } }
-  var R=sr.width<560?92:114, ext=R+40;
-  var cx=Math.min(Math.max(hx,ext), Math.max(ext,sr.width-ext));
-  var cy=Math.min(Math.max(hy,ext), Math.max(ext,sr.height-ext));
-  if(sr.width<ext*2) cx=sr.width/2; if(sr.height<ext*2) cy=sr.height/2;
+  var hub=document.getElementById("h-hub"); if(!hub) return;
+  var lr=layer.getBoundingClientRect(); if(lr.width<80||lr.height<80) return;
+  var hr=hub.getBoundingClientRect(); if(!hr.width) return;
+  var cx=hr.left-lr.left+hr.width/2, cy=hr.top-lr.top+hr.height/2;
+  var _ws=layer.querySelectorAll(".rad-wedge"), n=Math.max(1,_ws.length);
+  var wedgeD=(_ws.length&&_ws[0].offsetWidth)?_ws[0].offsetWidth:66, wedgeR=wedgeD/2, m=wedgeR+3;
+  function fits(a,R){ var x=cx+Math.cos(a)*R, y=cy+Math.sin(a)*R; return x>=m&&x<=lr.width-m&&y>=m&&y<=lr.height-m; }
+  function bestArc(R){ /* longest run of angles (720 samples, circular) whose wedge stays inside the layer */
+    var N=720, ok=[], i;
+    for(i=0;i<N;i++) ok.push(fits(i/N*2*Math.PI,R));
+    var bS=0,bL=0,cS=0,cL=0;
+    for(i=0;i<2*N;i++){ if(ok[i%N]){ if(!cL)cS=i; cL++; if(cL>bL){ bL=cL; bS=cS; } if(cL>=N) break; } else cL=0; }
+    if(bL>=N) return {full:true,start:0,width:2*Math.PI};
+    return {full:false,start:(bS%N)/N*2*Math.PI,width:Math.max(0,(bL-1))/N*2*Math.PI};
+  }
+  var defR=lr.width<560?100:114, chosen=null, ci, Rc, arc;
+  var cands=[defR]; for(ci=1;ci<=7;ci++) cands.push(defR+ci*10); for(ci=1;ci<=5;ci++) cands.push(defR-ci*10);
+  for(ci=0;ci<cands.length;ci++){ Rc=cands[ci]; if(Rc<56) continue; arc=bestArc(Rc);
+    var need=(n>1)?(n-1)*2*Math.asin(Math.min(1,(wedgeD+3)/(2*Rc))):0;
+    if(arc.full||arc.width>=Math.max(need,Math.PI/2)){ chosen={R:Rc,arc:arc}; break; }
+    if(!chosen||arc.width>chosen.arc.width) chosen={R:Rc,arc:arc}; /* fallback: widest arc found */
+  }
+  if(!chosen) chosen={R:defR,arc:{full:true,start:0,width:2*Math.PI}};
+  var R=chosen.R, ext=R+wedgeR+10;
   var disc=layer.querySelector(".rad-disc"); if(disc){ disc.style.left=cx+"px"; disc.style.top=cy+"px"; disc.style.width=(ext*2)+"px"; disc.style.height=(ext*2)+"px"; }
   var cen=layer.querySelector(".rad-centre"); if(cen){ cen.style.left=cx+"px"; cen.style.top=cy+"px"; }
-  var _ws=layer.querySelectorAll(".rad-wedge"), _nw=Math.max(1,_ws.length);
-  /* Safe box for wedges = the map wrap itself. The shell's full box includes
-     readout rows that following page sections can paint over, so a wedge
-     clamped only to the shell can land in covered territory (observed: the
-     bottom-arc wedge on phone shells ended up under the tutor card). */
-  var _bx0=35, _by0=32, _bx1=Math.max(35,sr.width-35), _by1=Math.max(32,sr.height-32);
-  var _wrap=shell.querySelector(":scope > svg")||shell.querySelector("svg");
-  if(_wrap){ var _wr=_wrap.getBoundingClientRect();
-    if(_wr.width>90&&_wr.height>90){
-      _bx0=Math.max(4, _wr.left-sr.left+35); _bx1=Math.min(sr.width-4, _wr.right-sr.left-35);
-      _by0=Math.max(4, _wr.top-sr.top+32); _by1=Math.min(sr.height-4, _wr.bottom-sr.top-32);
-      if(_bx1<_bx0){ _bx0=35; _bx1=Math.max(35,sr.width-35); }
-      if(_by1<_by0){ _by0=32; _by1=Math.max(32,sr.height-32); }
-    }
-  }
-  var _hubA=Math.atan2(hy-cy,hx-cx), _step=2*Math.PI/_nw; /* a gap in the fan always faces the hub, so no wedge centre ever lands under the hub button */
-  /* Phase 1: natural fan positions, clamped into the safe box. */
-  var _pts=[];
-  _ws.forEach(function(w,i){ var a=_hubA+_step/2+i*_step;
-    _pts.push({ x:Math.max(_bx0, Math.min(_bx1, cx+Math.cos(a)*R)),
-                y:Math.max(_by0, Math.min(_by1, cy+Math.sin(a)*R)), a:a });
+  _ws.forEach(function(w,i){ var a;
+    if(chosen.arc.full||n===1) a=-Math.PI/2+i*(2*Math.PI/n);
+    else a=chosen.arc.start+chosen.arc.width*(i/(n-1));
+    w.style.left=(cx+Math.cos(a)*R)+"px"; w.style.top=(cy+Math.sin(a)*R)+"px"; w.style.animationDelay=(i*14)+"ms";
   });
-  /* Phase 2: separation passes. The hub is a fixed obstacle (wedge centres
-     keep 86px from it) and wedge centres keep 70px from each other; after
-     each push, re-clamp into the safe box. Clamping alone can shove two
-     wedges into the same corner (observed: Animation under Reflections),
-     which leaves the lower one unclickable — this pass spreads them. */
-  for(var _pass=0; _pass<10; _pass++){
-    var _moved=false;
-    for(var _i=0; _i<_pts.length; _i++){ var _p=_pts[_i];
-      var _dx=_p.x-hx, _dy=_p.y-hy, _dd=Math.sqrt(_dx*_dx+_dy*_dy);
-      if(_dd<86){ if(_dd<1){ _dx=Math.cos(_p.a); _dy=Math.sin(_p.a); _dd=1; }
-        _p.x=hx+_dx/_dd*86; _p.y=hy+_dy/_dd*86; _moved=true; }
-      for(var _j=_i+1; _j<_pts.length; _j++){ var _q=_pts[_j];
-        var _ex=_q.x-_p.x, _ey=_q.y-_p.y, _ee=Math.sqrt(_ex*_ex+_ey*_ey);
-        if(_ee<70){ if(_ee<1){ _ex=Math.cos(_p.a+Math.PI/2); _ey=Math.sin(_p.a+Math.PI/2); _ee=1; }
-          var _push=(70-_ee)/2, _ux=_ex/_ee, _uy=_ey/_ee;
-          _p.x-=_ux*_push; _p.y-=_uy*_push; _q.x+=_ux*_push; _q.y+=_uy*_push; _moved=true; }
-      }
-      _p.x=Math.max(_bx0, Math.min(_bx1, _p.x)); _p.y=Math.max(_by0, Math.min(_by1, _p.y));
-    }
-    for(var _k=0; _k<_pts.length; _k++){ _pts[_k].x=Math.max(_bx0, Math.min(_bx1, _pts[_k].x)); _pts[_k].y=Math.max(_by0, Math.min(_by1, _pts[_k].y)); }
-    if(!_moved) break;
-  }
-  _ws.forEach(function(w,i){ w.style.left=_pts[i].x+"px"; w.style.top=_pts[i].y+"px"; w.style.animationDelay=(i*14)+"ms"; });
-  var _cap=layer.querySelector(".rad-cap"); if(_cap){ _cap.style.left=cx+"px"; _cap.style.top=(cy+44)+"px"; }
+  var _cap=layer.querySelector(".rad-cap"); if(_cap){ _cap.style.left=cx+"px"; _cap.style.top=(cy+42)+"px"; }
 }
 if(!window._holoPopWired){ window._holoPopWired=true;
   document.addEventListener("keydown",function(e){
