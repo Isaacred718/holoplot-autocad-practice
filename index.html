@@ -468,6 +468,39 @@
   .holo-hub .hub-ic{ font-size:23px; line-height:1; }
   .holo-hub .hub-lab{ font-size:9.5px; font-weight:800; letter-spacing:.05em; }
   .holo-hub.open{ background:var(--surface2); color:var(--text); border-color:var(--cyan); z-index:80; } /* while the fan is open the hub drops BELOW the fan layer: the fan's centre button sits exactly on the hub and takes its clicks (close / back) */
+  /* ---- hub lifecycle: DORMANT slim edge tab / ARMED full hub ----
+     DORMANT (default): a slim vertical tab on the map's LEFT edge, mid
+     height — the right edge belongs to the pinned zoom column, which in
+     landscape runs the full height of the shell, so the old closed 64px
+     hub at bottom-right sat directly on the − button and above FIT/100%
+     even while closed. The tab touches no pinned control at any size
+     (left edge, x 0–34, clear of the top zoom rows and the Iso strip).
+     ARMED (long-press the tab, or M): the full hub returns to its usual
+     bottom-right spot, pulsing; a tap then opens the fan. */
+  .holo-hub{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; touch-action:none; } /* touch-action none on the handle's box only — map gestures elsewhere are untouched; the callout suppression + scoped contextmenu handler keep an iOS long-press from becoming a text-selection / callout gesture */
+  .holo-hub.dormant{ left:8px; right:auto; top:8px; bottom:auto; transform:none; width:auto; height:38px; padding:0 13px; border-radius:99px; background:rgba(23,26,32,.82); color:#9AA3B2; border:1px solid #4B5563; box-shadow:0 4px 14px rgba(0,0,0,.32); z-index:40; flex-direction:row; gap:7px; }
+  .holo-hub.dormant .hub-ic{ font-size:13px; }
+  .holo-hub.dormant .hub-lab{ font-size:10.5px; letter-spacing:.08em; white-space:nowrap; }
+  /* phones: the dormant form stays within the current hub's footprint
+     (bottom-right, no wider than the 60px hub) so it cannot re-cover the
+     speaker chips the strip's end spacer keeps reachable */
+  @media(max-width:760px){
+    .holo-hub.dormant{ left:auto; top:auto; right:10px; bottom:106px; width:56px; height:56px; padding:0; border-radius:50%; flex-direction:column; gap:0; }
+    .holo-hub.dormant .hub-lab{ font-size:9px; letter-spacing:.05em; }
+  }
+  .holo-hub.dormant.nudge{ animation:hubNudge .38s ease-out; }
+  @keyframes hubNudge{ 0%{ filter:brightness(1.7); } 100%{ filter:brightness(1); } }
+  .holo-hub.armed{ animation:hubPulse 1.6s ease-in-out infinite; }
+  .holo-hub.armed .hub-lab{ font-size:8.5px; letter-spacing:.04em; text-align:center; line-height:1.15; }
+  @keyframes hubPulse{ 0%,100%{ box-shadow:0 10px 26px rgba(0,0,0,.5), 0 0 0 0 rgba(34,211,238,.5); } 50%{ box-shadow:0 10px 26px rgba(0,0,0,.5), 0 0 0 11px rgba(34,211,238,0); } }
+  @media (prefers-reduced-motion: reduce){ .holo-hub.armed{ animation:none; outline:3px solid var(--cyan); outline-offset:2px; } .holo-hub.dormant.nudge{ animation:none; } }
+  /* long-press progress ring: sweeps linearly, full exactly at the arm threshold; cancelling or releasing early only resets it */
+  .hub-ring{ position:absolute; inset:-3px; border-radius:99px; padding:3px; background:conic-gradient(var(--cyan) calc(var(--p,0)*1turn), rgba(148,163,184,.28) 0); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite:exclude; pointer-events:none; opacity:0; }
+  .holo-hub.holding .hub-ring{ opacity:1; }
+  .holo-hub.open .hub-ring, .rad-centre .hub-ring{ display:none; }
+  /* one-time coach mark at the dormant handle (first run only, stored) */
+  .hub-coach{ position:absolute; left:10px; top:106px; z-index:41; max-width:230px; background:#0F2A33; border:1.5px solid var(--cyan); color:#A5F3FC; border-radius:12px; padding:8px 11px; font-size:12.5px; font-weight:700; line-height:1.4; box-shadow:0 10px 26px rgba(0,0,0,.45); pointer-events:none; }
+  @media(max-width:760px){ .hub-coach{ left:auto; right:74px; top:auto; bottom:118px; } }
   /* the fan overlay is viewport-fixed: its containing block is the initial
      containing block in every engine, so layer-local coordinates (hub rect
      minus layer rect) resolve identically in WebKit and Chromium. As an
@@ -493,7 +526,7 @@
   .spk-strip{ position:absolute; left:8px; right:86px; bottom:106px; z-index:20; display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px; border-radius:12px; background:rgba(10,15,22,.55); -webkit-overflow-scrolling:touch; touch-action:pan-x; scrollbar-width:none; }
   .spk-strip::-webkit-scrollbar{ display:none; }
   .spk-strip button{ flex:0 0 auto; min-height:44px; padding:6px 12px; font-size:13px; border-radius:10px; background:rgba(23,26,32,.92); color:#E9ECF1; border:1px solid #4B5563; white-space:nowrap; }
-  .holo-pop-layer{ position:absolute; top:8px; right:8px; bottom:8px; z-index:45; width:min(452px, calc(100% - 16px)); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; scrollbar-gutter:stable; display:none; pointer-events:none; }
+  .holo-pop-layer{ position:absolute; top:8px; right:8px; bottom:8px; z-index:97; width:min(452px, calc(100% - 16px)); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; scrollbar-gutter:stable; scroll-padding-top:8px; display:none; pointer-events:none; } /* z 97: above the MENU hub (96), so an open panel is never painted over or blocked by the hub in any orientation */
   .holo-pop-layer.open{ display:block; }
   .pop-group{ display:none; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; box-shadow:0 22px 54px rgba(0,0,0,.55); padding:0 10px 10px; pointer-events:auto; }
   /* wide screens: the venue picker floats on the map's top-left corner so
@@ -546,6 +579,68 @@
   @media(max-height:600px){
     .holo-hub{ bottom:98px; }
     .spk-strip{ bottom:90px; }
+  }
+  /* ---- LANDSCAPE PANELS: short-wide screens get a wide, compact panel ----
+     In landscape the old 452px column showed a ~536px slice of a ~3300px
+     panel: every control existed and the layer did scroll, but the panel
+     read as cut off — narrow, tall, and with the hub floating over its
+     lower corner. In landscape the layer now spends the width the short
+     height denies it (880px: the internal two/three-column grids lay out
+     at full width, wrapped rows halve), rows compact a step, and the
+     sticky panel head + layer scroll keep the first control reachable at
+     scrollTop 0 and the last at max scroll. Portrait is untouched. */
+  @media(min-width:700px) and (orientation:landscape) and (max-height:920px){
+    .holo-pop-layer{ width:min(880px, calc(100% - 16px)); }
+    .pop-group{ padding:0 12px 12px; }
+    .pop-group .slider-row{ padding:6px 8px; margin-top:6px; }
+    .pop-group input[type="range"]{ height:44px; }
+    .pop-group .chip{ min-height:64px; padding:9px; }
+    .pop-group .card{ padding:10px !important; }
+  }
+  /* short landscape phones: the bottom sheet may use most of the height,
+     not 62% of a ~390px screen */
+  @media(max-width:760px) and (orientation:landscape){
+    .holo-pop-layer{ max-height:88%; }
+  }
+  /* ---- PANEL LANE (landscape audit, 536px layer budget at 1180x820) ----
+     Cross-panel: the layer always shows a REAL scrollbar (visible at
+     open, not only mid-scroll — no invisible-scroll trap), and its height
+     is capped against the viewport itself so a panel can never extend
+     past the screen bottom even where the layout shell overruns. */
+  .holo-pop-layer{ scrollbar-width:thin; scrollbar-color:rgba(103,232,249,.75) rgba(255,255,255,.07); max-height:calc(100dvh - 170px); }
+  .holo-pop-layer::-webkit-scrollbar{ width:10px; }
+  .holo-pop-layer::-webkit-scrollbar-track{ background:rgba(255,255,255,.06); border-radius:99px; }
+  .holo-pop-layer::-webkit-scrollbar-thumb{ background:rgba(103,232,249,.6); border-radius:99px; border:2px solid rgba(10,16,24,.55); }
+  .cap-scroll{ overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:rgba(103,232,249,.75) rgba(255,255,255,.07); }
+  .cap-scroll::-webkit-scrollbar{ width:8px; }
+  .cap-scroll::-webkit-scrollbar-track{ background:rgba(255,255,255,.06); border-radius:99px; }
+  .cap-scroll::-webkit-scrollbar-thumb{ background:rgba(103,232,249,.6); border-radius:99px; }
+  .fan-fold{ margin-top:12px; }
+  .fan-fold>summary{ min-height:48px; display:flex; align-items:center; padding:8px 12px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); font-weight:700; font-size:15px; cursor:pointer; list-style:none; }
+  .fan-fold>summary::-webkit-details-marker{ display:none; }
+  @media(min-width:700px) and (orientation:landscape) and (max-height:920px){
+    /* Speaker/Position: two columns — name + model side (DOM col 1) and
+       the position fields + quick-height chips (col 2); the note and
+       readouts span both. Internal panel scroll stays as backstop. */
+    #h-seg-pos{ display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); column-gap:14px; align-items:start; }
+    #h-seg-pos>*{ min-width:0; }
+    #h-seg-pos>p:nth-of-type(1){ grid-column:1/-1; }
+    #h-seg-pos>div:nth-of-type(1){ grid-column:1; grid-row:2; }
+    #h-seg-pos>div:nth-of-type(2){ grid-column:2; grid-row:2; }
+    #h-seg-pos>div:nth-of-type(3){ grid-column:2; grid-row:3; }
+    #h-seg-pos>p:nth-of-type(2), #h-seg-pos>p:nth-of-type(3), #h-seg-pos>p:nth-of-type(4){ grid-column:1/-1; }
+    /* Beams: the per-beam value chips become a capped internal scroll
+       (visible scrollbar) instead of ~200px x N beams of panel height;
+       the selected beam's fader bank below is the one expanded beam */
+    .pop-group[data-pop="speaker"] .grid3{ max-height:236px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:rgba(103,232,249,.75) rgba(255,255,255,.07); padding-right:4px; }
+    .pop-group[data-pop="speaker"] .grid3::-webkit-scrollbar{ width:8px; }
+    .pop-group[data-pop="speaker"] .grid3::-webkit-scrollbar-thumb{ background:rgba(103,232,249,.6); border-radius:99px; }
+    /* Link toggles: two-column grid */
+    .link-grid{ display:grid !important; grid-template-columns:1fr 1fr; }
+    /* Environment / Materials / Room: two-column flow so the short
+       landscape height fits them (Environment's goal: no panel scroll) */
+    .pop-group[data-pop="env"]>div, .pop-group[data-pop="roommat"]>div, .pop-group[data-pop="room"]>div{ columns:2; column-gap:18px; }
+    .pop-group[data-pop="env"]>div>*, .pop-group[data-pop="roommat"]>div>*, .pop-group[data-pop="room"]>div>*{ break-inside:avoid; }
   }
 </style>
 </head>
@@ -693,7 +788,8 @@ var TUTOR_DICT=[
   {keys:["circle"],expl:"CIRCLE here stands in for a speaker, a column or a turning radius: pick the centre, then a point on the edge sets the radius. The Properties panel reports radius and area once drawn."},
   {keys:["hover","latched","momentary"],expl:"Hover values come in two flavours. Momentary: the value label shows only while your pointer or finger is on the item and disappears when you move away. Latched: tap or click once and the label stays pinned until you tap it again — better on touch screens and when comparing two beams."},
   {keys:["long-press","long press","edit values"],expl:"Edit Values mode is where value labels become editable. Switch to the Edit Values tab, then press and hold (long-press, about half a second) any beam or dimension value label — an editor opens so you can type a new value and save it. Practice mode keeps labels read-only so you cannot change a design by accident."},
-  {keys:["stream deck","keyboard shortcut","keys & stream deck","hotkey"],expl:"The full keyboard and Stream Deck map is in the Keys & Stream Deck card — tap that topic below. Every key drives the exact same on-screen control, deck buttons send the Option/Alt chords and F13–F19, and keys go quiet while you are typing in a field or the AutoCAD command line."}
+  {keys:["stream deck","keyboard shortcut","keys & stream deck","hotkey"],expl:"The full keyboard and Stream Deck map is in the Keys & Stream Deck card — tap that topic below. Every key drives the exact same on-screen control, deck buttons send the Option/Alt chords and F13–F19, and keys go quiet while you are typing in a field or the AutoCAD command line."},
+  {keys:["waking the menu","wake the menu","hold menu","menu handle"],expl:"The MENU handle rests dormant as a slim pill so it never covers the map controls. Hold it (long-press, about half a second — the ring fills) to wake it: it pops up as the full hub marked TAP TO OPEN. Tap it and the circular menu opens. It goes back to sleep after about 8 seconds, on Esc, or if you hold it again. On a keyboard, M wakes and opens it in one press."}
 ];
 function localExplain(raw){
   var t=raw.toLowerCase();
@@ -896,7 +992,7 @@ var H_FADER_HOME={1:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:-6,y:4},2:{az:0,tilt
 var H_FADER_LABEL={az:"Azimuth",tilt:"Tilt",hBeam:"Horizontal beam width",vBeam:"Vertical beam width",gain:"Gain",x:"Position left/right",y:"Position depth",height:"Height"};
 var H_FADER_UNIT={az:"°",tilt:"°",hBeam:"°",vBeam:"°",gain:" dB",x:" m",y:" m",height:" m"};
 var hs={
-  venueId:"theatre", sel:1, showSide:false, deck:"arrays", popup:null, radialOpen:false, radialLevel:null, roomSeg:"all", _popAnchor:null, saveName:"My theatre design", faderMsg:"",
+  venueId:"theatre", sel:1, showSide:false, deck:"arrays", popup:null, radialOpen:false, radialLevel:null, hubState:"dormant", roomSeg:"all", _popAnchor:null, saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
   hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1", _gesturing:false,
   resMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.res:"low",
@@ -985,7 +1081,7 @@ function hMigrateArrays(list){ if(!Array.isArray(list)) return hs.arrays; var us
   function beam(b){ if(!b||typeof b!=="object") b={}; return {az:hClampParam("az",hNum(b.az,0)), tilt:hClampParam("tilt",hNum(b.tilt,0)), hBeam:hClampParam("hBeam",hNum(b.hBeam,28)), vBeam:hClampParam("vBeam",hNum(b.vBeam,18)), gain:hClampParam("gain",hNum(b.gain,0)), zone:typeof b.zone==="string"?b.zone:"", layer:H_LAYERS.indexOf(b.layer)>=0?b.layer:"Main", probe:!!b.probe}; }
   if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.slice(0,12).map(beam); } /* sanitisation bound is the GLOBAL maximum (12), never the model's add cap: the cap governs ADDING, not loading — a design the app itself produced (beams kept when a model switch dropped the cap, e.g. 12 beams on a Generic) must round-trip through saves and share links intact */
   else { na.beams=[beam(a)]; } return na; }); }
-function hLoadDesignData(d){ if(!d) return; if(d.venueId) hs.venueId=d.venueId; if(d.arrays) hs.arrays=hMigrateArrays(d.arrays);
+function hLoadDesignData(d){ if(!d) return; hs.hubState="dormant"; hs.radialOpen=false; hs.radialLevel=null; hHubSleepClear(); /* design load resets the hub to DORMANT */ if(d.venueId) hs.venueId=d.venueId; if(d.arrays) hs.arrays=hMigrateArrays(d.arrays);
   if(d.zoneTargets&&typeof d.zoneTargets==="object"){ var ztClean={}; Object.keys(d.zoneTargets).forEach(function(vk){ var zv=d.zoneTargets[vk]; if(!zv||typeof zv!=="object") return; var zo={}; Object.keys(zv).forEach(function(zn){ var z=zv[zn]; if(!z||typeof z!=="object") return; zo[zn]={target:Math.min(120,Math.max(30,hNum(z.target,80))), tol:Math.min(20,Math.max(0.5,hNum(z.tol,3)))}; }); ztClean[vk]=zo; }); hs.zoneTargets=ztClean; } if(d.layerOn) hs.layerOn={Main:d.layerOn.Main!==false,Balcony:d.layerOn.Balcony!==false,Fill:d.layerOn.Fill!==false};
   hs.linked=Array.isArray(d.linked)?d.linked.filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}):[];
   hs.invertPan=!!d.invertPan&&hs.linked.length>=2; hs.invertTilt=!!d.invertTilt&&hs.linked.length>=2; if(typeof d.fanAmt==="number") hs.fanAmt=d.fanAmt;
@@ -1484,7 +1580,7 @@ function hArrVisible(id){ return hs.showHover && ((hs.hoverMode==="momentary"&&h
    landscape-shaped usable area instead of a portrait island. The 3D views
    use a fixed 720x520 world with the standard zoom/pan transform. */
 function hView(){ return hs.view||"plan"; }
-function hSetView(v){ hs.view=v; hs.showSide=(v==="side"); }
+function hSetView(v){ hs.view=v; hs.showSide=(v==="side"); hs.hubState="dormant"; hs.radialOpen=false; hs.radialLevel=null; hHubSleepClear(); } /* view switch resets the hub to DORMANT */
 function hZoomState(){ var v=hView(); if(v==="side") return hs.zoomSide; if(v==="stage") return hs.zoomStage; if(v==="aud") return hs.zoomAud; if(v==="iso") return hs.zoomIso; return hs.zoomPlan; }
 function hPlanDims(){ var v=hVenue(); var W=Math.round(v.w*9+56); return {W:W, H:Math.round(v.d*11+46), CX:W/2}; }
 var H_SIDE_BASE={W:640,H:480};
@@ -2430,6 +2526,7 @@ function hRadialSubs(cat){
     {id:"pop:speaker-beams",kind:"panel",icon:"🎚",label:"Beams"},
     {id:"pop:speaker-link",kind:"panel",icon:"🔗",label:"Link/Groups"},
     {id:"pop:layers",kind:"panel",icon:"🗂",label:"Layers"},
+    {id:"pop:groups",kind:"panel",icon:"👥",label:"Groups"},
     {id:"pop:zones",kind:"panel",icon:"🎯",label:"Zones/Goals"}];
   if(cat==="probe") return [
     {id:"pop:probe",kind:"panel",icon:"🛰",label:"Position"},
@@ -2482,7 +2579,7 @@ function hRadialPick(it){
 }
 function hRadialLeaf(it){
   var leaf=it.id;
-  function open(pop, anchor){ hs.popup=pop; hs.radialOpen=false; hs.radialLevel=null; if(anchor) hs._popAnchor=anchor; hs.viewOptsOpen=(pop==="display"||pop==="units"||pop==="tape"); renderHoloplot(); }
+  function open(pop, anchor){ hs.popup=pop; hs.radialOpen=false; hs.radialLevel=null; hs._hubPrePop=(hs.hubState==="armed"||hs.radialOpen)?"armed":"dormant"; hs.hubState="dormant"; hHubSleepClear(); if(anchor) hs._popAnchor=anchor; hs.viewOptsOpen=(pop==="display"||pop==="units"||pop==="tape"); renderHoloplot(); } /* a panel opening sends the hub dormant (never over the panel); closing the panel restores this prior state */
   if(it.kind==="toggle"){
     if(leaf==="tgl:origin"){ hs.viewOpts.origin=!hs.viewOpts.origin; persistViewPrefs(); renderHoloplot(); return; }
     if(leaf==="tgl:snap"){ hs.viewOpts.snap=!hs.viewOpts.snap; persistViewPrefs(); renderHoloplot(); return; }
@@ -2496,6 +2593,7 @@ function hRadialLeaf(it){
   if(leaf==="pop:speaker-beams"){ hs.deck="arrays"; open("speaker","h-seg-beams"); return; }
   if(leaf==="pop:speaker-link"){ hs.deck="arrays"; open("speaker","h-seg-link"); return; }
   if(leaf==="pop:layers"){ open("layers"); return; }
+  if(leaf==="pop:groups"){ open("groups"); return; }
   if(leaf==="pop:zones"){ open("zones"); return; }
   if(leaf==="pop:probe"){ open("probe"); return; }
   if(leaf==="pop:probetag"){ open("probetag"); return; }
@@ -2533,61 +2631,137 @@ function hOpenPopup(name){
   else hs.popup=name;
   hs.viewOptsOpen=(hs.popup==="display"||hs.popup==="units"||hs.popup==="tape");
   hs.radialOpen=false; hs.radialLevel=null;
+  hs._hubPrePop=(hs.hubState==="armed")?"armed":"dormant"; hs.hubState="dormant"; hHubSleepClear();
 }
-function hClosePopup(){ hs.popup=null; hs.viewOptsOpen=false; if(hs.tape.active){ hs.tape.active=false; hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } }
+function hClosePopup(){ hs.popup=null; hs.viewOptsOpen=false; if(hs.tape.active){ hs.tape.active=false; hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } if(hs._hubPrePop){ hs.hubState=hs._hubPrePop; hs._hubPrePop=null; if(hs.hubState==="armed") hHubKeepAwake(); } } /* closing a panel restores the hub state from before it opened */
 function hPopHead(title){ return '<div class="pop-head"><h3>'+title+'</h3><button type="button" class="btn pop-close" data-pop-close aria-label="Close this popup">✕</button></div>'; }
 function hDeckNavHTML(){ return '<div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+[["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div>'; }
+/* ---- hub lifecycle: DORMANT → (long-press / M) → ARMED → (tap) → OPEN ----
+   Closing the fan returns to ARMED; ARMED falls back to DORMANT after ~8s
+   without interaction, on Esc, or on a second long-press. Opening a popup
+   panel sends the hub DORMANT so it is never over the panel. */
+function hHubSleepClear(){ if(window._hubSleepT){ window.clearTimeout(window._hubSleepT); window._hubSleepT=null; } }
+function hHubKeepAwake(){ hHubSleepClear(); if(hs.hubState==="armed"&&!hs.radialOpen){ window._hubSleepT=window.setTimeout(function(){ window._hubSleepT=null; hs.hubState="dormant"; if(typeof currentPage==="undefined"||currentPage==="holoplot") renderHoloplot(); },8000); } }
+function hArmHub(){ hs.hubState="armed"; if(!store.hubCoachSeen){ store.hubCoachSeen=true; persist(); } hHubKeepAwake(); renderHoloplot(); } /* first successful arm dismisses the one-time coach mark for good */
+function hDormHub(){ hs.hubState="dormant"; hs.radialOpen=false; hs.radialLevel=null; hHubSleepClear(); renderHoloplot(); }
 function hLayoutRadial(){
   /* Fan geometry, engine-robust by construction:
-     - the fan is CENTRED ON THE HUB. The old layout clamped the centre into
-       the map shell (106px away from the corner hub at 1440px), then clamped
-       wedges into the SVG box and pushed them apart with separation passes
-       that knew the hub but not the centre — the ring collapsed (wedge radii
-       36–155px from the centre, one wedge buried under the centre button),
-       identically in Chromium and WebKit. No clamping, no separation now:
-       positions are exact, so both engines render the same fan.
-     - positions are LAYER-LOCAL: the layer is viewport-fixed (see CSS), so
-       its rect is the viewport in every engine and the hub centre converts
-       with one subtraction — no offsetParent ambiguity.
-     - the hub sits in a corner, so a full 360° ring cannot fit on screen:
-       wedges occupy the longest arc around the hub on which every wedge
-       stays fully inside the layer, at a radius searched so neighbouring
-       wedges never overlap. The disc stays centred on the hub and simply
-       runs off the corner edges, like a fan opened from the hub itself. */
+     - positions are LAYER-LOCAL (the layer is viewport-fixed, so its rect
+       is the viewport in every engine) and every wedge sits at exactly
+       radius R from the fan centre — no clamping, no separation passes.
+     - the fan centre is the HUB, and stays the hub whenever a clear ring
+       exists around it. The pinned controls are OBSTACLES, all classes:
+       the zoom column (+ / - / FIT / View / Tape / Waves), the zoom %
+       and sim-time readouts, the view switcher, the Iso strip, the page
+       tabs, the speaker chips and the scoreboard strip. In portrait the
+       column ends ~300px above the hub and the legacy fan already clears
+       everything, so it is kept verbatim; in landscape the column (and
+       at 1600x700 a 213px-tall map under a 324px column) leaves only
+       west / west-southwest free, so the search changes radius AND arc
+       orientation, shrinks the wedges a step, and — only at extreme
+       sizes where no hub-centred ring clears everything — shifts the
+       fan centre west of the hub (the centre button lands immediately
+       left of the hub, still its obvious handle). ZERO overlap with a
+       pinned control wins over geometric purity. The disc is capped so
+       it never paints over a pinned control. Nothing pinned moves. */
   var layer=document.getElementById("h-radial"); if(!layer||!hs.radialOpen) return;
   var hub=document.getElementById("h-hub"); if(!hub) return;
   var lr=layer.getBoundingClientRect(); if(lr.width<80||lr.height<80) return;
   var hr=hub.getBoundingClientRect(); if(!hr.width) return;
-  var cx=hr.left-lr.left+hr.width/2, cy=hr.top-lr.top+hr.height/2;
+  var HX=hr.left-lr.left+hr.width/2, HY=hr.top-lr.top+hr.height/2;
   var _ws=layer.querySelectorAll(".rad-wedge"), n=Math.max(1,_ws.length);
-  var wedgeD=(_ws.length&&_ws[0].offsetWidth)?_ws[0].offsetWidth:66, wedgeR=wedgeD/2, m=wedgeR+3;
-  function fits(a,R){ var x=cx+Math.cos(a)*R, y=cy+Math.sin(a)*R; return x>=m&&x<=lr.width-m&&y>=m&&y<=lr.height-m; }
-  function bestArc(R){ /* longest run of angles (720 samples, circular) whose wedge stays inside the layer */
-    var N=720, ok=[], i;
-    for(i=0;i<N;i++) ok.push(fits(i/N*2*Math.PI,R));
-    var bS=0,bL=0,cS=0,cL=0;
+  var baseD=lr.width<=760?60:66; /* the CSS wedge size for this viewport (not offsetWidth: a previous pass may have shrunk the wedges inline, and a resize-only relayout must not read its own shrink back as the base) */
+  var obs=[];
+  document.querySelectorAll("#ws-holoplot .map-shell .zoom-controls button, #ws-holoplot .map-shell .zoom-controls .zoom-pct, #ws-holoplot .map-shell .iso-rot button, #ws-holoplot .map-shell .iso-rot .zoom-pct, .pagebar button, #ws-holoplot .spk-strip button, #ws-holoplot .readout-grid").forEach(function(el){
+    var r=el.getBoundingClientRect(); if(r.width<2||r.height<2) return;
+    obs.push({x0:r.left-lr.left, y0:r.top-lr.top, x1:r.right-lr.left, y1:r.bottom-lr.top});
+  });
+  function circleHitsRect(x,y,rad,o){ var nx=Math.max(o.x0,Math.min(x,o.x1)), ny=Math.max(o.y0,Math.min(y,o.y1)); var dx=x-nx, dy=y-ny; return dx*dx+dy*dy<rad*rad; }
+  function rectDist(x,y,o){ var nx=Math.max(o.x0,Math.min(x,o.x1)), ny=Math.max(o.y0,Math.min(y,o.y1)); return Math.hypot(x-nx,y-ny); }
+  function longestRun(ok){
+    var N=ok.length, bS=0,bL=0,cS=0,cL=0,i;
     for(i=0;i<2*N;i++){ if(ok[i%N]){ if(!cL)cS=i; cL++; if(cL>bL){ bL=cL; bS=cS; } if(cL>=N) break; } else cL=0; }
     if(bL>=N) return {full:true,start:0,width:2*Math.PI};
     return {full:false,start:(bS%N)/N*2*Math.PI,width:Math.max(0,(bL-1))/N*2*Math.PI};
   }
-  var defR=lr.width<560?100:114, chosen=null, ci, Rc, arc;
-  var cands=[defR]; for(ci=1;ci<=7;ci++) cands.push(defR+ci*10); for(ci=1;ci<=5;ci++) cands.push(defR-ci*10);
-  for(ci=0;ci<cands.length;ci++){ Rc=cands[ci]; if(Rc<56) continue; arc=bestArc(Rc);
-    var need=(n>1)?(n-1)*2*Math.asin(Math.min(1,(wedgeD+3)/(2*Rc))):0;
-    if(arc.full||arc.width>=Math.max(need,Math.PI/2)){ chosen={R:Rc,arc:arc}; break; }
-    if(!chosen||arc.width>chosen.arc.width) chosen={R:Rc,arc:arc}; /* fallback: widest arc found */
+  function minStep(R,D){ return (n>1)?2*Math.asin(Math.min(1,(D+4)/(2*R))):0; }
+  function searchAt(CCX,CCY,useObs,D){
+    /* returns {R,arc,D} for the best ring around (CCX,CCY), or null.
+       useObs=false reproduces the legacy viewport-only placement. */
+    function maskFor(R){
+      var N=720, ok=[], i, a, x, y, wr=D/2, m=wr+3;
+      for(i=0;i<N;i++){ a=i/N*2*Math.PI; x=CCX+Math.cos(a)*R; y=CCY+Math.sin(a)*R;
+        var good=(x>=m&&x<=lr.width-m&&y>=m&&y<=lr.height-m);
+        if(good&&useObs){ for(var j=0;j<obs.length;j++){ if(circleHitsRect(x,y,wr+1,obs[j])){ good=false; break; } } }
+        ok.push(good); }
+      return ok;
+    }
+    if(!useObs){
+      var defR=lr.width<560?100:114, out=null, ci, Rc, arc;
+      var cands=[defR]; for(ci=1;ci<=7;ci++) cands.push(defR+ci*10); for(ci=1;ci<=5;ci++) cands.push(defR-ci*10);
+      for(ci=0;ci<cands.length;ci++){ Rc=cands[ci]; if(Rc<56) continue; arc=longestRun(maskFor(Rc));
+        var need=(n>1)?(n-1)*2*Math.asin(Math.min(1,(D+3)/(2*Rc))):0;
+        if(arc.full||arc.width>=Math.max(need,Math.PI/2)){ out={R:Rc,arc:arc,D:D}; break; }
+        if(!out||arc.width>out.arc.width) out={R:Rc,arc:arc,D:D}; }
+      return out||{R:defR,arc:{full:true,start:0,width:2*Math.PI},D:D};
+    }
+    var best=null, R2, run, cand;
+    for(R2=80;R2<=216;R2+=4){
+      run=longestRun(maskFor(R2));
+      if(!(run.full||run.width>=(n-1)*minStep(R2,D))) continue;
+      cand={R:R2,arc:run,D:D,score:Math.abs(R2-150)-run.width*6};
+      if(!best||cand.score<best.score) best=cand;
+    }
+    return best;
   }
-  if(!chosen) chosen={R:defR,arc:{full:true,start:0,width:2*Math.PI}};
-  var R=chosen.R, ext=R+wedgeR+10;
-  var disc=layer.querySelector(".rad-disc"); if(disc){ disc.style.left=cx+"px"; disc.style.top=cy+"px"; disc.style.width=(ext*2)+"px"; disc.style.height=(ext*2)+"px"; }
-  var cen=layer.querySelector(".rad-centre"); if(cen){ cen.style.left=cx+"px"; cen.style.top=cy+"px"; }
+  function placementClear(ch,CCX,CCY){ var wr=ch.D/2, i, a, x, y;
+    for(i=0;i<n;i++){ if(ch.arc.full||n===1) a=-Math.PI/2+i*(2*Math.PI/n); else a=ch.arc.start+ch.arc.width*(i/(n-1));
+      x=CCX+Math.cos(a)*ch.R; y=CCY+Math.sin(a)*ch.R;
+      if(x<wr+3||x>lr.width-wr-3||y<wr+3||y>lr.height-wr-3) return false;
+      for(var j=0;j<obs.length;j++) if(circleHitsRect(x,y,wr+1,obs[j])) return false; }
+    return true;
+  }
+  var chosen=null, CCX=HX, CCY=HY;
+  var legacy=searchAt(HX,HY,false,baseD);
+  if(placementClear(legacy,HX,HY)) chosen=legacy;
+  if(!chosen){
+    var sizes=[baseD]; [60,54,48].forEach(function(s){ if(s<baseD-2&&sizes.indexOf(s)<0) sizes.push(s); });
+    var si, got=null;
+    for(si=0;si<sizes.length&&!got;si++) got=searchAt(HX,HY,true,sizes[si]);
+    if(got) chosen=got;
+  }
+  if(!chosen){
+    /* extreme sizes (1600x700): shift the fan centre west of the hub,
+       smallest offset first, until a clear ring exists */
+    var offs=[], dx, dy;
+    [40,80,120,160,200,240,280,320].forEach(function(ox){ [0,-40,40,-90,90].forEach(function(oy){ offs.push([ox,oy]); }); });
+    offs.sort(function(a,b){ return (a[0]*a[0]+a[1]*a[1])-(b[0]*b[0]+b[1]*b[1]); });
+    for(var oi2=0;oi2<offs.length&&!chosen;oi2++){ dx=offs[oi2][0]; dy=offs[oi2][1];
+      var c2=searchAt(HX-dx,HY+dy,true,baseD)||searchAt(HX-dx,HY+dy,true,54);
+      if(c2){ chosen=c2; CCX=HX-dx; CCY=HY+dy; } }
+  }
+  if(!chosen){ /* last resort: widest clearing arc around the hub, full size */
+    var bw=null, R3, run3;
+    for(R3=80;R3<=216;R3+=4){ var okm=[], wr0=baseD/2, m0=wr0+3, i3, a3, x3, y3, g3;
+      for(i3=0;i3<720;i3++){ a3=i3/720*2*Math.PI; x3=HX+Math.cos(a3)*R3; y3=HY+Math.sin(a3)*R3; g3=(x3>=m0&&x3<=lr.width-m0&&y3>=m0&&y3<=lr.height-m0); if(g3){ for(var j3=0;j3<obs.length;j3++){ if(circleHitsRect(x3,y3,wr0+1,obs[j3])){ g3=false; break; } } } okm.push(g3); }
+      run3=longestRun(okm); if(!bw||run3.width>bw.arc.width) bw={R:R3,arc:run3,D:baseD}; }
+    chosen=bw||legacy; CCX=HX; CCY=HY;
+  }
+  var R=chosen.R, wedgeD=chosen.D, wedgeR=wedgeD/2;
+  _ws.forEach(function(w){ if(wedgeD!==baseD){ w.style.width=wedgeD+"px"; w.style.height=wedgeD+"px"; } else { w.style.width=""; w.style.height=""; } });
+  var ext=R+wedgeR+10, discR=ext, nd=Infinity, oj;
+  for(oj=0;oj<obs.length;oj++) nd=Math.min(nd,rectDist(CCX,CCY,obs[oj]));
+  if(nd!==Infinity) discR=Math.min(discR,Math.max(0,nd-3)); /* the disc never paints over a pinned control */
+  var disc=layer.querySelector(".rad-disc"); if(disc){ if(discR<40){ disc.style.display="none"; } else { disc.style.display=""; disc.style.left=CCX+"px"; disc.style.top=CCY+"px"; disc.style.width=(discR*2)+"px"; disc.style.height=(discR*2)+"px"; } }
+  var cen=layer.querySelector(".rad-centre"); if(cen){ cen.style.left=CCX+"px"; cen.style.top=CCY+"px"; }
   _ws.forEach(function(w,i){ var a;
     if(chosen.arc.full||n===1) a=-Math.PI/2+i*(2*Math.PI/n);
     else a=chosen.arc.start+chosen.arc.width*(i/(n-1));
-    w.style.left=(cx+Math.cos(a)*R)+"px"; w.style.top=(cy+Math.sin(a)*R)+"px"; w.style.animationDelay=(i*14)+"ms";
+    w.style.left=(CCX+Math.cos(a)*R)+"px"; w.style.top=(CCY+Math.sin(a)*R)+"px"; w.style.animationDelay=(i*14)+"ms";
   });
-  var _cap=layer.querySelector(".rad-cap"); if(_cap){ _cap.style.left=cx+"px"; _cap.style.top=(cy+42)+"px"; }
+  var _cap=layer.querySelector(".rad-cap"); if(_cap){ _cap.style.left=CCX+"px"; _cap.style.top=(CCY+42)+"px"; }
 }
+
 if(!window._holoPopWired){ window._holoPopWired=true;
   document.addEventListener("keydown",function(e){
     if(typeof hs==="undefined") return;
@@ -2599,27 +2773,29 @@ if(!window._holoPopWired){ window._holoPopWired=true;
     }
     if(e.key==="Escape"){
       if(typing) return;
-      if(hs.radialOpen){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; } e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+      if(hs.radialOpen){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; hHubKeepAwake(); } e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
       if(hs.tape&&hs.tape.active&&(hs.tape.guideRef||hs.tape.a)) return; /* mid tape step: the tape Esc handler owns this press */
       if(hShownPop()){ hClosePopup(); e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+      if(hs.hubState==="armed"){ hDormHub(); e.preventDefault(); e.stopPropagation(); return; } /* Esc while armed (nothing open) sends the hub back to dormant */
       return;
     }
     if(typing||e.altKey||e.ctrlKey||e.metaKey) return;
     if(hs.radialOpen&&/^Digit[1-9]$/.test(e.code||"")){
       var items=hRadialCurrent(); var item=items[Number(e.code.slice(5))-1]; if(item){ hRadialPick(item); e.preventDefault(); e.stopPropagation(); } return;
     }
-    if(e.code==="KeyM"){ hs.radialOpen=!hs.radialOpen; if(!hs.radialOpen) hs.radialLevel=null; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+    if(e.code==="KeyM"){ if(hs.radialOpen){ hs.radialOpen=false; hs.radialLevel=null; hHubKeepAwake(); } else { hs.hubState="armed"; hs.radialOpen=true; hHubSleepClear(); if(!store.hubCoachSeen){ store.hubCoachSeen=true; persist(); } } e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; } /* M arms AND opens in one press on desktop (documented exception); touch keeps long-press-to-arm, then tap-to-open. M while OPEN closes to ARMED, never straight to dormant */
   },true);
   document.addEventListener("pointerdown",function(e){
     if(typeof hs==="undefined"||!hs.radialOpen) return;
     if(e.target&&e.target.closest&&e.target.closest("#h-hub,#h-radial")) return;
-    hs.radialOpen=false; hs.radialLevel=null;
+    hs.radialOpen=false; hs.radialLevel=null; hHubKeepAwake(); /* closing the fan returns to ARMED, and the 8s dormant countdown restarts */
     var rl=document.getElementById("h-radial"); if(rl) rl.classList.remove("open");
-    var hb=document.getElementById("h-hub"); if(hb){ hb.classList.remove("open"); hb.setAttribute("aria-expanded","false"); }
+    var hb=document.getElementById("h-hub"); if(hb){ hb.classList.remove("open"); hb.classList.add("armed"); hb.setAttribute("aria-expanded","false"); }
   },true);
 }
 function renderHoloplot(){
   hs._gesturing=false; hs._previewing=false;
+  if(hs.hubState==="armed"&&!hs.radialOpen) hHubKeepAwake(); /* renders here follow user actions, so each one refreshes the armed hub's 8s dormant countdown */
   var root=document.getElementById("ws-holoplot");
   var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
   hHistCommit(); /* record any design change the last action made, before the mode bar reads the stacks */
@@ -2647,7 +2823,7 @@ function renderHoloplot(){
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
     '<select id="h-venue" class="field" style="flex:1">'+VENUES.concat((store.customVenues||[]).map(function(r){return {id:r.id,label:r.name+" — custom room"};})).map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
     '</div>';
-  var hintHTML='<p class="mono" style="font-size:12px;margin:0 0 8px;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then open the ● MENU hub on the map (or press M) and pick Design, then Position or Beams. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
+  var hintHTML='<p class="mono" style="font-size:12px;margin:0 0 8px;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then hold the ● MENU pill on the map until its ring fills to wake it, tap the hub to open the menu (or press M), and pick Design, then Position or Beams. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
   var displayHTML='<div id="h-display">'+displayControlsHTML("h")+'</div>';
   /* Resolution + render-on-demand bar — lives in the Waves popup */
   var resBarHTML='<div class="map-res-bar" aria-label="Map resolution and rendering controls">'+
@@ -2677,7 +2853,8 @@ function renderHoloplot(){
   html+= hViewSVG(comp);
   html+='<div class="spk-strip" role="group" aria-label="Speakers — tap to select">'+spkChips+'</div>';
   html+='<div class="holo-radial'+(hs.radialOpen?" open":"")+'" id="h-radial" aria-hidden="'+(!hs.radialOpen)+'"><div class="rad-disc"></div>'+hRadialWedgesHTML()+'<div class="rad-cap" aria-hidden="true">'+(hs.radialLevel?esc(H_RADIAL_CAPS[hs.radialLevel]||""):"MENU")+'</div><button type="button" class="rad-centre" id="h-radial-close" aria-label="'+(hs.radialLevel?"Back to the main circular menu":"Close the circular menu")+'">'+(hs.radialLevel?"‹":"✕")+'</button></div>';
-  html+='<button type="button" class="holo-hub'+(hs.radialOpen?" open":"")+'" id="h-hub" aria-expanded="'+hs.radialOpen+'" aria-label="Toggle the circular controls menu (key M)"><span class="hub-ic" aria-hidden="true">'+(hs.radialOpen?"✕":"●")+'</span><span class="hub-lab">MENU</span></button>';
+  html+='<button type="button" class="holo-hub'+(hs.radialOpen?" open":(hs.hubState==="armed"?" armed":" dormant"))+'" id="h-hub" aria-expanded="'+hs.radialOpen+'" aria-label="'+(hs.radialOpen?"Close the circular controls menu":(hs.hubState==="armed"?"Open the circular controls menu (or press M)":"Menu handle — long-press to wake the circular controls menu"))+'"><span class="hub-ring" aria-hidden="true"></span><span class="hub-ic" aria-hidden="true">'+(hs.radialOpen?"✕":"●")+'</span><span class="hub-lab">'+(hs.radialOpen?"MENU":(hs.hubState==="armed"?"TAP TO OPEN":(typeof window!=="undefined"&&window.innerWidth<=760?"MENU":"MENU · HOLD")))+'</span></button>';
+  if(hs.hubState!=="armed"&&!hs.radialOpen&&!_pop&&!store.hubCoachSeen) html+='<div class="hub-coach" role="note">Hold MENU to wake it, then tap to open</div>';
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
       '<span><span class="swatch" style="background:#1d4ed8"></span>&lt;65 dB</span>'+
@@ -2768,6 +2945,13 @@ function renderHoloplot(){
   H_LAYERS.forEach(function(L){ var n=0; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ if(b.layer===L) n++; }); }); var on=hs.layerOn[L]!==false;
     html+='<button class="btn btn-sm" data-layer-tog="'+L+'" aria-pressed="'+on+'" style="'+(on?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"opacity:.65")+'">'+L+' layer · '+n+' beam'+(n===1?"":"s")+' · '+(on?"ON":"OFF")+'</button>'; });
   html+='</div><p style="font-size:12px;margin:6px 0 0;color:var(--dim)">Turning a layer OFF removes its beams from the map and every readout.</p></div></section>';
+  html+='<section class="pop-group'+(_pop==="groups"?" active":"")+'" data-pop="groups" aria-label="Saved speaker groups popup">'+hPopHead("👥 Speaker Groups")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
+  '<h3 style="margin:0;font-size:15px">👥 Speaker Groups — saved setups</h3>'+
+  '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">A saved group stores link membership + Invert Pan/Tilt only — never speaker values. Applying one changes grouping and invert states only. Link speakers first (Design › Link/Groups), then save the setup here.</p>'+
+  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input id="h-group-name" class="field" style="flex:1;min-width:160px" value="'+esc(hs.groupName||"")+'" placeholder="Group name, e.g. Mains L+R mirrored" aria-label="Speaker group name"/>'+
+  '<button class="btn btn-sm" id="h-group-save" '+(hs.linked.length>=2?"":"disabled")+'>Save Group</button></div>'+
+  (hs.linked.length>=2?"":'<p style="font-size:13px;margin:6px 0 0;color:#FCD34D">Link speakers first — Save Group needs a linked group.</p>')+
+  ((store.speakerGroups||[]).length?(store.speakerGroups.map(function(g){ return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:150px;font-weight:600">'+esc(g.name)+' <span style="color:var(--dim);font-weight:400">('+(g.linked||[]).map(function(id){ var ar=hs.arrays.find(function(x){return x.id===id;}); return ar?ar.name:String(id); }).join(" + ")+((g.invertPan||g.invertTilt)?(" · "+(g.invertPan?"Invert Pan ":"")+(g.invertTilt?"Invert Tilt":"")):"")+')</span></span><button class="btn btn-sm" data-group-apply="'+g.id+'">Apply</button><button class="btn btn-sm" data-group-del="'+g.id+'" aria-label="Delete speaker group '+esc(g.name)+'">✕ Delete</button></div>'; }).join("")):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">No saved groups yet.</p>')+'</div></section>';
 
   /* beam value chips — inside the Speaker popup */
   html+='<section class="pop-group'+(_pop==="speaker"?" active":"")+'" data-pop="speaker" aria-label="Speaker and beams popup">'+hPopHead("🔊 Speaker &amp; Beams")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px">';
@@ -2840,9 +3024,9 @@ function renderHoloplot(){
       '<p class="mono" id="h-model-facts" style="font-size:12.5px;margin:6px 0 0;color:var(--dim)">'+esc(hModel(cur).name)+' · '+esc(hModel(cur).drivers)+' · '+esc(hModel(cur).note)+' · up to '+hBeamCap(cur)+' beams per array</p></div></div>';
     html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-link"><p style="margin:0;font-weight:700;font-size:15px">🔗 Speaker link — one group'+(hs.linked.length>=2?(' · Linked: '+hGroupOrder().map(function(a){return a.name;}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
       '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.linked.length>=2?("Linked: "+hLinkedArrays().map(function(a){return a.name;}).join(" + ")+" — beam edits apply the SAME change (delta) to the matching beam on every linked speaker, preserving each speaker's own offsets. Gains move by equal dB deltas; the gain fader uses a logarithmic (dB) taper so equal travel gives equal dB steps."):"Link 2 or more speakers and beam edits move together by the same delta — offsets preserved, never snapped to identical values.")+'</p>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+hs.arrays.map(function(a){ var on=hIsLinked(a.id); return '<button class="btn btn-sm" data-link-tog="'+a.id+'" aria-pressed="'+on+'" style="'+(on?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(on?"🔗 Linked: ":"Link: ")+esc(a.name)+'</button>'; }).join("")+'</div></div>';
+      '<div class="link-grid" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+hs.arrays.map(function(a){ var on=hIsLinked(a.id); return '<button class="btn btn-sm" data-link-tog="'+a.id+'" aria-pressed="'+on+'" style="'+(on?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(on?"🔗 Linked: ":"Link: ")+esc(a.name)+'</button>'; }).join("")+'</div></div>';
     var hasGrp=hs.linked.length>=2;
-    html+='<div style="margin-top:12px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🪞 Mirror &amp; fan'+(hasGrp?(' — '+hGroupOrder().map(function(a){return esc(a.name);}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
+    html+='<details class="fan-fold"><summary>🪞 Mirror, fan &amp; invert — tap to open</summary><div style="margin-top:8px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🪞 Mirror &amp; fan'+(hasGrp?(' — '+hGroupOrder().map(function(a){return esc(a.name);}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
       '<button class="btn btn-sm" data-invert="az" '+(hasGrp?"":"disabled")+' aria-pressed="'+hs.invertPan+'" style="'+(hs.invertPan?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Invert Pan: '+(hs.invertPan?"ON":"OFF")+'</button>'+
       '<button class="btn btn-sm" data-invert="tilt" '+(hasGrp?"":"disabled")+' aria-pressed="'+hs.invertTilt+'" style="'+(hs.invertTilt?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Invert Tilt: '+(hs.invertTilt?"ON":"OFF")+'</button></div>'+
@@ -2855,13 +3039,8 @@ function renderHoloplot(){
       '<button class="btn btn-sm" data-fan="tilt" '+(hasGrp?"":"disabled")+'>Fan Tilt</button>'+
       '<button class="btn btn-sm" data-fan="gain" '+(hasGrp?"":"disabled")+'>Fan Gain</button></div>'+
       '<p style="font-size:13px;margin:6px 0 0;color:var(--dim)">Fan spreads the selected beam\'s value across the group in even steps centred on the group mean — the mean does not move.</p>'+
-      (hs.fanMsg?'<p class="fader-note" role="status">'+esc(hs.fanMsg)+'</p>':"")+'</div>';
-    html+='<div style="margin-top:12px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">👥 Speaker Groups — saved setups</p>'+
-      '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">A saved group stores link membership + Invert Pan/Tilt only — never speaker values. Applying one changes grouping and invert states only.</p>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><input id="h-group-name" class="field" style="flex:1;min-width:160px" value="'+esc(hs.groupName||"")+'" placeholder="Group name, e.g. Mains L+R mirrored" aria-label="Speaker group name"/>'+
-      '<button class="btn btn-sm" id="h-group-save" '+(hasGrp?"":"disabled")+'>Save Group</button></div>'+
-      (hasGrp?"":'<p style="font-size:13px;margin:6px 0 0;color:#FCD34D">Link speakers first — Save Group needs a linked group.</p>')+
-      ((store.speakerGroups||[]).length?(store.speakerGroups.map(function(g){ return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:150px;font-weight:600">'+esc(g.name)+' <span style="color:var(--dim);font-weight:400">('+(g.linked||[]).map(function(id){ var ar=hs.arrays.find(function(x){return x.id===id;}); return ar?ar.name:String(id); }).join(" + ")+((g.invertPan||g.invertTilt)?(" · "+(g.invertPan?"Invert Pan ":"")+(g.invertTilt?"Invert Tilt":"")):"")+')</span></span><button class="btn btn-sm" data-group-apply="'+g.id+'">Apply</button><button class="btn btn-sm" data-group-del="'+g.id+'" aria-label="Delete speaker group '+esc(g.name)+'">✕ Delete</button></div>'; }).join("")):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">No saved groups yet.</p>')+'</div>';
+      (hs.fanMsg?'<p class="fader-note" role="status">'+esc(hs.fanMsg)+'</p>':"")+'</div></details>';
+
     var cbs=hBeams(cur), cbm=hCurBeam();
     var taggedTotal=hProbeTaggedList().length;
     html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-beams"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of '+hBeamCap(cur)+')'+(taggedTotal?' · 🎯 '+taggedTotal+' beam'+(taggedTotal===1?"":"s")+' locked to probe':"")+'</p>'+
@@ -3032,10 +3211,52 @@ function renderHoloplot(){
   root.querySelectorAll("[data-iso-act]").forEach(function(b){ b.addEventListener("click",function(){ var a=b.getAttribute("data-iso-act"); if(a==="cw") hIsoSet(hIsoYaw()+15,hIsoTilt()); else if(a==="ccw") hIsoSet(hIsoYaw()-15,hIsoTilt()); else if(a==="tup") hIsoSet(hIsoYaw(),hIsoTilt()+5); else if(a==="tdn") hIsoSet(hIsoYaw(),hIsoTilt()-5); else hIsoSet(H_ISO_YAW0,H_ISO_TILT0); renderHoloplot(); }); });
   root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); hs.popup=(hs.deck==="arrays")?"speaker":"more"; renderHoloplot(); }); });
   /* ---- radial hub + popup wiring ---- */
-  var _hub=document.getElementById("h-hub"); if(_hub) _hub.addEventListener("click",function(){ hs.radialOpen=!hs.radialOpen; if(!hs.radialOpen) hs.radialLevel=null; renderHoloplot(); });
+  var _hub=document.getElementById("h-hub"); if(_hub){
+    /* long-press lifecycle (Pointer Events, one captured pointerId):
+       hold 500ms, still within 10px, to arm a dormant hub or send an
+       armed hub back to dormant. The progress ring sweeps linearly and
+       is full exactly at the threshold; a short hold, a >10px drift,
+       pointercancel, lost capture or window blur cancels with the ring
+       reset as the ONLY visible effect — no state change, no fan flash,
+       and the release never falls through as an opening click. Hover
+       moves (buttons:0, e.g. Quest laser pointers) never arm: only the
+       captured pointerId's own hold counts. The ARMED decay timer is
+       suspended between pointerdown and pointerup/cancel on the hub.
+       While a popup panel is open the hold is inert. */
+    var _lpT=null, _lpId=null, _lpX=0, _lpY=0, _lpFiredAt=0, _lpRaf=0, _lpStart=0;
+    function lpRing(p){ _hub.style.setProperty("--p",p); var r=_hub.querySelector(".hub-ring"); if(r) r.style.setProperty("--p",p); }
+    function lpStop(){ if(_lpT){ window.clearTimeout(_lpT); _lpT=null; } if(_lpRaf){ window.cancelAnimationFrame(_lpRaf); _lpRaf=0; } _lpId=null; _hub.classList.remove("holding"); lpRing(0); }
+    function lpCancel(){ var wasHolding=!!_lpT; lpStop(); if(wasHolding&&hs.hubState==="armed"&&!hs.radialOpen) hHubKeepAwake(); /* resume the decay that pointerdown suspended */ }
+    _hub.addEventListener("pointerdown",function(e){
+      if(_lpId!==null) return; /* extra pointers never arm */
+      if(hs.radialOpen) return;
+      _lpId=e.pointerId; _lpX=e.clientX; _lpY=e.clientY;
+      try{ _hub.setPointerCapture(e.pointerId); }catch(err){}
+      hHubSleepClear(); /* decay suspended while the hub is held */
+      _hub.classList.add("holding"); _lpStart=Date.now();
+      var tick=function(){ if(!_lpT) return; var p=Math.min(1,(Date.now()-_lpStart)/500); lpRing(p); if(p<1) _lpRaf=window.requestAnimationFrame(tick); };
+      _lpT=window.setTimeout(function(){ _lpT=null; _lpFiredAt=Date.now(); lpStop(); if(hShownPop()) return; /* inert while a panel is open */ if(hs.hubState==="armed") hDormHub(); else hArmHub(); },500);
+      _lpRaf=window.requestAnimationFrame(tick);
+    });
+    _hub.addEventListener("pointermove",function(e){ if(_lpT&&e.pointerId===_lpId&&Math.hypot(e.clientX-_lpX,e.clientY-_lpY)>10) lpCancel(); });
+    _hub.addEventListener("pointerup",function(e){ if(e.pointerId===_lpId) lpCancel(); });
+    _hub.addEventListener("pointercancel",function(e){ if(e.pointerId===_lpId) lpCancel(); });
+    _hub.addEventListener("lostpointercapture",function(){ lpCancel(); });
+    window._hubLpCancel=lpCancel; if(!window._hubBlurWired){ window._hubBlurWired=true; window.addEventListener("blur",function(){ if(window._hubLpCancel) window._hubLpCancel(); }); } /* one static blur listener, always pointing at the live hub's cancel */
+    _hub.addEventListener("contextmenu",function(e){ e.preventDefault(); }); /* scoped suppression, every state (iOS fires this on long-press even with the callout off) */
+    _hub.addEventListener("click",function(){
+      if(Date.now()-_lpFiredAt<700) return; /* the release of a long-press is not a tap */
+      if(hs.radialOpen){ hs.radialOpen=false; hs.radialLevel=null; hHubKeepAwake(); renderHoloplot(); return; }
+      if(hs.hubState!=="armed"){ /* dormant tap: one subtle pulse + at most one hint per session; never opens, never arms */
+        _hub.classList.remove("nudge"); void _hub.offsetWidth; _hub.classList.add("nudge");
+        if(!hs._hubHinted){ hs._hubHinted=true; appToast("Hold MENU to wake it, then tap to open."); }
+        return; }
+      hs.radialOpen=true; hHubSleepClear(); renderHoloplot();
+    });
+  }
   var _hu=document.getElementById("h-undo"); if(_hu) _hu.addEventListener("click",function(){ hHistUndo(); });
   var _hr=document.getElementById("h-redo"); if(_hr) _hr.addEventListener("click",function(){ hHistRedo(); });
-  var _rc=document.getElementById("h-radial-close"); if(_rc) _rc.addEventListener("click",function(){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; } renderHoloplot(); });
+  var _rc=document.getElementById("h-radial-close"); if(_rc) _rc.addEventListener("click",function(){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; hHubKeepAwake(); } renderHoloplot(); }); /* closing the fan returns to ARMED */
   root.querySelectorAll("[data-rad-item]").forEach(function(b){ b.addEventListener("click",function(){ var want=b.getAttribute("data-rad-item"); var it=hRadialCurrent().filter(function(x){ return x.id===want; })[0]; if(it) hRadialPick(it); }); });
   root.querySelectorAll("[data-pop-close]").forEach(function(b){ b.addEventListener("click",function(){ hClosePopup(); renderHoloplot(); }); });
   var _apd=root.querySelector("[data-anim-play-dup]"); if(_apd) _apd.addEventListener("click",function(){ hAnimSet(!hs.anim.playing); _apd.textContent=hs.anim.playing?"⏸ Pause waves":"▶ Play waves"; _apd.setAttribute("aria-pressed",hs.anim.playing); });
@@ -3832,6 +4053,7 @@ function renderProbePageInner(el){
 }
 
 function setPage(page){
+  if(typeof hs!=="undefined"&&hs){ hs.hubState="dormant"; hs.radialOpen=false; hs.radialLevel=null; hHubSleepClear(); } /* page switch always resets the hub to DORMANT */
   currentPage=page; if(page==="holoplot"||page==="autocad") currentWs=page;
   document.getElementById("ws-holoplot").hidden=page!=="holoplot";
   document.getElementById("ws-autocad").hidden=page!=="autocad";
@@ -3859,7 +4081,7 @@ document.getElementById("tab-autocad2").addEventListener("click",function(){ set
 
 /* tutor */
 var tutorOn=true, tutorSel="", tutorExpl="", tutorOpen=false;
-var TUTOR_TOPICS=["Azimuth","Tilt","Beam width","SPL","Uniformity","Spill","Coverage","Dimension","Layer","SNAP","ORTHO","Command line","Keys & Stream Deck"];
+var TUTOR_TOPICS=["Azimuth","Tilt","Beam width","SPL","Uniformity","Spill","Coverage","Dimension","Layer","SNAP","ORTHO","Command line","Keys & Stream Deck","Waking the menu"];
 function keysMapHTML(){
   return '<div class="keys-map">'+
   '<h4>PAGES &amp; GLOBAL — keyboard and deck send the same ⌥ chords</h4>'+
@@ -3873,6 +4095,7 @@ function keysMapHTML(){
   '<p><kbd>⌥L</kbd> Link selected array · <kbd>F</kbd> / <kbd>⌥F</kbd> Fan focused parameter across the group · <kbd>X</kbd> / <kbd>⌥X</kbd> Invert Pan · <kbd>C</kbd> / <kbd>⌥C</kbd> Invert Tilt (group only).</p>'+
   '<p><kbd>F19</kbd> / <kbd>Shift+R</kbd> Res Low/High · <kbd>V</kbd> Live / On Demand toggle · <kbd>⌥⇧L</kbd> set Live · <kbd>⌥⇧D</kbd> set On Demand (explicit pair for the deck) · <kbd>R</kbd> / <kbd>⌥R</kbd> Render now.</p>'+
   '<p>Probe: <kbd>P</kbd> / <kbd>⌥⇧P</kbd> add / remove probe · <kbd>⌥P</kbd> tag / untag selected beam · <kbd>⌥←</kbd><kbd>⌥→</kbd><kbd>⌥↑</kbd><kbd>⌥↓</kbd> nudge probe 0.5 m (Shift = 2 m).</p>'+
+  '<p>Menu: <kbd>M</kbd> wakes the MENU hub and opens the circular menu in one press (touch: hold the MENU pill until its ring fills, then tap the hub). <kbd>M</kbd> or <kbd>Esc</kbd> with the menu open closes it back to the awake hub; <kbd>Esc</kbd> again sends it back to sleep.</p>'+
   '<h4>PROBE PAGE</h4>'+
   '<p>Slices: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> = Top / Front / Side — deck <kbd>F13</kbd> <kbd>F14</kbd> <kbd>F15</kbd>. <kbd>−</kbd> <kbd>=</kbd> step slice offset (Shift = coarse) · <kbd>0</kbd> centre on probe.</p>'+
   '<p><kbd>[</kbd> <kbd>]</kbd> cycle beams · <kbd>S</kbd> solo the cycled beam · <kbd>A</kbd> all beams.</p>'+
