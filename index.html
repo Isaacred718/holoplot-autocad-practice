@@ -452,6 +452,80 @@
     .map-shell{ min-height:120px; }
     .cad-shell{ min-height:100px; }
   }
+  /* ---- RADIAL HUB + POPUP LAYOUT (HOLOPLOT page only) ----
+     The permanent control rail / scroll panel is gone on HOLOPLOT: every
+     control group now lives in a popup card that floats OVER a full-size
+     map. Groups stay in the DOM (hidden) so all existing wiring, ids and
+     keyboard / Stream Deck handlers keep working unchanged. */
+  #ws-holoplot .ws-layout{ position:relative; }
+  #ws-holoplot .top-zone{ overflow:hidden; }
+  .holo-hub{ position:absolute; right:14px; bottom:122px; z-index:96; width:64px; height:64px; border-radius:50%; background:var(--cyan); color:#04222B; border:2px solid rgba(255,255,255,.65); box-shadow:0 10px 26px rgba(0,0,0,.5); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; padding:0; }
+  .holo-hub .hub-ic{ font-size:23px; line-height:1; }
+  .holo-hub .hub-lab{ font-size:9.5px; font-weight:800; letter-spacing:.05em; }
+  .holo-hub.open{ background:var(--surface2); color:var(--text); border-color:var(--cyan); }
+  .holo-radial{ position:absolute; inset:0; z-index:90; pointer-events:none; display:none; }
+  .holo-radial.open{ display:block; }
+  .rad-disc{ position:absolute; border-radius:50%; background:rgba(10,16,24,.74); border:1.5px solid rgba(103,232,249,.45); box-shadow:0 18px 44px rgba(0,0,0,.55); transform:translate(-50%,-50%); }
+  .rad-wedge{ position:absolute; transform:translate(-50%,-50%); width:66px; height:66px; border-radius:50%; background:rgba(23,26,32,.96); color:#E9ECF1; border:1.5px solid #4B5563; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; }
+  .rad-wedge .rad-ic{ font-size:20px; line-height:1; }
+  .rad-wedge .rad-lab{ font-size:10.5px; font-weight:800; }
+  .rad-wedge .rad-key{ position:absolute; top:3px; right:7px; font-size:9px; color:var(--dim); font-weight:700; }
+  .rad-centre{ position:absolute; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:var(--cyan); color:#04222B; border:0; font-size:20px; font-weight:900; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; }
+  @keyframes radIn{ from{ opacity:0; scale:.55; } to{ opacity:1; scale:1; } }
+  @media (prefers-reduced-motion: reduce){ .rad-wedge,.rad-centre{ animation:none; } }
+  .spk-strip{ position:absolute; left:8px; right:86px; bottom:106px; z-index:20; display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px; border-radius:12px; background:rgba(10,15,22,.55); -webkit-overflow-scrolling:touch; touch-action:pan-x; scrollbar-width:none; }
+  .spk-strip::-webkit-scrollbar{ display:none; }
+  .spk-strip button{ flex:0 0 auto; min-height:44px; padding:6px 12px; font-size:13px; border-radius:10px; background:rgba(23,26,32,.92); color:#E9ECF1; border:1px solid #4B5563; white-space:nowrap; }
+  .holo-pop-layer{ position:absolute; top:8px; right:8px; bottom:8px; z-index:45; width:min(452px, calc(100% - 16px)); overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; touch-action:pan-y; overscroll-behavior:contain; scrollbar-gutter:stable; display:none; pointer-events:none; }
+  .holo-pop-layer.open{ display:block; }
+  .pop-group{ display:none; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; box-shadow:0 22px 54px rgba(0,0,0,.55); padding:0 10px 10px; pointer-events:auto; }
+  /* wide screens: the venue picker floats on the map's top-left corner so
+     its old row height goes to the map too (phones keep it in flow, where
+     the view switch already owns the map's top edge) */
+  #ws-holoplot .top-zone{ position:relative; }
+  @media(min-width:761px){
+    #ws-holoplot .venue-row{ position:absolute; top:42px; left:10px; z-index:25; width:min(430px,52%); background:rgba(15,20,28,.85); border:1px solid var(--border); border-radius:12px; padding:6px 10px; }
+    #ws-holoplot .venue-row .field{ min-height:44px; }
+    #ws-holoplot .render-needed-badge{ top:84px; }
+  }
+  .pop-group.active{ display:flex; flex-direction:column; }
+  .pop-head{ position:sticky; top:0; z-index:3; display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--surface); padding:10px 2px 8px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  .pop-head h3{ margin:0; font-size:16px; }
+  .pop-close{ flex:none; width:44px; height:44px; min-height:44px; border-radius:50%; font-size:17px; font-weight:900; padding:0; }
+  .pop-group .vo-panel{ margin-bottom:0; border:0; padding:4px 2px; background:transparent; }
+  .pop-group[data-pop="speaker"] .holo-decks{ order:-1; }
+  .pop-note{ font-size:13px; color:var(--dim); margin:0 0 8px; line-height:1.5; }
+  @media(max-width:760px){
+    .holo-pop-layer{ top:auto; left:8px; right:8px; bottom:8px; width:auto; max-height:62%; }
+    .holo-hub{ bottom:106px; right:10px; width:60px; height:60px; }
+    .spk-strip{ bottom:94px; right:78px; }
+    .rad-wedge{ width:60px; height:60px; }
+  }
+  /* HOLOPLOT: the map reclaims the old rail + panel space at every size
+     (AutoCAD keeps its side-by-side rail — separate selectors) */
+  @media(min-width:700px) and (orientation:landscape){
+    #ws-holoplot .ws-layout{ flex-direction:column; }
+  }
+  @media(min-width:900px) and (orientation:landscape){
+    #ws-holoplot .ws-layout{ flex-direction:column; }
+  }
+  @media(min-width:1240px) and (orientation:landscape){
+    #ws-holoplot .top-zone{ display:flex; flex-direction:column; }
+    #ws-holoplot .top-zone > *:not(.map-shell){ grid-column:auto; }
+    #ws-holoplot .top-zone > .map-shell{ grid-column:auto; grid-row:auto; }
+  }
+  @media(max-width:760px){
+    #ws-holoplot .top-zone{ overflow-y:auto; overflow-x:hidden; }
+    #ws-holoplot .map-shell{ flex:0 0 auto !important; height:clamp(430px, calc(112vw + 40px), 560px) !important; min-height:0 !important; }
+  }
+  /* undo / redo transport buttons in the mode bar */
+  .hist-btn{ font-size:12px; font-weight:800; padding:6px 11px; border-radius:99px; background:var(--surface2); border:1px solid var(--border); color:var(--text); white-space:nowrap; min-height:32px; flex:0 0 auto; }
+  .hist-btn:disabled{ opacity:.38; cursor:default; }
+  .hist-btn:not(:disabled):active{ background:var(--cyan-dim); color:#67E8F9; }
+  @media(max-height:600px){
+    .holo-hub{ bottom:98px; }
+    .spk-strip{ bottom:90px; }
+  }
 </style>
 </head>
 <body>
@@ -796,7 +870,7 @@ var H_FADER_HOME={1:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:-6,y:4},2:{az:0,tilt
 var H_FADER_LABEL={az:"Azimuth",tilt:"Tilt",hBeam:"Horizontal beam width",vBeam:"Vertical beam width",gain:"Gain",x:"Position left/right",y:"Position depth",height:"Height"};
 var H_FADER_UNIT={az:"°",tilt:"°",hBeam:"°",vBeam:"°",gain:" dB",x:" m",y:" m",height:" m"};
 var hs={
-  venueId:"theatre", sel:1, showSide:false, deck:"arrays", saveName:"My theatre design", faderMsg:"",
+  venueId:"theatre", sel:1, showSide:false, deck:"arrays", popup:null, radialOpen:false, saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
   hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1", _gesturing:false,
   resMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.res:"low",
@@ -871,6 +945,57 @@ function hLoadDesignData(d){ if(!d) return; if(d.venueId) hs.venueId=d.venueId; 
   if(hs.arrays.length){ hs.sel=hs.arrays[0].id; } hs.selBeam=0; hs.editing=null; hs._arrCache={}; hs._comp=null; hs.renderDirty=false; hs._snapArrays=null; hs._snapMeta=null; hs._snapProbe=null;
   if(hs.probe) hProbeSync(); }
 function hDesignData(){ return {venueId:hs.venueId, room:hs.room?JSON.parse(JSON.stringify(hs.room)):null, reflOn:!!hs.reflOn, wallMat:hs.wallMat, floorMat:hs.floorMat, arrays:JSON.parse(JSON.stringify(hs.arrays)), zoneTargets:JSON.parse(JSON.stringify(hs.zoneTargets||{})), layerOn:Object.assign({},hs.layerOn), linked:(hs.linked||[]).slice(), invertPan:!!hs.invertPan, invertTilt:!!hs.invertTilt, fanAmt:hs.fanAmt, probe:hs.probe?{x:hs.probe.x,y:hs.probe.y}:null, probeTarget:hs.probeTarget, env:JSON.parse(JSON.stringify(hs.env)), guides:JSON.parse(JSON.stringify(hs.guides||[]))}; }
+/* ================= UNDO / REDO HISTORY =================
+   Snapshot history over the full design state (same object as saves and
+   share links). Capacity 50 steps (requirement: at least 20). Detection
+   is central: every full render compares the design signature against
+   the last committed state, so no design-changing handler can be missed
+   — view switches, zoom, view prefs, selection and popup state are not
+   in the design data and never enter history. Action sites set
+   hs._histLabel / hs._histKey just before mutating for a readable label
+   and for coalescing: rapid repeated steps of the same parameter within
+   ~1 s merge into the burst's first entry, and a fader drag commits
+   exactly once, at release, because drags only soft-render. Restores
+   (undo / redo / the old toast restores) set hs._histRestore so they
+   sync the baseline instead of pushing. Session-only: never saved. */
+var H_HIST_CAP=50;
+function hHistEnsure(){ if(!hs.hist) hs.hist={undo:[],redo:[]}; if(hs._histData===undefined){ hs._histData=hDesignData(); hs._histSig=JSON.stringify(hs._histData); } }
+function hHistCommit(){
+  hHistEnsure();
+  var cur=hDesignData(), sig=JSON.stringify(cur);
+  if(sig===hs._histSig){ hs._histLabel=null; hs._histKey=null; return; }
+  if(hs._histRestore){ hs._histRestore=false; hs._histData=cur; hs._histSig=sig; hs._histLabel=null; hs._histKey=null; hs._histLastKey=null; return; }
+  var now=Date.now(), key=hs._histKey||null, label=hs._histLabel||"Design change";
+  var last=hs.hist.undo[hs.hist.undo.length-1];
+  if(key&&last&&hs._histLastKey===key&&(now-(hs._histLastTime||0))<1000){
+    last.label=label; /* burst continues: keep the pre-burst snapshot */
+  } else {
+    hs.hist.undo.push({label:label, data:hs._histData});
+    if(hs.hist.undo.length>H_HIST_CAP) hs.hist.undo.shift();
+    hs.hist.redo.length=0;
+  }
+  hs._histLastKey=key; hs._histLastTime=now;
+  hs._histData=cur; hs._histSig=sig;
+  hs._histLabel=null; hs._histKey=null;
+}
+function hHistUndo(){
+  hHistEnsure(); if(!hs.hist.undo.length){ return; }
+  var e=hs.hist.undo.pop();
+  hs.hist.redo.push({label:e.label, data:hDesignData()});
+  hs._histRestore=true; hs._histLastKey=null;
+  hLoadDesignData(JSON.parse(JSON.stringify(e.data)));
+  renderHoloplot();
+  if(typeof kbdChip==="function") kbdChip("Undo: "+e.label);
+}
+function hHistRedo(){
+  hHistEnsure(); if(!hs.hist.redo.length){ return; }
+  var e=hs.hist.redo.pop();
+  hs.hist.undo.push({label:e.label, data:hDesignData()});
+  hs._histRestore=true; hs._histLastKey=null;
+  hLoadDesignData(JSON.parse(JSON.stringify(e.data)));
+  renderHoloplot();
+  if(typeof kbdChip==="function") kbdChip("Redo: "+e.label);
+}
 /* ================= DYNAMIC SPEAKERS: add / delete / move =================
    The speaker list is dynamic (1–8). Position belongs to the speaker: every
    beam it owns originates from (a.x, a.y) — a.x is offset from centre in
@@ -1289,7 +1414,7 @@ function hDynClamp(st){ var b=hBaseDims(), f=hFitSize();
 function hDynViewBox(st){ hDynClamp(st); var f=hFitSize(); return st.x+" "+st.y+" "+(f.W/st.k)+" "+(f.H/st.k); }
 function hDynZoomAt(st,fx,fy,nk){ nk=Math.max(1,Math.min(4,nk)); var f=hFitSize(); var vw=f.W/st.k, vh=f.H/st.k; var bx=st.x+fx*vw, by=st.y+fy*vh; st.k=nk; st.x=bx-fx*(f.W/nk); st.y=by-fy*(f.H/nk); hDynClamp(st); }
 function hMeasureAspect(){ var v=hView(); if(v!=="plan"&&v!=="side") return false; var svg=document.querySelector("#ws-holoplot .map-shell svg"); if(!svg) return false; var r=svg.getBoundingClientRect(); if(r.width<40||r.height<40) return false; var a=r.width/r.height; if(!hs._aspect) hs._aspect={}; var old=hs._aspect[v]; hs._aspect[v]=a; return !old||Math.abs(old-a)>0.01; }
-function hRefreshView(){ hMeasureAspect(); var st=hZoomState(); var svg=document.querySelector("#ws-holoplot .map-shell svg"); if(!svg) return; if(hIsDyn()){ svg.setAttribute("viewBox", hDynViewBox(st)); } else { clampViewBox(st,H_3D_DIMS.W,H_3D_DIMS.H); svg.setAttribute("viewBox", viewBoxStr(st,H_3D_DIMS.W,H_3D_DIMS.H)); } var pct=document.getElementById("h-zoom-pct"); if(pct) pct.textContent=Math.round(st.k*100)+"%"; }
+function hRefreshView(){ hMeasureAspect(); var st=hZoomState(); var svg=document.querySelector("#ws-holoplot .map-shell svg"); if(!svg) return; if(hIsDyn()){ svg.setAttribute("viewBox", hDynViewBox(st)); } else { clampViewBox(st,H_3D_DIMS.W,H_3D_DIMS.H); svg.setAttribute("viewBox", viewBoxStr(st,H_3D_DIMS.W,H_3D_DIMS.H)); } var pct=document.getElementById("h-zoom-pct"); if(pct) pct.textContent=Math.round(st.k*100)+"%"; if(typeof hLayoutRadial==="function") hLayoutRadial(); }
 function hApplyView(){ hRefreshView(); }
 function hZoomBy(f){ var st=hZoomState(); if(hIsDyn()) hDynZoomAt(st,0.5,0.5,st.k*f); else zoomViewAt(st,H_3D_DIMS.W,H_3D_DIMS.H,0.5,0.5,st.k*f); hApplyView(); }
 function hZoomReset(){ var st=hZoomState(); st.k=1; if(hIsDyn()) hDynClamp(st); else { st.x=0; st.y=0; } hApplyView(); }
@@ -1310,7 +1435,7 @@ function wireProbeDrag(root){
   var svg=root.querySelector(".map-shell svg"); if(!svg) return;
   g.addEventListener("pointerdown",function(e){
     if(hs.tape&&hs.tape.active) return; /* tape mode owns taps on the plan */
-    e.stopPropagation(); e.preventDefault();
+    e.stopPropagation(); e.preventDefault(); hs._histLabel="Move probe";
     var move=function(ev){
       var r=svg.getBoundingClientRect(); if(!r.width) return;
       var st=hs.zoomPlan, pd=hPlanDims(), f=hFitSize(), vw=f.W/st.k, vh=f.H/st.k;
@@ -1344,7 +1469,7 @@ function wireSpeakerDrag(root){
       var a=hs.arrays.find(function(x){return x.id===id;}); if(!a) return;
       if(!root.querySelector(".map-shell svg")) return;
       e.stopPropagation();
-      var startX=e.clientX, startY=e.clientY, sx0=a.x, sy0=a.y, dragged=false;
+      var startX=e.clientX, startY=e.clientY, sx0=a.x, sy0=a.y, dragged=false; hs._histLabel="Move "+a.name;
       var move=function(ev){
         var svgEl=root.querySelector(".map-shell svg"); if(!svgEl) return;
         var r=svgEl.getBoundingClientRect(); if(!r.width) return;
@@ -1382,7 +1507,7 @@ function wireSideSpeakerDrag(root){
       var a=hs.arrays.find(function(x){return x.id===id;}); if(!a) return;
       if(!root.querySelector(".map-shell svg")) return;
       e.stopPropagation();
-      var startX=e.clientX, startY=e.clientY, sh0=hSpkH(a), sy0=a.y, dragged=false;
+      var startX=e.clientX, startY=e.clientY, sh0=hSpkH(a), sy0=a.y, dragged=false; hs._histLabel="Move "+a.name+" (side view)";
       var G=hSideGeom();
       var move=function(ev){
         var svgEl=root.querySelector(".map-shell svg"); if(!svgEl) return;
@@ -1411,8 +1536,8 @@ function wireSideSpeakerDrag(root){
 /* ================= VIEW OPTIONS + TAPE WIRING ================= */
 function wireViewOptions(root){
   function tog(id, fn){ var el=document.getElementById(id); if(el) el.addEventListener("click",fn); }
-  tog("h-viewopts-btn",function(){ hs.viewOptsOpen=!hs.viewOptsOpen; renderHoloplot(); });
-  function tapeToggle(){ hs.tape.active=!hs.tape.active; if(!hs.tape.active){ hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } if(hs.tape.active) hs.viewOptsOpen=true; renderHoloplot(); }
+  tog("h-viewopts-btn",function(){ hs.viewOptsOpen=!hs.viewOptsOpen; if(hs.viewOptsOpen) hs.popup="view"; else if(hs.popup==="view") hs.popup=null; renderHoloplot(); });
+  function tapeToggle(){ hs.tape.active=!hs.tape.active; if(!hs.tape.active){ hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } if(hs.tape.active){ hs.viewOptsOpen=true; hs.popup="view"; } renderHoloplot(); }
   tog("h-tape-btn",tapeToggle); tog("h-tape-tog",tapeToggle);
   tog("h-vo-origin",function(){ hs.view.origin=!hs.view.origin; persistViewPrefs(); renderHoloplot(); });
   tog("h-vo-guides-show",function(){ hs.view.guidesShow=!hs.view.guidesShow; persistViewPrefs(); renderHoloplot(); });
@@ -1424,17 +1549,17 @@ function wireViewOptions(root){
   root.querySelectorAll("[data-guide-orient]").forEach(function(b){ b.addEventListener("click",function(){ hs.guideOrient=b.getAttribute("data-guide-orient"); renderHoloplot(); }); });
   tog("h-guide-add",function(){ var inp=document.getElementById("h-guide-pos"); if(!inp) return; var v=Number(inp.value);
     if(inp.value===""||!isFinite(v)){ hs.tape.last="Type a guide position first — in "+hUnitName()+"."; renderHoloplot(); return; }
-    var pos=Math.round(hDispToM(v)*100)/100; hs.guides.push({o:hs.guideOrient, pos:pos}); hs.view.guidesShow=true; persistViewPrefs();
+    var pos=Math.round(hDispToM(v)*100)/100; hs.guides.push({o:hs.guideOrient, pos:pos}); hs._histLabel="Guide added at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
     hs.tape.last="Guide added: "+(hs.guideOrient==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+"."; renderHoloplot(); });
-  root.querySelectorAll("[data-guide-del]").forEach(function(b){ b.addEventListener("click",function(){ var i=Number(b.getAttribute("data-guide-del")); var g=hs.guides[i]; hs.guides.splice(i,1); if(g) hs.tape.last="Guide removed: "+(g.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(g.pos)+"."; renderHoloplot(); }); });
-  tog("h-guides-clear",function(){ hs.guides=[]; hs.tape.last="All guides cleared."; renderHoloplot(); });
+  root.querySelectorAll("[data-guide-del]").forEach(function(b){ b.addEventListener("click",function(){ var i=Number(b.getAttribute("data-guide-del")); var g=hs.guides[i]; hs.guides.splice(i,1); hs._histLabel="Guide deleted"; if(g) hs.tape.last="Guide removed: "+(g.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(g.pos)+"."; renderHoloplot(); }); });
+  tog("h-guides-clear",function(){ hs.guides=[]; hs._histLabel="Clear all guides"; hs.tape.last="All guides cleared."; renderHoloplot(); });
   tog("h-tape-clear",function(){ hs.tape.list=[]; hs.tape.a=null; hs.tape.last="Measurements cleared."; renderHoloplot(); });
   tog("h-tape-guide-btn",function(){ var t=hs.tape, inp=document.getElementById("h-tape-offset");
     if(!t.guideRef){ hs.tape.last="Tap a wall or a speaker on the plan first (with Tape ON) to set the reference."; renderHoloplot(); return; }
     var v=inp?Number(inp.value):NaN;
     if(!inp||inp.value===""||!isFinite(v)){ hs.tape.last="Type the offset from "+t.guideRef.label+" first — in "+hUnitName()+"."; renderHoloplot(); return; }
     var pos=Math.round((t.guideRef.base+hDispToM(v))*100)/100;
-    hs.guides.push({o:t.guideRef.o, pos:pos}); hs.view.guidesShow=true; persistViewPrefs();
+    hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
     hs.tape.last="Guide created from tape: "+(t.guideRef.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+" — "+hFmtLen(Math.abs(hDispToM(v)))+" from "+t.guideRef.label+".";
     t.guideRef=null; renderHoloplot(); });
 }
@@ -1469,7 +1594,7 @@ function wireTape(root){
       var pos=t.guideRef.o==="v"? w.x : w.y;
       if(hs.view.snap) pos=hSnapVal(pos);
       pos=Math.round(pos*100)/100;
-      hs.guides.push({o:t.guideRef.o, pos:pos}); hs.view.guidesShow=true; persistViewPrefs();
+      hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
       hs.tape.last="Guide created from tape: "+(t.guideRef.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+" — "+hFmtLen(Math.abs(pos-t.guideRef.base))+" from "+t.guideRef.label+".";
       t.guideRef=null; t.a=null; renderHoloplot(); return;
     }
@@ -2053,11 +2178,76 @@ function hAnimSet(playing){ hs.anim.playing=playing; hs.anim.lastTs=0;
   hAnimUpdateChrome(); }
 document.addEventListener("visibilitychange",function(){ if(document.hidden&&hs.anim&&hs.anim.playing) hAnimSet(false); });
 
+/* ---- radial hub + popup groups ----
+   The map is the page now: control groups float over it in popup cards,
+   opened from a circular (radial) menu. Groups stay in the DOM at all
+   times (hidden), so every existing handler, id and deck shortcut keeps
+   working exactly as before — only visibility changed. */
+var H_RADIAL=[["speaker","🔊","Speaker"],["layers","🗂","Layers"],["probe","🛰","Probe"],["waves","🌊","Waves"],["room","🏠","Room"],["view","👁","View"],["tape","📏","Tape"],["more","⋯","More"]];
+function hShownPop(){ return hs.popup || ((hs.viewOptsOpen||hs.tape.active) ? "view" : null); }
+function hOpenPopup(name){
+  if(name==="speaker"){ hs.deck="arrays"; hs.popup="speaker"; }
+  else if(name==="tape"){ hs.popup="view"; hs.viewOptsOpen=true; if(!hs.tape.active) hs.tape.active=true; }
+  else if(name==="view"){ hs.popup="view"; hs.viewOptsOpen=true; }
+  else hs.popup=name;
+  hs.radialOpen=false;
+}
+function hClosePopup(){ hs.popup=null; hs.viewOptsOpen=false; if(hs.tape.active){ hs.tape.active=false; hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } }
+function hPopHead(title){ return '<div class="pop-head"><h3>'+title+'</h3><button type="button" class="btn pop-close" data-pop-close aria-label="Close this popup">✕</button></div>'; }
+function hDeckNavHTML(){ return '<div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+[["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div>'; }
+function hLayoutRadial(){
+  var layer=document.getElementById("h-radial"); if(!layer||!hs.radialOpen) return;
+  var shell=layer.parentElement; if(!shell) return;
+  var sr=shell.getBoundingClientRect(); if(sr.width<80||sr.height<80) return;
+  var hx=sr.width-46, hy=sr.height-152;
+  var hub=document.getElementById("h-hub");
+  if(hub){ var hr=hub.getBoundingClientRect(); if(hr.width){ hx=hr.left-sr.left+hr.width/2; hy=hr.top-sr.top+hr.height/2; } }
+  var R=sr.width<560?92:114, ext=R+40;
+  var cx=Math.min(Math.max(hx,ext), Math.max(ext,sr.width-ext));
+  var cy=Math.min(Math.max(hy,ext), Math.max(ext,sr.height-ext));
+  if(sr.width<ext*2) cx=sr.width/2; if(sr.height<ext*2) cy=sr.height/2;
+  var disc=layer.querySelector(".rad-disc"); if(disc){ disc.style.left=cx+"px"; disc.style.top=cy+"px"; disc.style.width=(ext*2)+"px"; disc.style.height=(ext*2)+"px"; }
+  var cen=layer.querySelector(".rad-centre"); if(cen){ cen.style.left=cx+"px"; cen.style.top=cy+"px"; }
+  layer.querySelectorAll(".rad-wedge").forEach(function(w,i){ var a=(-90+i*45)*Math.PI/180; w.style.left=(cx+Math.cos(a)*R)+"px"; w.style.top=(cy+Math.sin(a)*R)+"px"; w.style.animationDelay=(i*14)+"ms"; });
+}
+if(!window._holoPopWired){ window._holoPopWired=true;
+  document.addEventListener("keydown",function(e){
+    if(typeof hs==="undefined") return;
+    if(typeof currentPage!=="undefined"&&currentPage!=="holoplot") return;
+    var typing=false; try{ typing=kbdTyping(); }catch(err){}
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&!typing){
+      if(e.code==="KeyZ"){ if(e.shiftKey) hHistRedo(); else hHistUndo(); e.preventDefault(); e.stopPropagation(); return; }
+      if(e.code==="KeyY"){ hHistRedo(); e.preventDefault(); e.stopPropagation(); return; }
+    }
+    if(e.key==="Escape"){
+      if(typing) return;
+      if(hs.radialOpen){ hs.radialOpen=false; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+      if(hs.tape&&hs.tape.active&&(hs.tape.guideRef||hs.tape.a)) return; /* mid tape step: the tape Esc handler owns this press */
+      if(hShownPop()){ hClosePopup(); e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+      return;
+    }
+    if(typing||e.altKey||e.ctrlKey||e.metaKey) return;
+    if(hs.radialOpen&&/^Digit[1-8]$/.test(e.code||"")){
+      var item=H_RADIAL[Number(e.code.slice(5))-1]; if(item){ hOpenPopup(item[0]); e.preventDefault(); e.stopPropagation(); renderHoloplot(); } return;
+    }
+    if(e.code==="KeyM"){ hs.radialOpen=!hs.radialOpen; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+  },true);
+  document.addEventListener("pointerdown",function(e){
+    if(typeof hs==="undefined"||!hs.radialOpen) return;
+    if(e.target&&e.target.closest&&e.target.closest("#h-hub,#h-radial")) return;
+    hs.radialOpen=false;
+    var rl=document.getElementById("h-radial"); if(rl) rl.classList.remove("open");
+    var hb=document.getElementById("h-hub"); if(hb){ hb.classList.remove("open"); hb.setAttribute("aria-expanded","false"); }
+  },true);
+}
 function renderHoloplot(){
   hs._gesturing=false; hs._previewing=false;
   var root=document.getElementById("ws-holoplot");
   var _sp=root.querySelector("[data-scroll-panel]"); var _spTop=_sp?_sp.scrollTop:0;
+  hHistCommit(); /* record any design change the last action made, before the mode bar reads the stacks */
   var venue=hVenue(), comp=hEnsureComp(), stats=comp.stats, cur=hCur(), done=doneSet();
+  var _pop=hShownPop();
+  var spkChips=hs.arrays.map(function(a){ return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" 🔗 LINKED":"")+'</button>'; }).join("");
   var staleDiff=hs.renderDirty?hStaleDiff():[]; if(hs.renderDirty&&!staleDiff.length) staleDiff=["Settings changed"];
   var pendingN=staleDiff.length;
   var hdr=document.querySelector("header"); if(hdr) hdr.classList.toggle("edit-tint", hs.viewMode==="edit");
@@ -2070,15 +2260,19 @@ function renderHoloplot(){
     '<span class="mchip">Res: '+(hs.resMode==="high"?"High":"Low")+'</span>'+
     '<span class="mchip" id="h-focus-chip">⌨ Focus: '+esc(({az:"Azimuth",tilt:"Tilt",hBeam:"Beam width",gain:"Gain",x:"Pos X",y:"Pos Y",height:"Height"})[hs.kbdFocus||"az"]||"Azimuth")+'</span>'+
     (hs.linked.length>=2?'<span class="mchip hot">Linked: '+esc(linkedNames.join(" + "))+'</span>':"")+
+    '<span style="flex:1 1 auto"></span>'+
+    (function(){ hHistEnsure(); var u=hs.hist.undo, r=hs.hist.redo, ut=u[u.length-1], rt=r[r.length-1];
+      return '<button type="button" id="h-undo" class="hist-btn" '+(u.length?"":"disabled")+' title="'+(u.length?("Undo: "+esc(ut.label)):"Nothing to undo")+'" aria-label="Undo the last design change">↩ Undo'+(u.length?" · "+u.length:"")+'</button>'+
+      '<button type="button" id="h-redo" class="hist-btn" '+(r.length?"":"disabled")+' title="'+(r.length?("Redo: "+esc(rt.label)):"Nothing to redo")+'" aria-label="Redo the last undone design change">↪ Redo'+(r.length?" · "+r.length:"")+'</button>'; })()+
   '</div><div class="ws-layout"><div class="top-zone">';
-  html+='<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">'+
+  html+='<div class="venue-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch">'+
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
     '<select id="h-venue" class="field" style="flex:1">'+VENUES.concat((store.customVenues||[]).map(function(r){return {id:r.id,label:r.name+" — custom room"};})).map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
     '</div>';
-  html+='<p class="mono ws-hint" style="font-size:12px;margin:0;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then work it from the Arrays layer below. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
-  html+='<div id="h-display">'+displayControlsHTML("h")+'</div>';
-  /* Resolution + render-on-demand bar — HOLOPLOT map only */
-  html+='<div class="map-res-bar" aria-label="Map resolution and rendering controls">'+
+  var hintHTML='<p class="mono" style="font-size:12px;margin:0 0 8px;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then open the ● MENU hub on the map (or press M) and pick Speaker to work its beams. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
+  var displayHTML='<div id="h-display">'+displayControlsHTML("h")+'</div>';
+  /* Resolution + render-on-demand bar — lives in the Waves popup */
+  var resBarHTML='<div class="map-res-bar" aria-label="Map resolution and rendering controls">'+
     '<span class="bar-label">MAP RES</span>'+
     '<div class="seg" role="group" aria-label="Map resolution">'+
       '<button type="button" id="h-res-low" aria-pressed="'+(hs.resMode==="low")+'" class="'+(hs.resMode==="low"?"on":"")+'">Low Res</button>'+
@@ -2102,6 +2296,9 @@ function renderHoloplot(){
   }
   html+='<div class="zoom-controls" role="group" aria-label="Map view and zoom controls"><div class="view-switch" role="group" aria-label="Map view: Plan, Side, Stage, Audience or Isometric">'+[["plan","Plan"],["side","Side"],["stage","Stage"],["aud","Audience"],["iso","Iso"]].map(function(vw){ return '<button type="button" data-view="'+vw[0]+'" id="h-view-'+vw[0]+'" aria-pressed="'+(hView()===vw[0])+'" class="'+(hView()===vw[0]?"on":"")+'" aria-label="Show '+vw[1]+' view">'+vw[1]+'</button>'; }).join("")+'</div><div class="anim-row" role="group" aria-label="Wave animation controls"><button type="button" id="h-anim-play" class="zoom-btn anim-play" aria-pressed="'+hs.anim.playing+'" aria-label="Play or pause the wave animation">'+(hs.anim.playing?"⏸ Pause":"▶ Waves")+'</button><div class="view-switch anim-speed" role="group" aria-label="Animation speed (slowed time)">'+[0.25,0.5,1].map(function(sp){ return '<button type="button" data-anim-speed="'+sp+'" class="'+(hs.anim.speed===sp?"on":"")+'" aria-pressed="'+(hs.anim.speed===sp)+'" aria-label="Animation speed '+sp+' times">'+sp+'×</button>'; }).join("")+'</div></div><span id="h-anim-time" class="zoom-pct mono" aria-label="Simulation time and speed of sound">t = '+Math.round(hs.anim.t)+' ms · c '+hSoundSpeed()+' m/s · slowed ×'+(0.1*hs.anim.speed)+'</span><span id="h-tape-status" class="zoom-pct mono" aria-label="Tape measure status" style="'+(hs.tape.active?"":"display:none")+'">'+esc(hTapeStatusText())+'</span><button type="button" id="h-viewopts-btn" class="zoom-btn" style="width:auto;font-size:13px;padding:6px 10px" aria-expanded="'+hs.viewOptsOpen+'" aria-label="Toggle the View Options panel: origin, guides, grid and measurements">👁 View</button><button type="button" id="h-tape-btn" class="zoom-btn'+(hs.tape.active?" tape-on":"")+'" style="width:auto;font-size:13px;padding:6px 10px" aria-pressed="'+hs.tape.active+'" aria-label="Toggle the tape measure tool">📏 Tape</button><button type="button" id="h-zoom-in" class="zoom-btn" aria-label="Zoom in on coverage map">+</button><button type="button" id="h-zoom-out" class="zoom-btn" aria-label="Zoom out on coverage map">−</button><button type="button" id="h-zoom-reset" class="zoom-btn zoom-reset" aria-label="Reset map view to fit, 100 percent">FIT</button><span id="h-zoom-pct" class="zoom-pct mono" aria-label="Current map zoom level">'+Math.round(hZoomState().k*100)+'%</span></div>';
   html+= hViewSVG(comp);
+  html+='<div class="spk-strip" role="group" aria-label="Speakers — tap to select">'+spkChips+'</div>';
+  html+='<div class="holo-radial'+(hs.radialOpen?" open":"")+'" id="h-radial" aria-hidden="'+(!hs.radialOpen)+'"><div class="rad-disc"></div>'+H_RADIAL.map(function(w,i){ return '<button type="button" class="rad-wedge" data-rad="'+w[0]+'" aria-label="Open '+w[2]+' controls (shortcut '+(i+1)+')"><span class="rad-ic" aria-hidden="true">'+w[1]+'</span><span class="rad-lab">'+w[2]+'</span><span class="rad-key">'+(i+1)+'</span></button>'; }).join("")+'<button type="button" class="rad-centre" id="h-radial-close" aria-label="Close the circular menu">✕</button></div>';
+  html+='<button type="button" class="holo-hub'+(hs.radialOpen?" open":"")+'" id="h-hub" aria-expanded="'+hs.radialOpen+'" aria-label="Toggle the circular controls menu (key M)"><span class="hub-ic" aria-hidden="true">'+(hs.radialOpen?"✕":"●")+'</span><span class="hub-lab">MENU</span></button>';
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
       '<span><span class="swatch" style="background:#1d4ed8"></span>&lt;65 dB</span>'+
@@ -2118,8 +2315,10 @@ function renderHoloplot(){
   var metrics=[["AVG SPL"+staleSuffix, hs.renderDirty?"⏳ "+stats.avg+" dB":stats.avg+" dB"],["UNIFORM ±"+staleSuffix,stats.uni+" dB"],["MIN"+staleSuffix,stats.min+" dB"],["MAX"+staleSuffix,stats.max+" dB"],["COVER ≥78"+staleSuffix,stats.coverage+"%"],["SPILL OUT"+staleSuffix,stats.spill+"%"],["GOAL ✓"+staleSuffix,(stats.goal||0)+"%"]];
   html+='<div class="readout-grid'+(hs.renderDirty?" stale":"")+'" '+(hs.renderDirty?'data-stale="true" aria-label="Readouts are stale, render needed"':'')+'>'+metrics.map(function(m){return '<div class="readout"><div class="v mono">'+m[1]+'</div><div class="l mono">'+m[0]+'</div></div>';}).join("")+'</div>';
   if(hs.renderDirty) html+='<p class="mono" style="margin:0;padding:6px 10px;font-size:12px;font-weight:700;color:#FCD34D;background:#2A1A05">⏳ Pending — these readouts are from the last Render and have NOT updated yet. Press Render to update them.</p>';
-  html+='</section><p class="practice-note'+(hs.renderDirty?" stale-note":"")+'" style="background:transparent;padding-left:2px">'+(hs.renderDirty?"Last rendered · ":"")+'Practice values — relative, not a prediction.</p></div><div class="scroll-panel" data-scroll-panel>';
-  if(hs.viewOptsOpen||hs.tape.active) html+=hViewOptionsHTML();
+  html+='</section><p class="practice-note'+(hs.renderDirty?" stale-note":"")+'" style="background:transparent;padding-left:2px">'+(hs.renderDirty?"Last rendered · ":"")+'Practice values — relative, not a prediction.</p></div>';
+  html+='<div class="holo-pop-layer'+(_pop?" open":"")+'" data-scroll-panel aria-label="HOLOPLOT control popups">';
+  html+='<section class="pop-group'+(_pop==="view"?" active":"")+'" data-pop="view" aria-label="View options and tape popup">'+hPopHead("👁 View &amp; Tape")+hViewOptionsHTML()+'</section>';
+  html+='<section class="pop-group'+(_pop==="probe"?" active":"")+'" data-pop="probe" aria-label="Probe popup">'+hPopHead("🛰 Probe");
   /* zones, goal scoring & layers */
   /* probe panel */
   html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px" aria-label="Probe panel">'+
@@ -2157,10 +2356,14 @@ function renderHoloplot(){
     '<button class="btn btn-sm" id="h-probe-open" style="background:var(--cyan-dim);color:#67E8F9">Open Probe tab (slices) ›</button>'+
     '<button class="btn btn-sm" id="h-probe-remove">✕ Remove Probe</button></div>';
   }
-  html+='</div>';
+  html+='</div></section>';
+  html+='<section class="pop-group'+(_pop==="waves"?" active":"")+'" data-pop="waves" aria-label="Waves, weather and render popup">'+hPopHead("🌊 Waves, Weather &amp; Render")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="margin:0;font-weight:700;font-size:15px">Wave animation</p><p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Play / Pause stays on the map cluster — it is transport, not a setting. Speed lives here as well as on the map:</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><button type="button" class="btn btn-sm" data-anim-play-dup aria-pressed="'+hs.anim.playing+'">'+(hs.anim.playing?"⏸ Pause waves":"▶ Play waves")+'</button>'+[0.25,0.5,1].map(function(sp){ return '<button type="button" class="btn btn-sm" data-anim-speed="'+sp+'" aria-pressed="'+(hs.anim.speed===sp)+'" style="'+(hs.anim.speed===sp?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+sp+'×</button>'; }).join("")+'</div></div>'+resBarHTML;
   html+=hEnvPanelHTML(cur);
+  html+='</section>';
+  html+='<section class="pop-group'+(_pop==="room"?" active":"")+'" data-pop="room" aria-label="Room and surfaces popup">'+hPopHead("🏠 Room &amp; Surfaces");
   html+=hRoomPanelHTML();
-  html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
+  html+='</section>';
+  html+='<section class="pop-group'+(_pop==="layers"?" active":"")+'" data-pop="layers" aria-label="Layers, zones and goals popup">'+hPopHead("🗂 Layers, Zones &amp; Goals")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
   '<h3 style="margin:0;font-size:15px">Audience zones &amp; goal — practice targets</h3>'+
   '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.renderDirty?"Last rendered · ":"")+'Practice values — relative, not a prediction. Practice targets only, on a simplified model. Goal score: <strong id="h-goal-score" style="color:var(--text)">'+comp.goal+'%</strong> of audience cells within their zone target ± tolerance · '+(comp.allZonesInTol?'<span style="color:var(--green);font-weight:700">All zones in tolerance ✓</span>':'<span style="color:#FCD34D;font-weight:700">Some zones out of tolerance</span>')+'</p>'+
   '<div class="grid2" style="margin-top:10px">';
@@ -2174,10 +2377,10 @@ function renderHoloplot(){
   '<h3 style="margin:14px 0 0;font-size:15px">Layers — grouping + mute</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
   H_LAYERS.forEach(function(L){ var n=0; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ if(b.layer===L) n++; }); }); var on=hs.layerOn[L]!==false;
     html+='<button class="btn btn-sm" data-layer-tog="'+L+'" aria-pressed="'+on+'" style="'+(on?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"opacity:.65")+'">'+L+' layer · '+n+' beam'+(n===1?"":"s")+' · '+(on?"ON":"OFF")+'</button>'; });
-  html+='</div><p style="font-size:12px;margin:6px 0 0;color:var(--dim)">Turning a layer OFF removes its beams from the map and every readout.</p></div>';
+  html+='</div><p style="font-size:12px;margin:6px 0 0;color:var(--dim)">Turning a layer OFF removes its beams from the map and every readout.</p></div></section>';
 
-  /* beam value chips */
-  html+='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px">';
+  /* beam value chips — inside the Speaker popup */
+  html+='<section class="pop-group'+(_pop==="speaker"?" active":"")+'" data-pop="speaker" aria-label="Speaker and beams popup">'+hPopHead("🔊 Speaker &amp; Beams")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px">';
   html+='<h3 style="margin:0;font-size:15px">Beam values '+(hs.hoverMode==="latch"?"— tap a label to pin (latch) it":"— touch a label to see its values")+'</h3>';
   html+='<p style="font-size:14px;margin:4px 0 0;color:var(--dim)">'+(hs.viewMode==="edit"?"Edit Values mode: press and hold (long-press) a label to change its values.":"In Practice mode these labels are read-only. Switch to Edit Values to change them by long-press.")+'</p>';
   html+='<div class="grid3" style="margin-top:10px">';
@@ -2212,16 +2415,15 @@ function renderHoloplot(){
   }
   html+='</div>';
 
-  /* decks */
-  html+='<div style="margin-top:8px"><div class="deck" role="tablist" aria-label="HOLOPLOT control layers">'+
-    [["arrays","🎚 Arrays & Beams"],["drills","🎯 Drills"],["save","💾 Save"]].map(function(t){return '<button role="tab" data-hdeck="'+t[0]+'" aria-selected="'+(hs.deck===t[0])+'" class="'+(hs.deck===t[0]?"on-h":"")+'">'+t[1]+'</button>';}).join("")+'</div><div style="margin-top:8px">';
+  /* decks — nav + panel ride inside the Speaker popup (arrays) or the More popup (drills / save) */
+  if(hs.deck!=="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead("⋯ More — Display, Drills, Save &amp; Lessons")+hintHTML+displayHTML; }
+  html+='<div class="holo-decks" style="margin-top:8px">'+hDeckNavHTML()+'<div style="margin-top:8px">';
 
   if(hs.deck==="arrays"){
     html+='<section class="card" style="padding:14px" role="tabpanel" aria-label="Arrays and beam faders"><h2 style="margin:0;font-size:16px">ARRAYS — tap a box in the plan, or pick here</h2>'+
     '<p id="fader-tip" style="font-size:13px;margin:6px 0 0;color:var(--dim)">Tip: <strong style="color:var(--text)">double-tap (or double-click) any fader</strong> to reset just that fader to its home value — azimuth, tilt and gain go to 0; beam width and position go back to their defaults. Dragging and the − / + steppers work as normal.</p>'+
     (hs.faderMsg?'<p class="fader-note" role="status">↺ '+esc(hs.faderMsg)+'</p>':"");
-    html+='<div class="spk-row" role="group" aria-label="Speakers — tap to select">'+hs.arrays.map(function(a){
-      return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" 🔗 LINKED":"")+'</button>';}).join("")+'</div>';
+    html+='<div class="spk-row" role="group" aria-label="Speakers — tap to select">'+spkChips+'</div>';
     var sb=hSpeakerBounds();
     html+='<div style="margin-top:14px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🔊 Speaker — '+esc(cur.name)+' · '+hs.arrays.length+' of 8 speakers</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:flex-end"><label style="font-size:14px;font-weight:600;flex:1;min-width:170px">Speaker name<input id="h-spk-name" type="text" class="field" style="margin-top:6px;min-height:48px" value="'+esc(cur.name)+'" aria-label="Name of the selected speaker"/></label>'+
@@ -2320,10 +2522,12 @@ function renderHoloplot(){
     html+='</section>';
   }
   html+='</div></div>';
+  if(hs.deck==="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead("⋯ More — Display, Drills, Save &amp; Lessons")+hintHTML+displayHTML+'<p class="pop-note" style="margin-top:10px">Coverage Drills and Save sit on the deck tabs inside the Speaker popup (🎚 / 🎯 / 💾) — or use the Drills and Projects pages in the top bar.</p>'; }
   html+='<div id="h-lessons">'+lessonsHTML(H_LESSONS, hs.openLesson)+'</div>'+githubNoteHTML();
-  html+='</div></div>';
+  html+='</section></div></div>';
   root.innerHTML=html;
-  var _nsp=root.querySelector("[data-scroll-panel]"); if(_nsp) _nsp.scrollTop=_spTop;
+  var _nsp=root.querySelector("[data-scroll-panel]"); if(_nsp){ _nsp.scrollTop=(hs._lastPopup===_pop)?_spTop:0; }
+  hs._lastPopup=_pop;
 
   /* wiring */
   document.getElementById("h-venue").addEventListener("change",function(e){ var id=e.target.value; hs.venueId=id; hs.roomEdit=null;
@@ -2331,13 +2535,13 @@ function renderHoloplot(){
     if(cr){ hs.room=JSON.parse(JSON.stringify(cr)); hs.floorMat=cr.floorMat||"audience"; hs.reflOn=true; hs.roomMsg="Custom room “"+cr.name+"” loaded — reflections ON, audience zone generated from its outline."; }
     else { hs.room=null; }
     hResetAllZooms(); hs._arrCache={}; hs.arrays.forEach(function(a){ hClampSpeakerPos(a); });
-    if(hs.probe){ var v=hVenue(); hs.probe.x=Math.min(v.w/2-1,Math.max(-v.w/2+1,hs.probe.x)); hs.probe.y=Math.min(v.d-1,Math.max(1,hs.probe.y)); hProbeSync(); } renderHoloplot(); });
+    if(hs.probe){ var v=hVenue(); hs.probe.x=Math.min(v.w/2-1,Math.max(-v.w/2+1,hs.probe.x)); hs.probe.y=Math.min(v.d-1,Math.max(1,hs.probe.y)); hProbeSync(); } hs._histLabel="Venue \u2192 "+id; renderHoloplot(); });
   /* ---- room & surfaces wiring ---- */
-  var _rt=document.getElementById("h-refl-tog"); if(_rt) _rt.addEventListener("click",function(){ hs.reflOn=!hs.reflOn; hs._arrCache={}; renderHoloplot(); });
-  root.querySelectorAll("[data-wallmat]").forEach(function(b){ b.addEventListener("click",function(){ hs.wallMat=b.getAttribute("data-wallmat"); hs._arrCache={}; renderHoloplot(); }); });
-  root.querySelectorAll("[data-floormat]").forEach(function(b){ b.addEventListener("click",function(){ hs.floorMat=b.getAttribute("data-floormat"); if(hs.room) hs.room.floorMat=hs.floorMat; hs._arrCache={}; renderHoloplot(); }); });
+  var _rt=document.getElementById("h-refl-tog"); if(_rt) _rt.addEventListener("click",function(){ hs.reflOn=!hs.reflOn; hs._histLabel="Reflections "+(hs.reflOn?"ON":"OFF"); hs._arrCache={}; renderHoloplot(); });
+  root.querySelectorAll("[data-wallmat]").forEach(function(b){ b.addEventListener("click",function(){ hs.wallMat=b.getAttribute("data-wallmat"); hs._histLabel="Wall material \u2192 "+((H_MATERIALS[hs.wallMat]||{}).label||""); hs._arrCache={}; renderHoloplot(); }); });
+  root.querySelectorAll("[data-floormat]").forEach(function(b){ b.addEventListener("click",function(){ hs.floorMat=b.getAttribute("data-floormat"); if(hs.room) hs.room.floorMat=hs.floorMat; hs._histLabel="Floor \u2192 "+((H_FLOOR_MATS[hs.floorMat]||{}).label||""); hs._arrCache={}; renderHoloplot(); }); });
   root.querySelectorAll("[data-room-load]").forEach(function(b){ b.addEventListener("click",function(){ var r=(store.customVenues||[]).find(function(x){return x.id===b.getAttribute("data-room-load");}); if(!r) return;
-    hs.room=JSON.parse(JSON.stringify(r)); hs.venueId=r.id; hs.floorMat=r.floorMat||"audience"; hs.reflOn=true; hs.roomEdit=null; hResetAllZooms(); hs._arrCache={}; hs.arrays.forEach(function(a){ hClampSpeakerPos(a); }); hs.roomMsg="Custom room “"+r.name+"” loaded."; renderHoloplot(); }); });
+    hs.room=JSON.parse(JSON.stringify(r)); hs.venueId=r.id; hs.floorMat=r.floorMat||"audience"; hs.reflOn=true; hs.roomEdit=null; hResetAllZooms(); hs._arrCache={}; hs.arrays.forEach(function(a){ hClampSpeakerPos(a); }); hs.roomMsg="Custom room “"+r.name+"” loaded."; hs._histLabel="Load room: "+r.name; renderHoloplot(); }); });
   root.querySelectorAll("[data-room-del]").forEach(function(b){ b.addEventListener("click",function(){ var id=b.getAttribute("data-room-del"); var snap=JSON.stringify(store.customVenues);
     store.customVenues=(store.customVenues||[]).filter(function(x){return x.id!==id;}); persist();
     if(hs.room&&hs.room.id===id){ hs.room=null; hs.venueId="theatre"; }
@@ -2349,7 +2553,7 @@ function renderHoloplot(){
     root.querySelectorAll("[data-rseg-sel]").forEach(function(b){ b.addEventListener("click",function(){ hs.selSeg=Number(b.getAttribute("data-rseg-sel")); hs.selPt=-1; renderHoloplot(); }); });
     root.querySelectorAll("[data-rpt-sel]").forEach(function(b){ b.addEventListener("click",function(){ hs.selPt=Number(b.getAttribute("data-rpt-sel")); hs.selSeg=-1; renderHoloplot(); }); });
     root.querySelectorAll("[data-rseg-stage]").forEach(function(b){ b.addEventListener("click",function(){ var i=Number(b.getAttribute("data-rseg-stage")); ed.stageSeg=(ed.stageSeg===i)?null:i; renderHoloplot(); }); });
-    root.querySelectorAll("[data-segmat]").forEach(function(b){ b.addEventListener("click",function(){ if(hs.selSeg>=0){ ed.mats[hs.selSeg]=b.getAttribute("data-segmat"); } renderHoloplot(); }); });
+    root.querySelectorAll("[data-segmat]").forEach(function(b){ b.addEventListener("click",function(){ if(hs.selSeg>=0){ ed.mats[hs.selSeg]=b.getAttribute("data-segmat"); hs._histLabel="Wall "+(hs.selSeg+1)+" material \u2192 "+((H_MATERIALS[ed.mats[hs.selSeg]]||{}).label||""); } renderHoloplot(); }); });
     root.querySelectorAll("[data-ed-floormat]").forEach(function(b){ b.addEventListener("click",function(){ ed.floorMat=b.getAttribute("data-ed-floormat"); renderHoloplot(); }); });
     var rpa=document.getElementById("h-rpt-apply"); if(rpa) rpa.addEventListener("click",function(){ var xi=document.getElementById("h-rpt-x"), yi=document.getElementById("h-rpt-y"); if(!xi||!yi||hs.selPt<0) return;
       var xv=Number(xi.value), yv=Number(yi.value); if(isFinite(xv)&&isFinite(yv)){ ed.pts[hs.selPt]=[Math.round(hDispToM(xv)*10)/10, Math.round(hDispToM(yv)*10)/10]; } renderHoloplot(); });
@@ -2374,7 +2578,7 @@ function renderHoloplot(){
     var isv=document.getElementById("h-import-svg"); if(isv) isv.addEventListener("change",function(){ var file=isv.files&&isv.files[0]; if(!file) return;
       var rd=new FileReader(); rd.onload=function(){ var ok=hImportSVGText(String(rd.result)); if(!ok) hs.roomMsg="No usable lines or polygons found in that SVG — walls need line, polyline, polygon or rect elements."; renderHoloplot(); };
       rd.readAsText(file); });
-    var rsv=document.getElementById("h-room-save"); if(rsv) rsv.addEventListener("click",function(){ hSaveRoomEdit(); renderHoloplot(); });
+    var rsv=document.getElementById("h-room-save"); if(rsv) rsv.addEventListener("click",function(){ hSaveRoomEdit(); hs._histLabel="Save room: "+(hs.room?hs.room.name:"custom room"); renderHoloplot(); });
     var rcx=document.getElementById("h-room-cancel"); if(rcx) rcx.addEventListener("click",function(){ hs.roomEdit=null; hs.roomMsg=""; renderHoloplot(); });
   }
   wireRoomEdit(root);
@@ -2384,21 +2588,21 @@ function renderHoloplot(){
   root.querySelectorAll("[data-anim-speed]").forEach(function(b){ b.addEventListener("click",function(){ hs.anim.speed=Number(b.getAttribute("data-anim-speed")); hAnimUpdateChrome(); }); });
   /* environment controls */
   root.querySelectorAll("[data-env-preset]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-env-preset");
-    if(p==="std"){ hs.env.temp=20; hs.env.rh=50; hs.env.press=1013; } else if(p==="hot"){ hs.env.temp=32; hs.env.rh=80; } else { hs.env.temp=5; hs.env.rh=20; }
+    if(p==="std"){ hs.env.temp=20; hs.env.rh=50; hs.env.press=1013; } else if(p==="hot"){ hs.env.temp=32; hs.env.rh=80; } else { hs.env.temp=5; hs.env.rh=20; } hs._histLabel="Weather preset: "+({std:"Standard hall",hot:"Hot humid outdoor",cold:"Cold dry"})[p];
     hs._arrCache={}; renderHoloplot(); }); });
   root.querySelectorAll("[data-env-step]").forEach(function(b){ b.addEventListener("click",function(){ var parts=b.getAttribute("data-env-step").split(":"), key=parts[0], raw=Number(parts[1]);
     var mag={temp:1, rh:5, press:5}[key]; var delta=(key==="modeFreq")?raw:(raw*(mag||1));
     var lim={temp:[-10,40], rh:[5,100], press:[800,1050], modeFreq:[20,300]}[key]; if(!lim) return;
-    hs.env[key]=Math.min(lim[1], Math.max(lim[0], Math.round((hs.env[key]+delta)*10)/10)); hs._arrCache={}; renderHoloplot(); }); });
+    hs.env[key]=Math.min(lim[1], Math.max(lim[0], Math.round((hs.env[key]+delta)*10)/10)); hs._histLabel=({temp:"Temperature",rh:"Humidity",press:"Pressure",modeFreq:"Mode frequency"})[key]+" \u2192 "+hs.env[key]+(key==="temp"?" \u00b0C":key==="rh"?" % RH":key==="press"?" hPa":" Hz"); hs._histKey="env:"+key; hs._arrCache={}; renderHoloplot(); }); });
   [["temp","h-env-temp"],["rh","h-env-rh"],["press","h-env-press"]].forEach(function(pair){ var inp=document.getElementById(pair[1]); if(inp){ inp.addEventListener("input",function(){ hs.env[pair[0]]=Number(inp.value); var lab=document.getElementById(pair[1]+"-val"); if(lab) lab.textContent=inp.value+(pair[0]==="temp"?" °C":(pair[0]==="rh"?" % RH":" hPa")); var cel=document.getElementById("h-env-c"); if(cel) cel.textContent="c = "+hSoundSpeed()+" m/s"; var rho=document.getElementById("h-env-rho"); if(rho) rho.textContent=hAirDensity()+" kg/m³"; });
-    inp.addEventListener("change",function(){ hs._arrCache={}; renderHoloplot(); }); } });
-  var _mf=document.getElementById("h-env-modefreq"); if(_mf){ _mf.addEventListener("input",function(){ hs.env.modeFreq=Number(_mf.value); }); _mf.addEventListener("change",function(){ renderHoloplot(); }); }
-  var _ab=document.getElementById("h-env-abs"); if(_ab) _ab.addEventListener("click",function(){ hs.env.absOn=!hs.env.absOn; hs._arrCache={}; renderHoloplot(); });
-  root.querySelectorAll("[data-abs-freq]").forEach(function(b){ b.addEventListener("click",function(){ hs.env.absFreq=Number(b.getAttribute("data-abs-freq")); hs._arrCache={}; renderHoloplot(); }); });
-  var _md=document.getElementById("h-env-modes"); if(_md) _md.addEventListener("click",function(){ hs.env.modesOn=!hs.env.modesOn; renderHoloplot(); });
-  root.querySelectorAll("[data-ztarget]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)) hSetZoneTarget(inp.getAttribute("data-ztarget"),"target",v); renderHoloplot(); }); });
-  root.querySelectorAll("[data-ztol]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)) hSetZoneTarget(inp.getAttribute("data-ztol"),"tol",Math.max(0.5,Math.abs(v))); renderHoloplot(); }); });
-  root.querySelectorAll("[data-layer-tog]").forEach(function(b){ b.addEventListener("click",function(){ var L=b.getAttribute("data-layer-tog"); hs.layerOn[L]=!(hs.layerOn[L]!==false); hProbeSync(); renderHoloplot(); }); });
+    inp.addEventListener("change",function(){ hs._histLabel=({temp:"Temperature",rh:"Humidity",press:"Pressure"})[pair[0]]+" \u2192 "+hs.env[pair[0]]; hs._histKey="env:"+pair[0]; hs._arrCache={}; renderHoloplot(); }); } });
+  var _mf=document.getElementById("h-env-modefreq"); if(_mf){ _mf.addEventListener("input",function(){ hs.env.modeFreq=Number(_mf.value); }); _mf.addEventListener("change",function(){ hs._histLabel="Mode frequency \u2192 "+hs.env.modeFreq+" Hz"; hs._histKey="env:modeFreq"; renderHoloplot(); }); }
+  var _ab=document.getElementById("h-env-abs"); if(_ab) _ab.addEventListener("click",function(){ hs.env.absOn=!hs.env.absOn; hs._histLabel="Air absorption "+(hs.env.absOn?"ON":"OFF"); hs._arrCache={}; renderHoloplot(); });
+  root.querySelectorAll("[data-abs-freq]").forEach(function(b){ b.addEventListener("click",function(){ hs.env.absFreq=Number(b.getAttribute("data-abs-freq")); hs._histLabel="Absorption frequency \u2192 "+hs.env.absFreq+" Hz"; hs._histKey="absfreq"; hs._arrCache={}; renderHoloplot(); }); });
+  var _md=document.getElementById("h-env-modes"); if(_md) _md.addEventListener("click",function(){ hs.env.modesOn=!hs.env.modesOn; hs._histLabel="Room modes "+(hs.env.modesOn?"ON":"OFF"); renderHoloplot(); });
+  root.querySelectorAll("[data-ztarget]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)){ hSetZoneTarget(inp.getAttribute("data-ztarget"),"target",v); hs._histLabel="Zone target: "+inp.getAttribute("data-ztarget")+" \u2192 "+v+" dB"; } renderHoloplot(); }); });
+  root.querySelectorAll("[data-ztol]").forEach(function(inp){ inp.addEventListener("change",function(){ var v=Number(inp.value); if(isFinite(v)){ hSetZoneTarget(inp.getAttribute("data-ztol"),"tol",Math.max(0.5,Math.abs(v))); hs._histLabel="Zone tolerance: "+inp.getAttribute("data-ztol"); } renderHoloplot(); }); });
+  root.querySelectorAll("[data-layer-tog]").forEach(function(b){ b.addEventListener("click",function(){ var L=b.getAttribute("data-layer-tog"); hs.layerOn[L]=!(hs.layerOn[L]!==false); hs._histLabel=L+" layer "+(hs.layerOn[L]?"ON":"OFF"); hProbeSync(); renderHoloplot(); }); });
   var _rl=document.getElementById("h-res-low"); if(_rl) _rl.addEventListener("click",function(){ if(hs.resMode!=="low"){ hs.resMode="low"; persistMapPrefs(); } renderHoloplot(); });
   var _rh=document.getElementById("h-res-high"); if(_rh) _rh.addEventListener("click",function(){ if(hs.resMode!=="high"){ hs.resMode="high"; persistMapPrefs(); } renderHoloplot(); });
   var _ml=document.getElementById("h-mode-live"); if(_ml) _ml.addEventListener("click",function(){ hs.renderMode="live"; persistMapPrefs(); renderHoloplot(); });
@@ -2407,13 +2611,13 @@ function renderHoloplot(){
   var _rb=document.getElementById("h-render-btn"); if(_rb) _rb.addEventListener("click",doRenderNow);
   var _rn=document.getElementById("h-render-now"); if(_rn) _rn.addEventListener("click",doRenderNow);
   /* probe wiring */
-  var pa=document.getElementById("h-probe-add"); if(pa) pa.addEventListener("click",function(){ hs.probe=hProbeDefaultPos(); hProbeSync(); renderHoloplot(); });
-  var prm=document.getElementById("h-probe-remove"); if(prm) prm.addEventListener("click",function(){ hs.probe=null; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ b.probe=false; }); }); hs._probeLimited=false; renderHoloplot(); });
-  var prb=document.getElementById("h-probe-rebalance"); if(prb) prb.addEventListener("click",function(){ hProbeSync(); renderHoloplot(); });
+  var pa=document.getElementById("h-probe-add"); if(pa) pa.addEventListener("click",function(){ hs.probe=hProbeDefaultPos(); hs._histLabel="Add probe"; hProbeSync(); renderHoloplot(); });
+  var prm=document.getElementById("h-probe-remove"); if(prm) prm.addEventListener("click",function(){ hs.probe=null; hs._histLabel="Remove probe"; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ b.probe=false; }); }); hs._probeLimited=false; renderHoloplot(); });
+  var prb=document.getElementById("h-probe-rebalance"); if(prb) prb.addEventListener("click",function(){ hs._histLabel="Re-balance probe"; hProbeSync(); renderHoloplot(); });
   var pop=document.getElementById("h-probe-open"); if(pop) pop.addEventListener("click",function(){ setPage("probe"); });
-  root.querySelectorAll("[data-probe-tstep]").forEach(function(b){ b.addEventListener("click",function(){ hs.probeTarget=Math.min(100,Math.max(60,hs.probeTarget+Number(b.getAttribute("data-probe-tstep")))); hProbeSync(); renderHoloplot(); }); });
-  var pxi=document.getElementById("h-probe-x"); if(pxi) pxi.addEventListener("change",function(){ var v=Number(pxi.value); if(isFinite(v)&&hs.probe){ var ven=hVenue(); hs.probe.x=Math.min(ven.w/2-1,Math.max(-ven.w/2+1,Math.round(hDispToM(v)*10)/10)); hProbeSync(); } renderHoloplot(); });
-  var pyi=document.getElementById("h-probe-y"); if(pyi) pyi.addEventListener("change",function(){ var v=Number(pyi.value); if(isFinite(v)&&hs.probe){ var ven=hVenue(); hs.probe.y=Math.min(ven.d-1,Math.max(1,Math.round(hDispToM(v)*10)/10)); hProbeSync(); } renderHoloplot(); });
+  root.querySelectorAll("[data-probe-tstep]").forEach(function(b){ b.addEventListener("click",function(){ hs.probeTarget=Math.min(100,Math.max(60,hs.probeTarget+Number(b.getAttribute("data-probe-tstep")))); hs._histLabel="Probe target \u2192 "+hs.probeTarget+" dB"; hs._histKey="probetarget"; hProbeSync(); renderHoloplot(); }); });
+  var pxi=document.getElementById("h-probe-x"); if(pxi) pxi.addEventListener("change",function(){ var v=Number(pxi.value); if(isFinite(v)&&hs.probe){ var ven=hVenue(); hs.probe.x=Math.min(ven.w/2-1,Math.max(-ven.w/2+1,Math.round(hDispToM(v)*10)/10)); hs._histLabel="Move probe"; hProbeSync(); } renderHoloplot(); });
+  var pyi=document.getElementById("h-probe-y"); if(pyi) pyi.addEventListener("change",function(){ var v=Number(pyi.value); if(isFinite(v)&&hs.probe){ var ven=hVenue(); hs.probe.y=Math.min(ven.d-1,Math.max(1,Math.round(hDispToM(v)*10)/10)); hs._histLabel="Move probe"; hProbeSync(); } renderHoloplot(); });
   wireDisplayControls(document.getElementById("h-display"), hs, renderHoloplot);
   wireViewOptions(root);
   wireHoloZoom(root.querySelector(".map-shell svg"));
@@ -2424,7 +2628,25 @@ function renderHoloplot(){
   var hzi=document.getElementById("h-zoom-in"); if(hzi) hzi.addEventListener("click",function(){ hZoomBy(1.4); });
   var hzo=document.getElementById("h-zoom-out"); if(hzo) hzo.addEventListener("click",function(){ hZoomBy(1/1.4); });
   var hzr=document.getElementById("h-zoom-reset"); if(hzr) hzr.addEventListener("click",function(){ hZoomReset(); });
-  root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); renderHoloplot(); }); });
+  root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); hs.popup=(hs.deck==="arrays")?"speaker":"more"; renderHoloplot(); }); });
+  /* ---- radial hub + popup wiring ---- */
+  var _hub=document.getElementById("h-hub"); if(_hub) _hub.addEventListener("click",function(){ hs.radialOpen=!hs.radialOpen; renderHoloplot(); });
+  var _hu=document.getElementById("h-undo"); if(_hu) _hu.addEventListener("click",function(){ hHistUndo(); });
+  var _hr=document.getElementById("h-redo"); if(_hr) _hr.addEventListener("click",function(){ hHistRedo(); });
+  var _rc=document.getElementById("h-radial-close"); if(_rc) _rc.addEventListener("click",function(){ hs.radialOpen=false; renderHoloplot(); });
+  root.querySelectorAll("[data-rad]").forEach(function(b){ b.addEventListener("click",function(){ hOpenPopup(b.getAttribute("data-rad")); renderHoloplot(); }); });
+  root.querySelectorAll("[data-pop-close]").forEach(function(b){ b.addEventListener("click",function(){ hClosePopup(); renderHoloplot(); }); });
+  var _apd=root.querySelector("[data-anim-play-dup]"); if(_apd) _apd.addEventListener("click",function(){ hAnimSet(!hs.anim.playing); _apd.textContent=hs.anim.playing?"⏸ Pause waves":"▶ Play waves"; _apd.setAttribute("aria-pressed",hs.anim.playing); });
+  if(hs.deck!=="arrays"){ root.querySelectorAll(".spk-strip [data-sel-arr]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-sel-arr")); if(!id) return; hs.sel=id; hs.editing=null; if(hs.showHover){ if(hs.hoverMode==="latch"){ if(hs.latched.indexOf(id)<0) hs.latched.push(id); } else hs.hovered=id; } renderHoloplot(); }); }); }
+  var _msvg=root.querySelector(".map-shell svg");
+  if(_msvg) _msvg.addEventListener("click",function(e){
+    if(!hShownPop()) return;
+    if(hs.tape&&hs.tape.active) return;
+    if(hs.roomEdit) return;
+    if(e.target&&e.target.closest&&e.target.closest("[data-arr],[data-probe],[data-rpt],[data-rseg],[data-rmid],[data-guide]")) return;
+    hClosePopup(); renderHoloplot();
+  });
+  hLayoutRadial();
 
   root.querySelectorAll("[data-arr]").forEach(function(g){
     var id=Number(g.getAttribute("data-arr"));
@@ -2460,7 +2682,7 @@ function renderHoloplot(){
       a.x=num("x",a.x); a.y=num("y",a.y); hSetHeight(a.id, num("height", hSpkH(a)));
       bm.zone=String(fd.get("zone")||bm.zone); bm.layer=String(fd.get("layer")||bm.layer);
       a.on=document.getElementById("h-edit-on").checked;
-      hs.editMsg="Saved "+a.name+" Beam "+(bidx+1)+": Az "+bm.az+"°, Tilt "+bm.tilt+"°, Gain "+bm.gain+" dB"+(hIsLinked(a.id)?" (link group moved by the same deltas)":"")+" — coverage map updated."; hs.editing=null; renderHoloplot(); });
+      hs.editMsg="Saved "+a.name+" Beam "+(bidx+1)+": Az "+bm.az+"°, Tilt "+bm.tilt+"°, Gain "+bm.gain+" dB"+(hIsLinked(a.id)?" (link group moved by the same deltas)":"")+" — coverage map updated."; hs._histLabel="Edit "+a.name+" Beam "+(bidx+1)+" values"; hs.editing=null; renderHoloplot(); });
     document.getElementById("h-edit-cancel").addEventListener("click",function(){ hs.editing=null; renderHoloplot(); });
   }
   if(hs.deck==="arrays"){
@@ -2473,9 +2695,9 @@ function renderHoloplot(){
       if(hs.showHover){ if(hs.hoverMode==="latch"){ if(hs.latched.indexOf(id)<0) hs.latched.push(id); } else hs.hovered=id; }
       renderHoloplot(); }); });
     /* speaker panel: rename, add, delete (with Undo), parametric position */
-    var snm=document.getElementById("h-spk-name"); if(snm) snm.addEventListener("change",function(){ var v=snm.value.trim(); if(v) hCur().name=v; renderHoloplot(); });
-    var asb=document.getElementById("h-add-speaker"); if(asb) asb.addEventListener("click",function(){ if(hAddSpeaker()){ hs.posMsg=""; renderHoloplot(); } });
-    var dsb=document.getElementById("h-del-speaker"); if(dsb) dsb.addEventListener("click",function(){ var snap=hDesignData(); var nm=hCur().name; if(hDeleteSpeaker(hs.sel)){ renderHoloplot(); showUndoToast(nm+" deleted.", function(){ hLoadDesignData(snap); renderHoloplot(); }); } });
+    var snm=document.getElementById("h-spk-name"); if(snm) snm.addEventListener("change",function(){ var v=snm.value.trim(); if(v){ hCur().name=v; hs._histLabel="Rename speaker \u2192 "+v; } renderHoloplot(); });
+    var asb=document.getElementById("h-add-speaker"); if(asb) asb.addEventListener("click",function(){ var _na=hAddSpeaker(); if(_na){ hs._histLabel="Add speaker: "+_na.name; hs.posMsg=""; renderHoloplot(); } });
+    var dsb=document.getElementById("h-del-speaker"); if(dsb) dsb.addEventListener("click",function(){ var snap=hDesignData(); var nm=hCur().name; if(hDeleteSpeaker(hs.sel)){ hs._histLabel="Delete speaker: "+nm; renderHoloplot(); showUndoToast(nm+" deleted.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); }); } });
     function commitPos(){ var xi=document.getElementById("h-pos-x"), yi=document.getElementById("h-pos-y"), hi=document.getElementById("h-pos-h"); if(!xi||!yi) return; var a=hCur();
       var xv=Number(xi.value), yv=Number(yi.value), hv=hi?Number(hi.value):NaN;
       if(xi.value===""||yi.value===""||!isFinite(xv)||!isFinite(yv)||(hi&&(hi.value===""||!isFinite(hv)))){ hs.posMsg="That position is not a number — kept "+hFmtLen(a.x)+" offset, "+hFmtLen(a.y)+" out, H "+hFmtLen(hSpkH(a))+"."; renderHoloplot(); return; }
@@ -2483,30 +2705,30 @@ function renderHoloplot(){
       var b=hSpeakerBounds(), cx=Math.min(b.xMax,Math.max(b.xMin,xv)), cy=Math.min(b.yMax,Math.max(b.yMin,yv));
       var ch=hi?hClampHeight(hv):hSpkH(a);
       hs.posMsg=(cx!==xv||cy!==yv||(hi&&Math.abs(ch-hv)>0.001))?("Clamped: offset "+hFmtLen(Math.round(cx*10)/10)+", out "+hFmtLen(Math.round(cy*10)/10)+", height "+hFmtLen(ch)+"."):"";
-      a.x=Math.round(cx*10)/10; a.y=Math.round(cy*10)/10; if(hi) hSetHeight(a.id,ch); hProbeSync(); renderHoloplot(); }
+      a.x=Math.round(cx*10)/10; a.y=Math.round(cy*10)/10; if(hi) hSetHeight(a.id,ch); hs._histLabel="Move "+a.name+" \u2014 "+hFmtLen(a.x)+" offset, "+hFmtLen(a.y)+" out, H "+hFmtLen(hSpkH(a)); hProbeSync(); renderHoloplot(); }
     var pap=document.getElementById("h-pos-apply"); if(pap) pap.addEventListener("click",commitPos);
     ["h-pos-x","h-pos-y","h-pos-h"].forEach(function(pid){ var inp=document.getElementById(pid); if(inp){ inp.addEventListener("change",commitPos); inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); commitPos(); } }); } });
     root.querySelectorAll("[data-posstep]").forEach(function(b){ b.addEventListener("click",function(ev){ var p=b.getAttribute("data-posstep").split(":"), a=hCur();
-      if(p[0]==="height"){ hSetHeight(a.id, hSpkH(a)+Number(p[1])*(ev.shiftKey?5:1)); hs.posMsg=""; renderHoloplot(); return; }
-      a[p[0]]=Math.round((a[p[0]]+Number(p[1]))*10)/10; hClampSpeakerPos(a); if(hs.view.snap){ a[p[0]]=Math.round(hSnapVal(a[p[0]])*10)/10; hClampSpeakerPos(a); } hs.posMsg=""; hProbeSync(); renderHoloplot(); }); });
-    root.querySelectorAll("[data-hchip]").forEach(function(b){ b.addEventListener("click",function(){ hSetHeight(hs.sel, Number(b.getAttribute("data-hchip"))); hs.posMsg=""; renderHoloplot(); }); });
-    root.querySelectorAll("[data-link-tog]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-link-tog")); var i=hs.linked.indexOf(id); if(i>=0) hs.linked.splice(i,1); else hs.linked.push(id); if(hs.linked.length<2){ hs.invertPan=false; hs.invertTilt=false; } renderHoloplot(); }); });
-    root.querySelectorAll("[data-invert]").forEach(function(b){ b.addEventListener("click",function(){ hToggleInvert(b.getAttribute("data-invert")); renderHoloplot(); }); });
-    root.querySelectorAll("[data-fan-step]").forEach(function(b){ b.addEventListener("click",function(){ hs.fanAmt=Math.max(0,(Number(hs.fanAmt)||0)+Number(b.getAttribute("data-fan-step"))*2); renderHoloplot(); }); });
-    var fa=document.getElementById("h-fan-amt"); if(fa) fa.addEventListener("change",function(){ var v=Number(fa.value); if(isFinite(v)) hs.fanAmt=Math.max(0,v); renderHoloplot(); });
-    root.querySelectorAll("[data-fan]").forEach(function(b){ b.addEventListener("click",function(){ hFan(b.getAttribute("data-fan")); renderHoloplot(); }); });
+      if(p[0]==="height"){ hSetHeight(a.id, hSpkH(a)+Number(p[1])*(ev.shiftKey?5:1)); hs._histLabel=a.name+" height \u2192 "+hFmtLen(hSpkH(a)); hs._histKey="posstep:height"; hs.posMsg=""; renderHoloplot(); return; }
+      a[p[0]]=Math.round((a[p[0]]+Number(p[1]))*10)/10; hClampSpeakerPos(a); if(hs.view.snap){ a[p[0]]=Math.round(hSnapVal(a[p[0]])*10)/10; hClampSpeakerPos(a); } hs._histLabel="Move "+a.name+" \u2014 "+hFmtLen(a.x)+" offset, "+hFmtLen(a.y)+" out"; hs._histKey="posstep:"+p[0]; hs.posMsg=""; hProbeSync(); renderHoloplot(); }); });
+    root.querySelectorAll("[data-hchip]").forEach(function(b){ b.addEventListener("click",function(){ hSetHeight(hs.sel, Number(b.getAttribute("data-hchip"))); hs._histLabel=hCur().name+" height \u2192 "+hFmtLen(Number(b.getAttribute("data-hchip"))); hs.posMsg=""; renderHoloplot(); }); });
+    root.querySelectorAll("[data-link-tog]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-link-tog")); var i=hs.linked.indexOf(id); if(i>=0) hs.linked.splice(i,1); else hs.linked.push(id); if(hs.linked.length<2){ hs.invertPan=false; hs.invertTilt=false; } var _la=hs.arrays.find(function(x){return x.id===id;}); hs._histLabel=(i>=0?"Unlink ":"Link ")+(_la?_la.name:"speaker"); renderHoloplot(); }); });
+    root.querySelectorAll("[data-invert]").forEach(function(b){ b.addEventListener("click",function(){ var _ik=b.getAttribute("data-invert"); hToggleInvert(_ik); hs._histLabel="Invert "+(_ik==="az"?("Pan "+(hs.invertPan?"ON":"OFF")):("Tilt "+(hs.invertTilt?"ON":"OFF"))); renderHoloplot(); }); });
+    root.querySelectorAll("[data-fan-step]").forEach(function(b){ b.addEventListener("click",function(){ hs.fanAmt=Math.max(0,(Number(hs.fanAmt)||0)+Number(b.getAttribute("data-fan-step"))*2); hs._histLabel="Fan amount \u2192 "+hs.fanAmt; hs._histKey="fanamt"; renderHoloplot(); }); });
+    var fa=document.getElementById("h-fan-amt"); if(fa) fa.addEventListener("change",function(){ var v=Number(fa.value); if(isFinite(v)){ hs.fanAmt=Math.max(0,v); hs._histLabel="Fan amount \u2192 "+hs.fanAmt; } renderHoloplot(); });
+    root.querySelectorAll("[data-fan]").forEach(function(b){ b.addEventListener("click",function(){ var _fk=b.getAttribute("data-fan"); hFan(_fk); hs._histLabel="Fan "+({az:"Pan",tilt:"Tilt",gain:"Gain"})[_fk]; renderHoloplot(); }); });
     var gn=document.getElementById("h-group-name"); if(gn) gn.addEventListener("input",function(){ hs.groupName=gn.value; });
     var gs=document.getElementById("h-group-save"); if(gs) gs.addEventListener("click",function(){ if(hs.linked.length<2) return; if(!Array.isArray(store.speakerGroups)) store.speakerGroups=[]; store.speakerGroups.push({id:Date.now(), name:(hs.groupName||"").trim()||"Untitled group", linked:hs.linked.slice(), invertPan:!!hs.invertPan, invertTilt:!!hs.invertTilt}); persist(); renderHoloplot(); });
-    root.querySelectorAll("[data-group-apply]").forEach(function(b){ b.addEventListener("click",function(){ var g=(store.speakerGroups||[]).find(function(x){return x.id===Number(b.getAttribute("data-group-apply"));}); if(!g) return; hs.linked=(g.linked||[]).filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}); hs.invertPan=!!g.invertPan&&hs.linked.length>=2; hs.invertTilt=!!g.invertTilt&&hs.linked.length>=2; renderHoloplot(); }); });
+    root.querySelectorAll("[data-group-apply]").forEach(function(b){ b.addEventListener("click",function(){ var g=(store.speakerGroups||[]).find(function(x){return x.id===Number(b.getAttribute("data-group-apply"));}); if(!g) return; hs.linked=(g.linked||[]).filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}); hs.invertPan=!!g.invertPan&&hs.linked.length>=2; hs.invertTilt=!!g.invertTilt&&hs.linked.length>=2; hs._histLabel="Apply speaker group: "+g.name; renderHoloplot(); }); });
     root.querySelectorAll("[data-group-del]").forEach(function(b){ b.addEventListener("click",function(){ var snap=snapshotStore(); store.speakerGroups=(store.speakerGroups||[]).filter(function(x){return x.id!==Number(b.getAttribute("data-group-del"));}); persist(); renderHoloplot(); showUndoToast("Speaker group deleted.", function(){ restoreStoreSnapshot(snap); renderHoloplot(); }); }); });
     root.querySelectorAll("[data-beam-sel]").forEach(function(b){ b.addEventListener("click",function(){ hs.selBeam=Number(b.getAttribute("data-beam-sel")); hs.editing=null; renderHoloplot(); }); });
-    var tg=document.getElementById("h-tag-probe"); if(tg) tg.addEventListener("click",function(){ var b=hCurBeam(); if(!hs.probe) return; b.probe=!b.probe; hProbeSync(); renderHoloplot(); });
-    var ab=document.getElementById("h-add-beam"); if(ab) ab.addEventListener("click",function(){ var a=hCur(), bs=hBeams(a); if(bs.length>=3) return; var zn=hVenue().zones[Math.min(bs.length,hVenue().zones.length-1)]; bs.push({az:0,tilt:bs.length===1?10:0,hBeam:28,vBeam:18,gain:0,zone:zn?zn.name:"",layer:bs.length===1?"Fill":"Main"}); hs.selBeam=bs.length-1; renderHoloplot(); });
-    var db=document.getElementById("h-del-beam"); if(db) db.addEventListener("click",function(){ var bs=hBeams(hCur()); if(bs.length<=1) return; bs.splice(hs.selBeam,1); if(hs.selBeam>=bs.length) hs.selBeam=bs.length-1; hProbeSync(); renderHoloplot(); });
-    var bz=document.getElementById("h-beam-zone"); if(bz) bz.addEventListener("change",function(){ hCurBeam().zone=bz.value; renderHoloplot(); });
-    var bl=document.getElementById("h-beam-layer"); if(bl) bl.addEventListener("change",function(){ hCurBeam().layer=bl.value; hProbeSync(); renderHoloplot(); });
-    document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; hProbeSync(); renderHoloplot(); });
-    document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; renderHoloplot(); });
+    var tg=document.getElementById("h-tag-probe"); if(tg) tg.addEventListener("click",function(){ var b=hCurBeam(); if(!hs.probe) return; b.probe=!b.probe; hs._histLabel=(b.probe?"Tag ":"Untag ")+hCur().name+" Beam "+(hs.selBeam+1)+(b.probe?" to Probe":" from Probe"); hProbeSync(); renderHoloplot(); });
+    var ab=document.getElementById("h-add-beam"); if(ab) ab.addEventListener("click",function(){ var a=hCur(), bs=hBeams(a); if(bs.length>=3) return; var zn=hVenue().zones[Math.min(bs.length,hVenue().zones.length-1)]; bs.push({az:0,tilt:bs.length===1?10:0,hBeam:28,vBeam:18,gain:0,zone:zn?zn.name:"",layer:bs.length===1?"Fill":"Main"}); hs.selBeam=bs.length-1; hs._histLabel="Add Beam "+bs.length+" to "+a.name; renderHoloplot(); });
+    var db=document.getElementById("h-del-beam"); if(db) db.addEventListener("click",function(){ var bs=hBeams(hCur()); if(bs.length<=1) return; var _dbn=hs.selBeam+1; bs.splice(hs.selBeam,1); if(hs.selBeam>=bs.length) hs.selBeam=bs.length-1; hs._histLabel="Delete "+hCur().name+" Beam "+_dbn; hProbeSync(); renderHoloplot(); });
+    var bz=document.getElementById("h-beam-zone"); if(bz) bz.addEventListener("change",function(){ hCurBeam().zone=bz.value; hs._histLabel=hCur().name+" Beam "+(hs.selBeam+1)+" zone \u2192 "+bz.value; renderHoloplot(); });
+    var bl=document.getElementById("h-beam-layer"); if(bl) bl.addEventListener("change",function(){ hCurBeam().layer=bl.value; hs._histLabel=hCur().name+" Beam "+(hs.selBeam+1)+" layer \u2192 "+bl.value; hProbeSync(); renderHoloplot(); });
+    document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; hs._histLabel=hCur().name+" power "+(e.target.checked?"ON":"OFF"); hProbeSync(); renderHoloplot(); });
+    document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; hs._histLabel=hCur().name+" module \u2192 "+e.target.value; renderHoloplot(); });
     root.querySelectorAll("[data-slider]").forEach(function(inp){
       /* double-tap / double-click resets this fader to its home value */
       var tapCount=0, tapTimer=null, downX=0, downY=0, downT=0;
@@ -2516,12 +2738,13 @@ function renderHoloplot(){
         if(key==="height"){ hSetHeight(hs.sel, H_DEF_HEIGHT); hs.faderMsg="Height reset to "+H_DEF_HEIGHT+" m — map updated."; }
         else if(key==="x"||key==="y"){ var home=(H_FADER_HOME[hCur().id]||hCur().home||{})[key]; if(home===undefined) return; hCur()[key]=home; hs.faderMsg=H_FADER_LABEL[key]+" reset to "+home+H_FADER_UNIT[key]+" — map updated."; }
         else hResetBeamParam(key);
+        hs._histLabel="Reset "+(H_FADER_LABEL[key]||key)+" fader";
         renderHoloplot();
         var lbl=document.querySelector('[data-slval="'+key+'"]'); if(lbl) lbl.classList.add("fader-flash");
-        showUndoToast(H_FADER_LABEL[key]+" fader reset.", function(){ hLoadDesignData(snap); renderHoloplot(); });
+        showUndoToast(H_FADER_LABEL[key]+" fader reset.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); });
       }
       inp.addEventListener("dblclick",function(e){ e.preventDefault(); tapCount=0; doReset(); });
-      inp.addEventListener("pointerdown",function(e){ downX=e.clientX; downY=e.clientY; downT=Date.now(); });
+      inp.addEventListener("pointerdown",function(e){ var _k=inp.getAttribute("data-slider"); hs._histLabel=hCur().name+" "+(H_FADER_LABEL[_k]||_k); hs._histKey="slide:"+_k; downX=e.clientX; downY=e.clientY; downT=Date.now(); });
       inp.addEventListener("pointerup",function(e){
         var moved=Math.hypot(e.clientX-downX,e.clientY-downY);
         if(Date.now()-downT>300||moved>10){ tapCount=0; return; } /* it was a drag, not a tap */
@@ -2544,20 +2767,21 @@ function renderHoloplot(){
       var v=Math.min(meta[1],Math.max(meta[0],Math.round((curV+dir*meta[2])/meta[2])*meta[2])); v=Math.round(v*10)/10;
       if(key==="x"||key==="y") hCur()[key]=v; else if(key==="height") hSetHeight(hs.sel,v); else hSetBeamParam(key,v);
       if(key==="x"||key==="y") hProbeSync();
+      hs._histLabel=hCur().name+" "+(H_FADER_LABEL[key]||key)+" \u2192 "+(key==="height"?hFmtLen(v):(v+({az:"\u00b0",tilt:"\u00b0",hBeam:"\u00b0",vBeam:"\u00b0",gain:" dB",x:" m",y:" m"})[key]||"")); hs._histKey="step:"+key;
       renderHoloplot(); }); });
-    document.getElementById("h-reset").addEventListener("click",function(){ var snap=hDesignData(); hs.arrays=[
+    document.getElementById("h-reset").addEventListener("click",function(){ var snap=hDesignData(); hs._histLabel="Reset beams"; hs.arrays=[
       {id:1,name:"Array L",model:"X2",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
       {id:2,name:"Array R",model:"X2",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
       {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
-    ]; hs.linked=[]; hs.invertPan=false; hs.invertTilt=false; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={}; renderHoloplot(); showUndoToast("Beams reset to the baseline design.", function(){ hLoadDesignData(snap); renderHoloplot(); }); });
-    document.getElementById("h-balcony").addEventListener("click",function(){ var a3=hs.arrays.find(function(a){return a.id===3;}); if(a3){ a3.on=true; var b3=hBeams(a3)[0]; b3.tilt=12; b3.gain=2; } renderHoloplot(); });
+    ]; hs.linked=[]; hs.invertPan=false; hs.invertTilt=false; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={}; renderHoloplot(); showUndoToast("Beams reset to the baseline design.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); }); });
+    document.getElementById("h-balcony").addEventListener("click",function(){ var a3=hs.arrays.find(function(a){return a.id===3;}); if(a3){ a3.on=true; var b3=hBeams(a3)[0]; b3.tilt=12; b3.gain=2; } hs._histLabel="Try: add balcony beam"; renderHoloplot(); });
   }
   if(hs.deck==="drills"){ root.querySelectorAll("[data-drill]").forEach(function(b){ b.addEventListener("click",function(){ markDone(b.getAttribute("data-drill")); renderHoloplot(); }); }); }
   if(hs.deck==="save"){
     document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
     document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify(hDesignData())); renderHoloplot(); });
     document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", hDesignData(), commentsFor("holoplot")); presentShareLink(link, this); });
-    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hLoadDesignData(d); hResetAllZooms(); }catch(e){} renderHoloplot(); }); });
+    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hResetAllZooms(); }catch(e){} renderHoloplot(); }); });
     root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ var snap=snapshotStore(); deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); showUndoToast("Saved design deleted.", function(){ restoreStoreSnapshot(snap); renderHoloplot(); }); }); });
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
@@ -3049,7 +3273,7 @@ function renderProjectsPage(){
   block("holoplot","◉ HOLOPLOT designs")+block("autocad","⌖ AutoCAD drawings")+
   '<button class="btn" id="proj-export-all" style="width:100%;margin-top:18px">⬇ Export everything (designs, drawings &amp; all comments) as JSON</button></div>';
   el.querySelectorAll("[data-proj-load]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-load").split(":"); var ws=p[0], id=Number(p[1]); var s=store.saves[ws].find(function(x){return x.id===id;}); if(!s) return;
-    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hLoadDesignData(d); hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
+    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
     if(ws==="holoplot") renderHoloplot(); else renderAutocad(); setPage(ws); }); });
   el.querySelectorAll("[data-proj-del]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-del").split(":"); var snap=snapshotStore(); deleteSave(p[0], Number(p[1])); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); showUndoToast("Saved design deleted.", function(){ restoreStoreSnapshot(snap); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); }); }); });
   el.querySelectorAll("[data-proj-share]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-share").split(":"); var s=store.saves[p[0]].find(function(x){return x.id===Number(p[1]);}); if(!s) return; var dobj={}; try{ dobj=JSON.parse(s.data); }catch(e){} presentShareLink(buildShareLink(p[0], s.name, dobj, s.comments||[]), b); }); });
@@ -3319,7 +3543,7 @@ document.addEventListener("touchend",function(){ window.setTimeout(captureSelect
 function applyShared(p){
   if(!p||!p.ws||!p.data) return false;
   pendingShared=p;
-  if(p.ws==="holoplot"){ hLoadDesignData(p.data); hs.saveName=(p.name||"Shared design")+" (shared copy)"; renderHoloplot(); }
+  if(p.ws==="holoplot"){ hLoadDesignData(p.data); hs._histLabel="Load shared design: "+(p.name||"Shared design"); hs.saveName=(p.name||"Shared design")+" (shared copy)"; renderHoloplot(); }
   else { if(p.data.shapes) cs.shapes=p.data.shapes; if(p.data.layers) cs.layers=p.data.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=(p.name||"Shared drawing")+" (shared copy)"; renderAutocad(); }
   var b=document.getElementById("shared-banner"); b.hidden=false;
   document.getElementById("shared-banner-text").textContent="“"+(p.name||"Untitled")+"” — "+(p.ws==="holoplot"?"HOLOPLOT design":"AutoCAD drawing")+" with "+((p.comments||[]).length)+" comment(s) in the link. This is a snapshot: save a copy to keep and edit it in your own library; edits do not flow back to the sender.";
@@ -3454,7 +3678,7 @@ function kbdProbeNudge(dx,dy){
   var v=hVenue();
   hs.probe.x=Math.round(Math.min(v.w/2-1,Math.max(-v.w/2+1,hs.probe.x+dx))*10)/10;
   hs.probe.y=Math.round(Math.min(v.d-1,Math.max(1,hs.probe.y+dy))*10)/10;
-  hProbeSync();
+  hProbeSync(); hs._histLabel="Move probe";
   if(currentPage==="probe") renderProbePage(); else renderHoloplot();
   kbdChip("Probe → "+hs.probe.x+" m, "+hs.probe.y+" m");
 }
@@ -3512,8 +3736,14 @@ function kbdDispatch(e){
     }
     if(code==="KeyT"){ var tb=document.getElementById("tutor-toggle"); if(tb){ tb.click(); kbdFlashEl(tb); } kbdChip("Tutor "+(tutorOn?"ON":"OFF")); done(); return; }
     if(code==="KeyZ"){
-      var toast=document.getElementById("undo-toast");
-      if(toast&&!toast.hidden){ kbdClick("#undo-toast-btn","Undo",null); }
+      if(page==="holoplot"||page==="probe"){
+        if(e.shiftKey){ if(hs.hist&&hs.hist.redo.length){ hHistRedo(); } else kbdChip("Redo — nothing to redo"); }
+        else if(hs.hist&&hs.hist.undo.length){ hHistUndo(); }
+        else { var toast=document.getElementById("undo-toast"); if(toast&&!toast.hidden){ kbdClick("#undo-toast-btn","Undo",null); } else kbdChip("Undo — nothing to undo"); }
+        done(); return;
+      }
+      var toast2=document.getElementById("undo-toast");
+      if(toast2&&!toast2.hidden){ kbdClick("#undo-toast-btn","Undo",null); }
       else if(page==="autocad"){ kbdClick("#c-undo","CAD Undo",null); }
       else kbdChip("Undo — nothing to undo");
       done(); return;
