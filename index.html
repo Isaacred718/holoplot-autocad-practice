@@ -667,13 +667,14 @@ var TUTOR_DICT=[
   {keys:["tilt","elevation"],expl:"Tilt (elevation) aims a beam up or down in side view. Raise tilt to throw energy up to a balcony or raked seating; lower it for flat stalls. Too much tilt spills onto the ceiling, too little leaves the back rows quiet."},
   {keys:["height","flown","speaker height"],expl:"Speaker height is how high the array sits above the floor, in metres: ground-stacked about 1 m, on a stand about 2 m, flown mains commonly 5 to 8 m. Height changes the true 3D distance to every seat and the angle the beam leaves the box at, so it changes coverage, probe arrival times and reflections. Set it in the Position section (typed field, steppers, or the Ground / Stand / Flown chips), with the Height fader, or by dragging the speaker up or down in the Side view."},
   {keys:["beam width","horizontal beam","vertical beam"],expl:"Beam width is how wide a beam spreads, in degrees. Narrow beams throw farther with less spill but can leave gaps; wide beams fill evenly up close but spill onto walls. Match the width to the zone you are covering."},
-  {keys:["beamforming"],expl:"3D Audio-Beamforming is HOLOPLOT's core idea: hundreds of drivers in one array are driven individually so the array synthesises beams of sound and aims them at chosen zones — and keeps other areas quiet. You design coverage, not just speaker placement."},
+  {keys:["beamforming"],expl:"3D Audio-Beamforming is HOLOPLOT's core idea: the many small drivers in one module (96 in an X1 Modul 96, 80 plus a sub layer in a Modul 80-S, 30 in an X2 Modul 30) are each driven on their own DSP channel, phased so the array synthesises beams of sound and aims them at chosen zones — and keeps other areas quiet. You design coverage, not just speaker placement."},
+  {keys:["wavefront","wave front","emanation","beam front","point source"],expl:"Press Play on Waves and watch the shape of the sound. A HOLOPLOT beam does NOT spread as a sphere from a point: the module's many small drivers fire together so the front leaves the array face as a shaped segment and travels down the beam's corridor, widening only by its beam width — in Plan the segment spans the horizontal width, in Side the vertical width, and in the 3D views it rides at the beam's true height and tilt, with a bounded footprint patch where a descending beam meets the floor. A Generic point source is the contrast case: it radiates expanding spherical rings in every view. Either way the levels are the simplified practice model — the shapes teach the geometry, not hardware-accurate SPL."},
   {keys:["spl","sound pressure"],expl:"SPL (Sound Pressure Level) is loudness in decibels (dB) at a point in the room. On the coverage map each colour is an SPL band. Your goal is usually one even colour across the audience — not the loudest possible number."},
   {keys:["uniformity"],expl:"Uniformity is how even the level is across the audience, shown as a ±dB spread. A small spread means most seats hear a similar level; a large spread means hot spots and quiet spots."},
   {keys:["spill"],expl:"Spill is level landing outside the audience zones — on the stage, walls, or neighbouring areas. Lower spill means more of the sound goes only where the audience sits; narrower beams and careful steering reduce it."},
   {keys:["coverage"],expl:"Coverage is the share of the audience area inside the target band. Higher coverage means more seats are within the intended level range."},
   {keys:["gain"],expl:"Gain is the level trim for an array or beam, in dB. Use it to balance zones against each other — for example pulling a near stalls beam down so a far balcony beam can match it — rather than turning everything up."},
-  {keys:["x1","x2","array"],expl:"X1 and X2 are HOLOPLOT array modules. One array can emit several independent beams at different zones, levels and EQ. In this practice app each box is one array you can steer with azimuth, tilt, beam width and gain."},
+  {keys:["x1","x2","array","modul","md96","md30"],expl:"The speaker models are the real HOLOPLOT modules. X1 Modul 96 (MD96): 96 drivers in a two-layered matrix, two-way, the performance module. X1 Modul 80-S (MD80-S): 80 drivers across two matrix layers plus a sensor-controlled subwoofer driver in a third layer, three-way. X2 Modul 30 (MD30): 30 drivers in one compact install module, speech-first at 140 Hz to 18 kHz, or extended LF down to 80 Hz. Every HOLOPLOT module makes up to 12 beams per array here; the Generic point source keeps 3 and radiates spherical rings. Pick the model per speaker in the Speaker popup — the MD30 draws visibly smaller than the X1 modules."},
   {keys:["dimension","dim"],expl:"A dimension measures the real distance between two points so a crew can build from the drawing. In AutoCAD, use DIM, click the two points, and the measured length (in feet here) is written on the drawing. Always dimension the things that get built: stage width, hang points, clearances."},
   {keys:["layer"],expl:"Layers organise a drawing like transparent sheets: Walls, Speakers, Seating, Stage, Dimensions and Notes each get their own layer, colour and visibility switch. Draw each kind of object on its own layer so views can be turned on and off for different readers."},
   {keys:["snap"],expl:"SNAP forces points onto a regular grid (2 ft here) so geometry lines up cleanly instead of landing at ragged fractions. ORTHO is different: it locks lines to horizontal or vertical only."},
@@ -905,9 +906,9 @@ var hs={
   selBeam:0, layerOn:{Main:true,Balcony:true,Fill:true}, zoneTargets:{}, linked:[], _arrCache:{}, invertPan:false, invertTilt:false, fanAmt:24, fanMsg:"", groupName:"",
   probe:null, probeTarget:80, _snapProbe:null, _probeLimited:false, posMsg:"", _suppressArrClickUntil:0,
   arrays:[
-    {id:1,name:"Array L",model:"X2",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-    {id:2,name:"Array R",model:"X2",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
+    {id:1,name:"Array L",model:"MD96",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:2,name:"Array R",model:"MD96",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:3,name:"Centre / Balcony",model:"MD96",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
   ]
 };
 var hLP=makeLongPress();
@@ -916,6 +917,29 @@ function hCur(){ return hs.arrays.find(function(a){return a.id===hs.sel;})||hs.a
 var H_LAYERS=["Main","Balcony","Fill"];
 function hBeams(a){ if(!a.beams||!a.beams.length){ a.beams=[{az:a.az||0,tilt:a.tilt||0,hBeam:a.hBeam||28,vBeam:a.vBeam||18,gain:a.gain||0,zone:(hVenue().zones[0]||{}).name||"",layer:"Main"}]; } return a.beams; }
 function hCurBeam(){ var bs=hBeams(hCur()); if(hs.selBeam>=bs.length) hs.selBeam=0; return bs[hs.selBeam]; }
+/* ================= SPEAKER MODELS (official HOLOPLOT modules) =================
+   Facts from the HOLOPLOT product pages: X1 Modul 96 (MD96) is a two-way
+   module with 96 drivers in a two-layered matrix; X1 Modul 80-S (MD80-S) is
+   three-way with 80 drivers across the first two matrix layers plus a
+   sensor-controlled subwoofer driver in a third layer; X2 Modul 30 (MD30)
+   is the compact install module with 30 individually driven drivers
+   (speech mode 140 Hz-18 kHz, extended-LF mode down to 80 Hz, depth
+   <140 mm, PoE++). Every HOLOPLOT module synthesises up to 12 beams;
+   the Generic model is a plain point source and keeps the old 3-beam cap.
+   faceW / faceH are the module face size in metres — the width a beam
+   front starts from at the array face (MD30 visibly smaller than X1).
+   These are identity / visualisation facts only: the SPL maths stays the
+   stated simplified practice model for every model. */
+var H_MODELS={
+  MD96:{name:"X1 Modul 96", short:"MD96", drivers:"96 drivers", note:"performance, two-way matrix", cap:12, faceW:1.1, faceH:1.1},
+  MD80S:{name:"X1 Modul 80-S", short:"MD80-S", drivers:"80 drivers + sub", note:"three-way matrix + sub layer", cap:12, faceW:1.1, faceH:1.1},
+  MD30:{name:"X2 Modul 30", short:"MD30", drivers:"30 drivers", note:"compact install matrix, speech-first (140 Hz\u201318 kHz) or extended LF (80 Hz)", cap:12, faceW:0.55, faceH:0.85},
+  GEN:{name:"Generic point source", short:"Generic", drivers:"\u2014", note:"single point source \u2014 expanding spherical wavefronts", cap:3, faceW:0.3, faceH:0.3}
+};
+function hModelKey(a){ var m=a&&a.model; if(m&&H_MODELS[m]) return m; if(m==="X1 + Sub") return "MD80S"; if(m==="X2") return "MD30"; if(m==="X1") return "MD96"; return "MD96"; } /* legacy labels map to their modules; a design with no model loads as X1 Modul 96 */
+function hModel(a){ return H_MODELS[hModelKey(a)]; }
+function hBeamCap(a){ return hModel(a).cap; }
+function hIsMatrix(a){ return hModelKey(a)!=="GEN"; }
 function hBeamHome(arrId,idx,key){ if(idx===0){ var h=H_FADER_HOME[arrId]||{}; if(h[key]!==undefined) return h[key]; } var d={az:0,tilt:0,hBeam:28,vBeam:18,gain:0}; return d[key]; }
 var H_PARAM_RANGE={az:[-40,40],tilt:[-15,25],hBeam:[10,60],vBeam:[8,40],gain:[-12,12]};
 function hClampParam(key,v){ var r=H_PARAM_RANGE[key]; return r?Math.min(r[1],Math.max(r[0],v)):v; }
@@ -947,11 +971,11 @@ function hNum(v,fb){ if(typeof v==="number") return isFinite(v)?v:fb; if(typeof 
 function hMigrateArrays(list){ if(!Array.isArray(list)) return hs.arrays; var usedIds={}, nextFree=1;
   return list.slice(0,8).map(function(a,i){ if(!a||typeof a!=="object") a={};
   var id=hNum(a.id,0); if(!(id>0)||usedIds[id]){ while(usedIds[nextFree]) nextFree++; id=nextFree; } usedIds[id]=1; if(id>=nextFree) nextFree=id+1;
-  var na={id:id, name:(typeof a.name==="string"&&a.name.trim())?a.name.slice(0,60):("Speaker "+(i+1)), model:(a.model==="X1"||a.model==="X2")?a.model:"X2",
+  var na={id:id, name:(typeof a.name==="string"&&a.name.trim())?a.name.slice(0,60):("Speaker "+(i+1)), model:hModelKey(a),
     x:hNum(a.x,0), y:hNum(a.y,4), height:(a.height===undefined||a.height===null)?H_DEF_HEIGHT:hClampHeight(hNum(a.height,H_DEF_HEIGHT)), on:a.on!==false};
   na.home=(a.home&&isFinite(Number(a.home.x))&&isFinite(Number(a.home.y)))?{x:Number(a.home.x),y:Number(a.home.y)}:{x:na.x,y:na.y};
   function beam(b){ if(!b||typeof b!=="object") b={}; return {az:hClampParam("az",hNum(b.az,0)), tilt:hClampParam("tilt",hNum(b.tilt,0)), hBeam:hClampParam("hBeam",hNum(b.hBeam,28)), vBeam:hClampParam("vBeam",hNum(b.vBeam,18)), gain:hClampParam("gain",hNum(b.gain,0)), zone:typeof b.zone==="string"?b.zone:"", layer:H_LAYERS.indexOf(b.layer)>=0?b.layer:"Main", probe:!!b.probe}; }
-  if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.slice(0,3).map(beam); }
+  if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.slice(0,12).map(beam); } /* sanitisation bound is the GLOBAL maximum (12), never the model's add cap: the cap governs ADDING, not loading — a design the app itself produced (beams kept when a model switch dropped the cap, e.g. 12 beams on a Generic) must round-trip through saves and share links intact */
   else { na.beams=[beam(a)]; } return na; }); }
 function hLoadDesignData(d){ if(!d) return; if(d.venueId) hs.venueId=d.venueId; if(d.arrays) hs.arrays=hMigrateArrays(d.arrays);
   if(d.zoneTargets&&typeof d.zoneTargets==="object"){ var ztClean={}; Object.keys(d.zoneTargets).forEach(function(vk){ var zv=d.zoneTargets[vk]; if(!zv||typeof zv!=="object") return; var zo={}; Object.keys(zv).forEach(function(zn){ var z=zv[zn]; if(!z||typeof z!=="object") return; zo[zn]={target:Math.min(120,Math.max(30,hNum(z.target,80))), tol:Math.min(20,Math.max(0.5,hNum(z.tol,3)))}; }); ztClean[vk]=zo; }); hs.zoneTargets=ztClean; } if(d.layerOn) hs.layerOn={Main:d.layerOn.Main!==false,Balcony:d.layerOn.Balcony!==false,Fill:d.layerOn.Fill!==false};
@@ -1053,7 +1077,7 @@ function hAddSpeaker(){ if(hs.arrays.length>=8) return null;
       for(var ai=0; ai<hs.arrays.length; ai++){ if(Math.hypot(hs.arrays[ai].x-xs[xi], hs.arrays[ai].y-ys[yi])<4.5){ ok=false; break; } }
       if(ok){ spot={x:xs[xi], y:ys[yi]}; found=true; break; } } }
   if(!spot) spot={x:0, y:Math.min(10, v.d-3)};
-  var na={id:id, name:"Speaker "+n, model:"X2", x:spot.x, y:spot.y, height:H_DEF_HEIGHT, on:true, home:{x:spot.x, y:spot.y},
+  var na={id:id, name:"Speaker "+n, model:"MD96", x:spot.x, y:spot.y, height:H_DEF_HEIGHT, on:true, home:{x:spot.x, y:spot.y},
     beams:[{az:0, tilt:0, hBeam:28, vBeam:18, gain:0, zone:(v.zones[0]||{}).name||"", layer:"Main"}]};
   hs.arrays.push(na); hs.sel=id; hs.selBeam=0; hs.editing=null; return na; }
 function hDeleteSpeaker(id){ if(hs.arrays.length<=1) return false;
@@ -1920,14 +1944,23 @@ function hPlanSVG(cells, step){
   hDisplayArrays().forEach(function(a){
     s+='<g data-arr="'+a.id+'" style="cursor:pointer;opacity:'+(a.on?1:0.35)+'">';
     s+='<rect x="'+(SX(a.x)-44)+'" y="'+(SY(a.y)-26)+'" width="88" height="52" rx="8" fill="transparent"/>';
-    s+='<rect x="'+(SX(a.x)-22)+'" y="'+(SY(a.y)-12)+'" width="44" height="24" rx="5" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
-    if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+4)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(a.model)+'</text>';
+    /* the speaker glyph is the MODULE FACE: a rectangle sized by model
+       (MD30 visibly smaller than the X1 modules), rotated to the facing of
+       its first beam, with a row of driver dots — the emitter is the face,
+       never a point. A Generic point source keeps a plain dot glyph. */
+    var _mkP=hModelKey(a), _cxP=SX(a.x), _cyP=SY(a.y), _fillP=(a.id===hs.sel?"#F59E0B":"#0E7490"), _swP=(a.id===hs.sel?2:1);
+    if(_mkP==="GEN"){ s+='<circle cx="'+_cxP+'" cy="'+_cyP+'" r="8" fill="'+_fillP+'" stroke="#fff" stroke-width="'+_swP+'"/><circle cx="'+_cxP+'" cy="'+_cyP+'" r="2.4" fill="#fff"/>'; }
+    else { var _gwP=_mkP==="MD30"?30:48, _ghP=_mkP==="MD30"?11:15, _b0P=hBeams(a)[0], _rotP=_b0P?(-_b0P.az):0;
+      s+='<g transform="rotate('+_rotP+' '+_cxP+' '+_cyP+')"><rect x="'+(_cxP-_gwP/2)+'" y="'+(_cyP-_ghP/2)+'" width="'+_gwP+'" height="'+_ghP+'" rx="3" fill="'+_fillP+'" stroke="#fff" stroke-width="'+_swP+'"/>';
+      var _ndP=_mkP==="MD30"?4:6; for(var _diP=0; _diP<_ndP; _diP++){ s+='<circle cx="'+(_cxP-_gwP/2+(_diP+0.5)*(_gwP/_ndP))+'" cy="'+_cyP+'" r="1.7" fill="#E0F2FE" opacity="0.9"/>'; }
+      s+='</g>'; }
+    if(hs.showKeys) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+22)+'" fill="#fff" font-size="10" text-anchor="middle" font-weight="800">'+esc(hModel(a).short)+'</text>';
     if(hIsLinked(a.id)) s+='<text x="'+SX(a.x)+'" y="'+(SY(a.y)+28)+'" fill="#FCD34D" font-size="10" text-anchor="middle" font-weight="800">LINK</text>';
     if(hArrVisible(a.id)){
       var zk=hs.zoomPlan.k, vx=hs.zoomPlan.x, vy=hs.zoomPlan.y, _f=hFitSize(), vw=_f.W/zk, vh=_f.H/zk, tw=196/zk, th=62/zk;
       var tx=Math.max(vx+4/zk, Math.min(vx+vw-tw-4/zk, SX(a.x)+16/zk)), ty=Math.max(vy+4/zk, Math.min(vy+vh-th-4/zk, SY(a.y)-th-6/zk));
       s+='<g pointer-events="none"><rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+th+'" rx="'+(6/zk)+'" fill="#0F172A" stroke="#22D3EE" stroke-width="'+(1/zk)+'"/>'+
-        '<text x="'+(tx+8/zk)+'" y="'+(ty+16/zk)+'" fill="#A5F3FC" font-size="'+(10/zk)+'" font-weight="700">'+esc(a.name)+' · '+esc(a.model)+' · '+(a.on?"ON":"OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" · LINKED":"")+'</text>'+
+        '<text x="'+(tx+8/zk)+'" y="'+(ty+16/zk)+'" fill="#A5F3FC" font-size="'+(10/zk)+'" font-weight="700">'+esc(a.name)+' · '+esc(hModel(a).name)+' · '+(a.on?"ON":"OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" · LINKED":"")+'</text>'+
         '<text x="'+(tx+8/zk)+'" y="'+(ty+30/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">B1 Az '+hBeams(a)[0].az+'° · Tilt '+hBeams(a)[0].tilt+'° · Gain '+hBeams(a)[0].gain+' dB</text>'+
         '<text x="'+(tx+8/zk)+'" y="'+(ty+44/zk)+'" fill="#E6E8EB" font-size="'+(10/zk)+'">Beam '+hBeams(a)[0].hBeam+'° × '+hBeams(a)[0].vBeam+'° · Pos '+hFmtLen(a.x)+', '+hFmtLen(a.y)+' · H '+hFmtLen(hSpkH(a))+'</text>'+
         '<text x="'+(tx+8/zk)+'" y="'+(ty+57/zk)+'" fill="#8A919E" font-size="'+(9/zk)+'">'+(hs.hoverMode==="latch"?"Latched — tap array again to unpin":"Momentary — shows while hovering")+'</text></g>';
@@ -2012,9 +2045,10 @@ function hSideSVG(){
   /* speaker markers at their TRUE depth (a.y) and model height */
   arrs.forEach(function(a,ai){ var P=posById[a.id]; var stag=ai%3; /* speakers sharing a depth get staggered labels so names never stack */
     s+='<line x1="'+P.trueX+'" y1="'+P.y+'" x2="'+P.trueX+'" y2="'+G.yG+'" stroke="#64748B" stroke-width="1" stroke-dasharray="3 4"/>';
-    s+='<g data-side-arr="'+a.id+'" style="cursor:grab"><rect x="'+(P.x-15)+'" y="'+(P.y-19)+'" width="30" height="38" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'" opacity="'+(a.on?1:0.4)+'"/>';
+    var _mkS=hModelKey(a), _gwS=_mkS==="MD30"?20:30, _ghS=_mkS==="MD30"?26:38;
+    s+='<g data-side-arr="'+a.id+'" style="cursor:grab">'+(_mkS==="GEN"?('<circle cx="'+P.x+'" cy="'+P.y+'" r="10" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'" opacity="'+(a.on?1:0.4)+'"/>'):('<rect x="'+(P.x-_gwS/2)+'" y="'+(P.y-_ghS/2)+'" width="'+_gwS+'" height="'+_ghS+'" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'" opacity="'+(a.on?1:0.4)+'"/>')); 
     s+='<text x="'+P.x+'" y="'+(P.y-28-stag*15)+'" fill="#E6E8EB" font-size="11" text-anchor="middle" font-weight="800">'+esc(a.name)+'</text>';
-    s+='<text x="'+P.x+'" y="'+(P.y+36+stag*14)+'" fill="#A5F3FC" font-size="10.5" text-anchor="middle" font-weight="700" data-depth-for="'+a.id+'">Out '+hFmtLen(a.y)+' · H '+hFmtLen(hSpkH(a))+' · '+esc(a.model)+'</text></g>'; });
+    s+='<text x="'+P.x+'" y="'+(P.y+36+stag*14)+'" fill="#A5F3FC" font-size="10.5" text-anchor="middle" font-weight="700" data-depth-for="'+a.id+'">Out '+hFmtLen(a.y)+' · H '+hFmtLen(hSpkH(a))+' · '+esc(hModel(a).short)+'</text></g>'; });
   /* probe in profile */
   if(hs.probe){ var px=G.SX(hs.probe.y);
     s+='<g data-side-probe="1"><circle cx="'+px+'" cy="'+G.SY(1.62)+'" r="5.5" fill="#F59E0B" stroke="#fff" stroke-width="1.6"/><line x1="'+px+'" y1="'+G.SY(1.5)+'" x2="'+px+'" y2="'+G.yG+'" stroke="#F59E0B" stroke-width="2.4"/><text x="'+px+'" y="'+(G.yG+18)+'" fill="#FCD34D" font-size="11" text-anchor="middle" font-weight="800">Probe · '+hFmtLen(hs.probe.y)+' out</text></g>'; }
@@ -2133,7 +2167,8 @@ function h3DSVG(kind, cells, step){
       if(b.probe&&hs.probe) { var PB=PP(hs.probe.x,hs.probe.y,H_EAR_Z); s+='<line x1="'+A.x+'" y1="'+A.y+'" x2="'+PB.x+'" y2="'+PB.y+'" stroke="#F59E0B" stroke-width="2" stroke-dasharray="7 4" opacity="0.9"/>'; } }); }
     var F=PP(a.x,a.y,0), M=PP(a.x,a.y,hSpkH(a));
     s+='<line x1="'+F.x+'" y1="'+F.y+'" x2="'+M.x+'" y2="'+M.y+'" stroke="#64748B" stroke-width="1" stroke-dasharray="3 4"/><circle cx="'+F.x+'" cy="'+F.y+'" r="3" fill="#94A3B8"/>';
-    s+='<g data-3d-arr="'+a.id+'" opacity="'+(a.on?1:0.4)+'"><rect x="'+(M.x-17)+'" y="'+(M.y-11)+'" width="34" height="22" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>';
+    var _mk3=hModelKey(a), _gw3=_mk3==="MD30"?22:34, _gh3=_mk3==="MD30"?15:22;
+    s+='<g data-3d-arr="'+a.id+'" opacity="'+(a.on?1:0.4)+'">'+(_mk3==="GEN"?('<circle cx="'+M.x+'" cy="'+M.y+'" r="9" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>'):('<rect x="'+(M.x-_gw3/2)+'" y="'+(M.y-_gh3/2)+'" width="'+_gw3+'" height="'+_gh3+'" rx="4" fill="'+(a.id===hs.sel?"#F59E0B":"#0E7490")+'" stroke="#fff" stroke-width="'+(a.id===hs.sel?2:1)+'"/>'));
     s+='<text x="'+M.x+'" y="'+(M.y-18)+'" fill="#E6E8EB" font-size="11" text-anchor="middle" font-weight="800">'+esc(a.name)+'</text>';
     s+='<text x="'+M.x+'" y="'+(M.y+26)+'" fill="#A5F3FC" font-size="10" text-anchor="middle" font-weight="700" data-depth-for="'+a.id+'">Out '+hFmtLen(a.y)+' · '+(a.x===0?"centre":(hFmtLen(Math.abs(a.x))+" "+(a.x<0?"L":"R")))+' · H '+hFmtLen(hSpkH(a))+'</text></g>'; });
   if(hs.probe){ var PF=PP(hs.probe.x,hs.probe.y,0), PH=PP(hs.probe.x,hs.probe.y,1.62);
@@ -2254,59 +2289,106 @@ function hEnvPanelHTML(cur){
 }
 function hViewSVG(comp){ var v=hView(); if(v==="plan") return hPlanSVG(comp.cells, comp.step); if(v==="side") return hSideSVG(); return h3DSVG(v, comp.cells, comp.step); }
 /* ================= WAVE ANIMATION =================
-   Expanding wavefronts at the CURRENT speed of sound, in slowed time:
-   1x here = 1/10 real time (sound crosses the room in ~110 ms for real —
-   far too fast to watch). Rings are emitted every 14 ms of sim time per
-   beam, expand at c, and fade ~1/r. The layer animates hDisplayArrays() —
-   the currently RENDERED design — so in On Demand stale state it animates
-   the last rendered design while the stale badge stays up. rAF-driven;
-   auto-pauses when the tab is hidden. View preference only: never saved. */
+   Wavefronts at the CURRENT speed of sound, in slowed time: 1x here =
+   1/10 real time (sound crosses the room in ~110 ms for real — far too
+   fast to watch). Fronts are emitted every 14 ms of sim time per beam,
+   travel at c, and fade ~1/r. A HOLOPLOT module is a Matrix Array of
+   many small individually driven drivers (96 / 80+sub / 30), so each
+   BEAM emits its own train of fronts from the array face: bounded
+   segments across the beam corridor, travelling along the beam's own
+   azimuth + tilt — NOT a point-source sphere. Only the Generic point
+   source model radiates expanding rings. The layer animates
+   hDisplayArrays() — the currently RENDERED design — so in On Demand
+   stale state it animates the last rendered design while the stale
+   badge stays up. rAF-driven; auto-pauses when the tab is hidden.
+   View preference only: never saved. */
 var H_WAVE_PERIOD=14, H_WAVE_MAXR=52;
 function hWaveRingsHTML(){
   var c=hRenderC(), t=hs.anim.t, v=hView(), venue=hVenue(), out="";
   var arrs=hDisplayArrays();
   function ringOp(r){ return Math.max(0, Math.min(0.85, 6.5/Math.max(2,r))) * (r>H_WAVE_MAXR*0.8 ? Math.max(0,(H_WAVE_MAXR-r)/(H_WAVE_MAXR*0.2)) : 1); }
+  function beamCol(b){ return b.probe?"#F59E0B":"#7DD3FC"; }
   if(v==="plan"){ var pd=hPlanDims(); var SX=function(mx){return pd.CX+mx*9;}, SY=function(my){return 30+my*11;};
-    arrs.forEach(function(a){ if(!a.on) return; hBeams(a).forEach(function(b,bi){ if(hs.layerOn[b.layer]===false) return;
+    arrs.forEach(function(a){ if(!a.on) return; var mk=hModelKey(a), mm=hModel(a); hBeams(a).forEach(function(b,bi){ if(hs.layerOn[b.layer]===false) return;
       var rad=b.az*Math.PI/180, len=460;
       var bx=SX(a.x)+Math.sin(rad)*len, by=SY(a.y)+Math.cos(rad)*len, spread=b.hBeam*Math.PI/180*len;
       var cid="wclip"+a.id+"_"+bi;
       out+='<clipPath id="'+cid+'"><polygon points="'+SX(a.x)+','+SY(a.y)+' '+(bx-spread)+','+by+' '+(bx+spread)+','+by+'"/></clipPath>';
       out+='<g clip-path="url(#'+cid+')">';
-      for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
-        out+='<ellipse cx="'+SX(a.x)+'" cy="'+SY(a.y)+'" rx="'+(r*9)+'" ry="'+(r*11)+'" fill="none" stroke="'+(b.probe?"#F59E0B":"#7DD3FC")+'" stroke-width="2.2" opacity="'+op.toFixed(2)+'"/>'; }
+      if(mk==="GEN"){ /* a point source radiates expanding rings */
+        for(var ageG=(t%H_WAVE_PERIOD); ageG<1400; ageG+=H_WAVE_PERIOD){ var rG=c*ageG/1000; if(rG>H_WAVE_MAXR) break; var opG=ringOp(rG); if(opG<=0.02) continue;
+          out+='<ellipse cx="'+SX(a.x)+'" cy="'+SY(a.y)+'" rx="'+(rG*9)+'" ry="'+(rG*11)+'" fill="none" stroke="'+beamCol(b)+'" stroke-width="2.2" opacity="'+opG.toFixed(2)+'"/>'; }
+      } else { /* MATRIX BEAM: fronts are segments across the beam corridor,
+         centred on the beam axis at r = c*t, spanning the corridor width
+         there: face width + 2*r*tan(hBeam/2), bowed very slightly forward */
+        var dx=Math.sin(rad), dy=Math.cos(rad), px=Math.cos(rad), py=-Math.sin(rad);
+        var tanH=Math.tan(Math.max(4,b.hBeam)*Math.PI/360);
+        for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
+          var hw=mm.faceW/2 + r*tanH, cxm=a.x+dx*r, cym=a.y+dy*r, sag=Math.min(1.0, r*0.05);
+          out+='<polyline points="'+SX(cxm-px*hw)+','+SY(cym-py*hw)+' '+SX(cxm+dx*sag)+','+SY(cym+dy*sag)+' '+SX(cxm+px*hw)+','+SY(cym+py*hw)+'" fill="none" stroke="'+beamCol(b)+'" stroke-width="2.2" opacity="'+op.toFixed(2)+'"/>'; }
+      }
       out+='</g>'; }); });
     if(hs.probe){ var arr=hArrivals(); if(arr.list.length){ var ph=((t-arr.list[0].ms)%H_WAVE_PERIOD+H_WAVE_PERIOD)%H_WAVE_PERIOD; var pr=ph/H_WAVE_PERIOD;
       out+='<circle cx="'+SX(hs.probe.x)+'" cy="'+SY(hs.probe.y)+'" r="'+(10+pr*16)+'" fill="none" stroke="#F59E0B" stroke-width="2.6" opacity="'+(0.85*(1-pr)).toFixed(2)+'"/>'; } }
     return '<g clip-path="url(#h-room-clip)">'+out+'</g>'; }
   if(v==="side"){ var G=hSideGeom();
-    arrs.forEach(function(a){ if(!a.on) return; var P={x:G.SX(a.y), y:G.SY(hSpkH(a))}; hBeams(a).forEach(function(b,bi){ if(hs.layerOn[b.layer]===false) return;
+    arrs.forEach(function(a){ if(!a.on) return; var mk=hModelKey(a), mm=hModel(a); var P={x:G.SX(a.y), y:G.SY(hSpkH(a))}; hBeams(a).forEach(function(b,bi){ if(hs.layerOn[b.layer]===false) return;
       var L=Math.max(10,(venue.d+4)-a.y), tr=b.tilt*Math.PI/180;
       var eD=a.y+Math.cos(tr)*L*1.6, eZ=hSpkH(a)+Math.sin(tr)*L*1.6, sp=L*1.6*Math.tan(Math.max(4,b.vBeam)*Math.PI/360);
       var cid="wclipS"+a.id+"_"+bi;
       out+='<clipPath id="'+cid+'"><polygon points="'+P.x+','+P.y+' '+G.SX(eD)+','+G.SY(eZ+sp)+' '+G.SX(eD)+','+G.SY(eZ-sp)+'"/></clipPath>';
       out+='<g clip-path="url(#'+cid+')">';
-      var sxm=(G.x1-G.x0)/(G.dMax+6), szm=(G.yG-G.yT)/10.5;
-      for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
-        out+='<ellipse cx="'+P.x+'" cy="'+P.y+'" rx="'+(r*sxm)+'" ry="'+(r*szm)+'" fill="none" stroke="'+(b.probe?"#F59E0B":"#7DD3FC")+'" stroke-width="2.2" opacity="'+op.toFixed(2)+'"/>'; }
+      if(mk==="GEN"){
+        var sxm=(G.x1-G.x0)/(G.dMax+6), szm=(G.yG-G.yT)/10.5;
+        for(var ageG2=(t%H_WAVE_PERIOD); ageG2<1400; ageG2+=H_WAVE_PERIOD){ var rG2=c*ageG2/1000; if(rG2>H_WAVE_MAXR) break; var opG2=ringOp(rG2); if(opG2<=0.02) continue;
+          out+='<ellipse cx="'+P.x+'" cy="'+P.y+'" rx="'+(rG2*sxm)+'" ry="'+(rG2*szm)+'" fill="none" stroke="'+beamCol(b)+'" stroke-width="2.2" opacity="'+opG2.toFixed(2)+'"/>'; }
+      } else { /* MATRIX BEAM in elevation: segments perpendicular to the beam
+         axis, spanning the beam's vertical extent at r (face height +
+         2*r*tan(vBeam/2)), centred on the axis at the speaker's height */
+        var dD=Math.cos(tr), dZ=Math.sin(tr), pD=-Math.sin(tr), pZ=Math.cos(tr);
+        var tanV=Math.tan(Math.max(4,b.vBeam)*Math.PI/360);
+        for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
+          var hv=mm.faceH/2 + r*tanV, cd=a.y+dD*r, cz=hSpkH(a)+dZ*r, sag=Math.min(1.0, r*0.05);
+          out+='<polyline points="'+G.SX(cd-pD*hv)+','+G.SY(cz-pZ*hv)+' '+G.SX(cd+dD*sag)+','+G.SY(cz+dZ*sag)+' '+G.SX(cd+pD*hv)+','+G.SY(cz+pZ*hv)+'" fill="none" stroke="'+beamCol(b)+'" stroke-width="2.2" opacity="'+op.toFixed(2)+'"/>'; }
+      }
       out+='</g>'; }); });
     if(hs.probe){ var arr2=hArrivals(); if(arr2.list.length){ var ph2=((t-arr2.list[0].ms)%H_WAVE_PERIOD+H_WAVE_PERIOD)%H_WAVE_PERIOD; var pr2=ph2/H_WAVE_PERIOD;
       out+='<circle cx="'+G.SX(hs.probe.y)+'" cy="'+G.SY(1.5)+'" r="'+(7+pr2*11)+'" fill="none" stroke="#F59E0B" stroke-width="2.6" opacity="'+(0.85*(1-pr2)).toFixed(2)+'"/>'; } }
     return out; }
-  /* 3D views: the wavefront is a sphere centred on the speaker's TRUE 3D
-     position (x, y, height) — never on its floor point. Drawn as the
-     horizontal ring through the sphere's centre plane (z = speaker height,
-     radius r, centred on the speaker itself, so the ring passes through
-     the speaker in space) plus, once the front is large enough to reach
-     the floor, the fainter circle where the sphere intersects the floor
-     plane (radius sqrt(r^2 - h^2) around the floor point). */
+  /* 3D views (Stage / Audience / Iso). A HOLOPLOT beam's front is the beam's
+     cross-section at distance r along its own axis: a short segment across
+     the beam at the axis point's true 3D position (azimuth steers it,
+     tilt raises/lowers it, height follows the speaker). Where a descending
+     beam's corridor meets the floor, its footprint is drawn once as a
+     bounded patch — never a full circle. The dashed drop line and dot under
+     each speaker are only a position reference, not the emitter. A Generic
+     point source keeps its sphere: the ring through its centre plane plus
+     the fainter floor-intersection circle. */
   var proj=v==="iso"?hIsoProjector():hPerspProjector(v);
-  arrs.forEach(function(a){ if(!a.on) return; var sh=hSpkH(a);
-    for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
-      var ptsArr=[]; for(var th=0; th<=360; th+=10){ var p=proj({x:a.x+Math.sin(th*Math.PI/180)*r, y:a.y+Math.cos(th*Math.PI/180)*r, z:sh}); ptsArr.push((Math.round(p.x*10)/10)+","+(Math.round(p.y*10)/10)); }
-      out+='<polyline points="'+ptsArr.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.8" opacity="'+op.toFixed(2)+'"/>';
-      if(r>sh){ var fr=Math.sqrt(r*r-sh*sh), fPts=[]; for(var th2=0; th2<=360; th2+=10){ var pf=proj({x:a.x+Math.sin(th2*Math.PI/180)*fr, y:a.y+Math.cos(th2*Math.PI/180)*fr, z:0.06}); fPts.push((Math.round(pf.x*10)/10)+","+(Math.round(pf.y*10)/10)); }
-        out+='<polyline points="'+fPts.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.2" opacity="'+(op*0.45).toFixed(2)+'"/>'; } } });
+  function r3(p){ return (Math.round(p.x*10)/10)+","+(Math.round(p.y*10)/10); }
+  arrs.forEach(function(a){ if(!a.on) return; var sh=hSpkH(a), mk=hModelKey(a), mm=hModel(a);
+    if(mk==="GEN"){
+      for(var ageS=(t%H_WAVE_PERIOD); ageS<1400; ageS+=H_WAVE_PERIOD){ var rS=c*ageS/1000; if(rS>H_WAVE_MAXR) break; var opS=ringOp(rS); if(opS<=0.02) continue;
+        var ptsS=[]; for(var th=0; th<=360; th+=10){ var pS=proj({x:a.x+Math.sin(th*Math.PI/180)*rS, y:a.y+Math.cos(th*Math.PI/180)*rS, z:sh}); ptsS.push(r3(pS)); }
+        out+='<polyline points="'+ptsS.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.8" opacity="'+opS.toFixed(2)+'"/>';
+        if(rS>sh){ var fr=Math.sqrt(rS*rS-sh*sh), fPtsS=[]; for(var th2=0; th2<=360; th2+=10){ var pfS=proj({x:a.x+Math.sin(th2*Math.PI/180)*fr, y:a.y+Math.cos(th2*Math.PI/180)*fr, z:0.06}); fPtsS.push(r3(pfS)); }
+          out+='<polyline points="'+fPtsS.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.2" opacity="'+(opS*0.45).toFixed(2)+'"/>'; } }
+      return; }
+    hBeams(a).forEach(function(b){ if(hs.layerOn[b.layer]===false) return; var col=beamCol(b);
+      var azr=b.az*Math.PI/180, tlr=b.tilt*Math.PI/180;
+      var dir={x:Math.sin(azr)*Math.cos(tlr), y:Math.cos(azr)*Math.cos(tlr), z:Math.sin(tlr)};
+      var perp={x:Math.cos(azr), y:-Math.sin(azr), z:0};
+      var tanH=Math.tan(Math.max(4,b.hBeam)*Math.PI/360);
+      if(dir.z<-0.02){ var r0=sh/(-dir.z); if(r0<H_WAVE_MAXR){ var hw0=mm.faceW/2 + r0*tanH, fcx=a.x+dir.x*r0, fcy=a.y+dir.y*r0;
+        var hd=Math.hypot(dir.x,dir.y)||1, axx=dir.x/hd, axy=dir.y/hd, fPts=[];
+        for(var fe=0; fe<12; fe++){ var fa=fe/12*2*Math.PI, fr1=Math.cos(fa)*hw0, fr2=Math.sin(fa)*hw0*0.55;
+          fPts.push(r3(proj({x:fcx+perp.x*fr1+axx*fr2, y:fcy+perp.y*fr1+axy*fr2, z:0.06}))); }
+        out+='<polygon points="'+fPts.join(" ")+'" fill="'+col+'" opacity="0.13"><title>Beam footprint where the corridor meets the floor</title></polygon>'; } }
+      for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
+        var czp=sh+dir.z*r; if(czp<0.05) continue;
+        var hw=mm.faceW/2 + r*tanH, cxp=a.x+dir.x*r, cyp=a.y+dir.y*r, sag=Math.min(1.0, r*0.05);
+        var p1=proj({x:cxp-perp.x*hw, y:cyp-perp.y*hw, z:czp}), p2=proj({x:cxp+dir.x*sag, y:cyp+dir.y*sag, z:czp+dir.z*sag}), p3=proj({x:cxp+perp.x*hw, y:cyp+perp.y*hw, z:czp});
+        out+='<polyline points="'+r3(p1)+' '+r3(p2)+' '+r3(p3)+'" fill="none" stroke="'+col+'" stroke-width="2" opacity="'+op.toFixed(2)+'"/>'; } }); });
   if(hs.probe){ var arr3=hArrivals(); if(arr3.list.length){ var ph3=((t-arr3.list[0].ms)%H_WAVE_PERIOD+H_WAVE_PERIOD)%H_WAVE_PERIOD; var pr3=ph3/H_WAVE_PERIOD;
     var PP3=proj({x:hs.probe.x, y:hs.probe.y, z:1.6}); out+='<circle cx="'+PP3.x+'" cy="'+PP3.y+'" r="'+(8+pr3*13)+'" fill="none" stroke="#F59E0B" stroke-width="2.6" opacity="'+(0.85*(1-pr3)).toFixed(2)+'"/>'; } }
   return out;
@@ -2428,9 +2510,9 @@ function hRadialLeaf(it){
 }
 function hResetDesignRadial(){
   var snap=hDesignData(); hs._histLabel="Reset beams"; hs.arrays=[
-    {id:1,name:"Array L",model:"X2",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-    {id:2,name:"Array R",model:"X2",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
+    {id:1,name:"Array L",model:"MD96",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:2,name:"Array R",model:"MD96",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:3,name:"Centre / Balcony",model:"MD96",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
   ]; hs.linked=[]; hs.invertPan=false; hs.invertTilt=false; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={};
   hs.radialOpen=false; hs.radialLevel=null; renderHoloplot();
   showUndoToast("Beams reset to the baseline design.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); });
@@ -2544,7 +2626,7 @@ function renderHoloplot(){
   hHistCommit(); /* record any design change the last action made, before the mode bar reads the stacks */
   var venue=hVenue(), comp=hEnsureComp(), stats=comp.stats, cur=hCur(), done=doneSet();
   var _pop=hShownPop();
-  var spkChips=hs.arrays.map(function(a){ return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(a.model)+(a.on?"":" · OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" 🔗 LINKED":"")+'</button>'; }).join("");
+  var spkChips=hs.arrays.map(function(a){ return '<button data-sel-arr="'+a.id+'" aria-pressed="'+(a.id===hs.sel)+'" class="btn" title="'+esc(hModel(a).name+" · "+hModel(a).drivers+" · "+hModel(a).note)+'" style="'+(a.id===hs.sel?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+esc(a.name)+' · '+esc(hModel(a).short)+(a.on?"":" · OFF")+' · '+hBeams(a).length+' beam'+(hBeams(a).length>1?"s":"")+(hIsLinked(a.id)?" 🔗 LINKED":"")+'</button>'; }).join("");
   var staleDiff=hs.renderDirty?hStaleDiff():[]; if(hs.renderDirty&&!staleDiff.length) staleDiff=["Settings changed"];
   var pendingN=staleDiff.length;
   var hdr=document.querySelector("header"); if(hdr) hdr.classList.toggle("edit-tint", hs.viewMode==="edit");
@@ -2660,7 +2742,7 @@ function renderHoloplot(){
     '</div>';
   }
   html+='</div></section>';
-  html+='<section class="pop-group'+(_pop==="waves"?" active":"")+'" data-pop="waves" aria-label="Wave animation and render popup">'+hPopHead("🌊 Animation &amp; Render")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="margin:0;font-weight:700;font-size:15px">Wave animation</p><p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Play / Pause stays on the map cluster — it is transport, not a setting. Speed lives here as well as on the map:</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><button type="button" class="btn btn-sm" data-anim-play-dup aria-pressed="'+hs.anim.playing+'">'+(hs.anim.playing?"⏸ Pause waves":"▶ Play waves")+'</button>'+[0.25,0.5,1].map(function(sp){ return '<button type="button" class="btn btn-sm" data-anim-speed="'+sp+'" aria-pressed="'+(hs.anim.speed===sp)+'" style="'+(hs.anim.speed===sp?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+sp+'×</button>'; }).join("")+'</div></div>'+resBarHTML;
+  html+='<section class="pop-group'+(_pop==="waves"?" active":"")+'" data-pop="waves" aria-label="Wave animation and render popup">'+hPopHead("🌊 Animation &amp; Render")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="margin:0;font-weight:700;font-size:15px">Wave animation</p><p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Play / Pause stays on the map cluster — it is transport, not a setting. Speed lives here as well as on the map:</p><p style="font-size:13px;margin:8px 0 0;color:var(--dim)"><strong style="color:var(--text)">Why the fronts are segments, not circles:</strong> a HOLOPLOT module is a matrix of many small drivers — 96 in an X1 Modul 96, 80 + a sub layer in a Modul 80-S, 30 in an X2 Modul 30 — each on its own DSP channel. 3D Audio-Beamforming phases them so the front leaves the array face already shaped as a beam: each beam’s fronts travel along its own azimuth and tilt as segments across its corridor, widening with its beam width (the horizontal width in Plan, the vertical width in Side). Switch a speaker to Generic point source and it radiates expanding spherical rings instead, so the two behaviours sit side by side. Levels everywhere remain the simplified practice model, not a hardware-accurate prediction.</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><button type="button" class="btn btn-sm" data-anim-play-dup aria-pressed="'+hs.anim.playing+'">'+(hs.anim.playing?"⏸ Pause waves":"▶ Play waves")+'</button>'+[0.25,0.5,1].map(function(sp){ return '<button type="button" class="btn btn-sm" data-anim-speed="'+sp+'" aria-pressed="'+(hs.anim.speed===sp)+'" style="'+(hs.anim.speed===sp?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+sp+'×</button>'; }).join("")+'</div></div>'+resBarHTML;
   html+='</section>';
   html+='<section class="pop-group'+(_pop==="env"?" active":"")+'" data-pop="env" aria-label="Environment, absorption and room modes popup">'+hPopHead("🌡 Environment, Absorption &amp; Modes");
   html+=hEnvPanelHTML(cur);
@@ -2755,7 +2837,8 @@ function renderHoloplot(){
     html+='<div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">'+
       '<label style="display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;min-height:48px"><input type="checkbox" id="h-on" '+(cur.on?"checked":"")+'/> Powered on</label>'+
       '<div style="flex:1;min-width:180px"><label style="font-size:14px;font-weight:600" for="h-model">Module — '+esc(cur.name)+'</label>'+
-      '<select id="h-model" class="field" style="margin-top:6px">'+["X1","X2","X1 + Sub"].map(function(m){return '<option'+(m===cur.model?" selected":"")+'>'+m+'</option>';}).join("")+'</select></div></div>';
+      '<select id="h-model" class="field" style="margin-top:6px">'+Object.keys(H_MODELS).map(function(k){return '<option value="'+k+'"'+(k===hModelKey(cur)?" selected":"")+'>'+H_MODELS[k].name+'</option>';}).join("")+'</select>'+
+      '<p class="mono" id="h-model-facts" style="font-size:12.5px;margin:6px 0 0;color:var(--dim)">'+esc(hModel(cur).name)+' · '+esc(hModel(cur).drivers)+' · '+esc(hModel(cur).note)+' · up to '+hBeamCap(cur)+' beams per array</p></div></div>';
     html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-link"><p style="margin:0;font-weight:700;font-size:15px">🔗 Speaker link — one group'+(hs.linked.length>=2?(' · Linked: '+hGroupOrder().map(function(a){return a.name;}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
       '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.linked.length>=2?("Linked: "+hLinkedArrays().map(function(a){return a.name;}).join(" + ")+" — beam edits apply the SAME change (delta) to the matching beam on every linked speaker, preserving each speaker's own offsets. Gains move by equal dB deltas; the gain fader uses a logarithmic (dB) taper so equal travel gives equal dB steps."):"Link 2 or more speakers and beam edits move together by the same delta — offsets preserved, never snapped to identical values.")+'</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+hs.arrays.map(function(a){ var on=hIsLinked(a.id); return '<button class="btn btn-sm" data-link-tog="'+a.id+'" aria-pressed="'+on+'" style="'+(on?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(on?"🔗 Linked: ":"Link: ")+esc(a.name)+'</button>'; }).join("")+'</div></div>';
@@ -2782,15 +2865,16 @@ function renderHoloplot(){
       ((store.speakerGroups||[]).length?(store.speakerGroups.map(function(g){ return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:150px;font-weight:600">'+esc(g.name)+' <span style="color:var(--dim);font-weight:400">('+(g.linked||[]).map(function(id){ var ar=hs.arrays.find(function(x){return x.id===id;}); return ar?ar.name:String(id); }).join(" + ")+((g.invertPan||g.invertTilt)?(" · "+(g.invertPan?"Invert Pan ":"")+(g.invertTilt?"Invert Tilt":"")):"")+')</span></span><button class="btn btn-sm" data-group-apply="'+g.id+'">Apply</button><button class="btn btn-sm" data-group-del="'+g.id+'" aria-label="Delete speaker group '+esc(g.name)+'">✕ Delete</button></div>'; }).join("")):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">No saved groups yet.</p>')+'</div>';
     var cbs=hBeams(cur), cbm=hCurBeam();
     var taggedTotal=hProbeTaggedList().length;
-    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-beams"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of 3)'+(taggedTotal?' · 🎯 '+taggedTotal+' beam'+(taggedTotal===1?"":"s")+' locked to probe':"")+'</p>'+
+    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-beams"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of '+hBeamCap(cur)+')'+(taggedTotal?' · 🎯 '+taggedTotal+' beam'+(taggedTotal===1?"":"s")+' locked to probe':"")+'</p>'+
+      (cbs.length>hBeamCap(cur)?'<p style="font-size:13px;margin:8px 0 0;font-weight:700;color:#FCD34D" role="status">This speaker holds '+cbs.length+' beams — over the '+hBeamCap(cur)+'-beam limit of the '+esc(hModel(cur).name)+'. Existing beams are kept; adding is blocked until beams are removed.</p>':"")+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+cbs.map(function(b,bi){ return '<button class="btn btn-sm" data-beam-sel="'+bi+'" aria-pressed="'+(bi===hs.selBeam)+'" style="'+(bi===hs.selBeam?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Beam '+(bi+1)+' → '+esc(b.zone||"—")+' · '+esc(b.layer)+(b.probe?" · 🎯 →Probe":"")+'</button>'; }).join("")+
-      '<button class="btn btn-sm" id="h-add-beam" '+(cbs.length>=3?"disabled":"")+'>+ Add beam</button>'+
+      '<button class="btn btn-sm" id="h-add-beam" '+(cbs.length>=hBeamCap(cur)?"disabled":"")+'>+ Add beam</button>'+
       '<button class="btn btn-sm" id="h-del-beam" '+(cbs.length<=1?"disabled":"")+'>✕ Delete Beam '+(hs.selBeam+1)+'</button>'+
       '<button class="btn btn-sm" id="h-tag-probe" '+(hs.probe?"":"disabled")+' aria-pressed="'+!!cbm.probe+'" style="'+(cbm.probe?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(cbm.probe?("🎯 Beam "+(hs.selBeam+1)+" tagged to Probe ✓ — tap to untag"):("🎯 Tag Beam "+(hs.selBeam+1)+" to Probe"))+'</button></div>'+
       (hs.probe?(cbm.probe?'<p style="font-size:13px;margin:8px 0 0;color:#FCD34D">Beam '+(hs.selBeam+1)+' is locked to the probe: its azimuth &amp; tilt faders are disabled and it re-aims itself as the probe moves. Gain stays live — auto-balance re-runs when the probe moves or tags change.</p>':'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Tag this beam and it will aim itself at the probe and join the auto-balance at the probe.</p>'):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">Add a probe (Probe panel above) before tagging beams to it.</p>')+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><label style="font-size:14px;font-weight:600;flex:1;min-width:150px">Beam '+(hs.selBeam+1)+' target zone<select id="h-beam-zone" class="field" style="margin-top:6px">'+(function(){ var opts=[]; hVenue().zones.forEach(function(z){ opts.push(z.name); }); if(cbm.zone&&opts.indexOf(cbm.zone)<0) opts.push(cbm.zone); return opts.map(function(z){ return '<option'+(z===cbm.zone?" selected":"")+'>'+esc(z)+'</option>'; }).join(""); })()+'</select></label>'+
       '<label style="font-size:14px;font-weight:600;flex:1;min-width:150px">Beam '+(hs.selBeam+1)+' layer<select id="h-beam-layer" class="field" style="margin-top:6px">'+H_LAYERS.map(function(L){ return '<option'+(L===cbm.layer?" selected":"")+'>'+L+'</option>'; }).join("")+'</select></label></div>'+
-      '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">The fader bank below edits Beam '+(hs.selBeam+1)+' of '+esc(cur.name)+'. Up to 3 beams per array; each beam aims at its own zone on its own layer.</p></div>';
+      '<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">The fader bank below edits Beam '+(hs.selBeam+1)+' of '+esc(cur.name)+'. Up to '+hBeamCap(cur)+' beams per array on the '+esc(hModel(cur).name)+'; each beam aims at its own zone on its own layer.</p></div>';
     var sliders=[["Azimuth (steer L/R)","az",-40,40,"°",1],["Tilt (steer up/down)","tilt",-15,25,"°",1],["Horizontal beam width","hBeam",10,60,"°",1],["Vertical beam width","vBeam",8,40,"°",1],["Gain","gain",-12,12," dB",0.5],["Position left/right","x",-Math.floor(venue.w/2)+3,Math.floor(venue.w/2)-3," m",1],["Position depth (from stage)","y",1,Math.max(2,venue.d-2)," m",1],["Height (above floor)","height",0.5,12," m",0.1]];
     html+='<div class="grid2">';
     sliders.forEach(function(s){
@@ -3043,12 +3127,12 @@ function renderHoloplot(){
     root.querySelectorAll("[data-group-del]").forEach(function(b){ b.addEventListener("click",function(){ var snap=snapshotStore(); store.speakerGroups=(store.speakerGroups||[]).filter(function(x){return x.id!==Number(b.getAttribute("data-group-del"));}); persist(); renderHoloplot(); showUndoToast("Speaker group deleted.", function(){ restoreStoreSnapshot(snap); renderHoloplot(); }); }); });
     root.querySelectorAll("[data-beam-sel]").forEach(function(b){ b.addEventListener("click",function(){ hs.selBeam=Number(b.getAttribute("data-beam-sel")); hs.editing=null; renderHoloplot(); }); });
     var tg=document.getElementById("h-tag-probe"); if(tg) tg.addEventListener("click",function(){ var b=hCurBeam(); if(!hs.probe) return; b.probe=!b.probe; hs._histLabel=(b.probe?"Tag ":"Untag ")+hCur().name+" Beam "+(hs.selBeam+1)+(b.probe?" to Probe":" from Probe"); hProbeSync(); renderHoloplot(); });
-    var ab=document.getElementById("h-add-beam"); if(ab) ab.addEventListener("click",function(){ var a=hCur(), bs=hBeams(a); if(bs.length>=3) return; var zn=hVenue().zones[Math.min(bs.length,hVenue().zones.length-1)]; bs.push({az:0,tilt:bs.length===1?10:0,hBeam:28,vBeam:18,gain:0,zone:zn?zn.name:"",layer:bs.length===1?"Fill":"Main"}); hs.selBeam=bs.length-1; hs._histLabel="Add Beam "+bs.length+" to "+a.name; renderHoloplot(); });
+    var ab=document.getElementById("h-add-beam"); if(ab) ab.addEventListener("click",function(){ var a=hCur(), bs=hBeams(a); if(bs.length>=hBeamCap(a)) return; var zn=hVenue().zones[Math.min(bs.length,hVenue().zones.length-1)]; bs.push({az:0,tilt:bs.length===1?10:0,hBeam:28,vBeam:18,gain:0,zone:zn?zn.name:"",layer:bs.length===1?"Fill":"Main"}); hs.selBeam=bs.length-1; hs._histLabel="Add Beam "+bs.length+" to "+a.name; renderHoloplot(); });
     var db=document.getElementById("h-del-beam"); if(db) db.addEventListener("click",function(){ var bs=hBeams(hCur()); if(bs.length<=1) return; var _dbn=hs.selBeam+1; bs.splice(hs.selBeam,1); if(hs.selBeam>=bs.length) hs.selBeam=bs.length-1; hs._histLabel="Delete "+hCur().name+" Beam "+_dbn; hProbeSync(); renderHoloplot(); });
     var bz=document.getElementById("h-beam-zone"); if(bz) bz.addEventListener("change",function(){ hCurBeam().zone=bz.value; hs._histLabel=hCur().name+" Beam "+(hs.selBeam+1)+" zone \u2192 "+bz.value; renderHoloplot(); });
     var bl=document.getElementById("h-beam-layer"); if(bl) bl.addEventListener("change",function(){ hCurBeam().layer=bl.value; hs._histLabel=hCur().name+" Beam "+(hs.selBeam+1)+" layer \u2192 "+bl.value; hProbeSync(); renderHoloplot(); });
     document.getElementById("h-on").addEventListener("change",function(e){ hCur().on=e.target.checked; hs._histLabel=hCur().name+" power "+(e.target.checked?"ON":"OFF"); hProbeSync(); renderHoloplot(); });
-    document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; hs._histLabel=hCur().name+" module \u2192 "+e.target.value; renderHoloplot(); });
+    document.getElementById("h-model").addEventListener("change",function(e){ hCur().model=e.target.value; hs._histLabel=hCur().name+" module \u2192 "+hModel(hCur()).name; renderHoloplot(); });
     root.querySelectorAll("[data-slider]").forEach(function(inp){
       /* double-tap / double-click resets this fader to its home value */
       var tapCount=0, tapTimer=null, downX=0, downY=0, downT=0;
@@ -3090,9 +3174,9 @@ function renderHoloplot(){
       hs._histLabel=hCur().name+" "+(H_FADER_LABEL[key]||key)+" \u2192 "+(key==="height"?hFmtLen(v):(v+({az:"\u00b0",tilt:"\u00b0",hBeam:"\u00b0",vBeam:"\u00b0",gain:" dB",x:" m",y:" m"})[key]||"")); hs._histKey="step:"+key;
       renderHoloplot(); }); });
     document.getElementById("h-reset").addEventListener("click",function(){ var snap=hDesignData(); hs._histLabel="Reset beams"; hs.arrays=[
-      {id:1,name:"Array L",model:"X2",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-      {id:2,name:"Array R",model:"X2",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
-      {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
+      {id:1,name:"Array L",model:"MD96",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+      {id:2,name:"Array R",model:"MD96",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+      {id:3,name:"Centre / Balcony",model:"MD96",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
     ]; hs.linked=[]; hs.invertPan=false; hs.invertTilt=false; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={}; renderHoloplot(); showUndoToast("Beams reset to the baseline design.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); }); });
     document.getElementById("h-balcony").addEventListener("click",function(){ var a3=hs.arrays.find(function(a){return a.id===3;}); if(a3){ a3.on=true; var b3=hBeams(a3)[0]; b3.tilt=12; b3.gain=2; } hs._histLabel="Try: add balcony beam"; renderHoloplot(); });
   }
