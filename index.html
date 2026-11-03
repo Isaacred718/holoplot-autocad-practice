@@ -174,6 +174,11 @@
     .map-shell .anim-row{ order:2; }
     .map-shell #h-tape-status{ order:11; flex:1 1 100%; text-align:left; }
     .render-needed-badge{ top:150px !important; }
+    /* the Iso rotation strip drops below the wrapped phone cluster (view
+       switch + zoom row + waves row + sim-time line ~= 165px tall) instead
+       of covering it; on desktop it sits at its inline top under the venue
+       picker, clear of the right-hand zoom column */
+    .map-shell .iso-rot{ top:172px !important; }
   }
   /* ---- map resolution / render-on-demand controls (HOLOPLOT map only) ---- */
   .map-res-bar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:0 0 auto; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; }
@@ -473,6 +478,11 @@
   .rad-centre{ position:absolute; transform:translate(-50%,-50%); width:52px; height:52px; border-radius:50%; background:var(--cyan); color:#04222B; border:0; font-size:20px; font-weight:900; pointer-events:auto; box-shadow:0 8px 20px rgba(0,0,0,.45); animation:radIn .16s ease-out both; padding:0; }
   @keyframes radIn{ from{ opacity:0; scale:.55; } to{ opacity:1; scale:1; } }
   @media (prefers-reduced-motion: reduce){ .rad-wedge,.rad-centre{ animation:none; } }
+  .rad-wedge.rad-on{ background:var(--cyan-dim); color:#A5F3FC; border-color:var(--cyan); }
+  .rad-wedge .rad-state{ font-size:8.5px; font-weight:800; color:var(--amber); letter-spacing:.04em; line-height:1; }
+  .rad-wedge.rad-on .rad-state{ color:#67E8F9; }
+  .rad-cap{ position:absolute; transform:translate(-50%,0); font-size:11px; font-weight:800; letter-spacing:.05em; color:#A5F3FC; background:rgba(10,16,24,.88); border:1px solid rgba(103,232,249,.4); padding:3px 10px; border-radius:99px; pointer-events:none; white-space:nowrap; }
+  .rad-wedge .rad-lab{ max-width:62px; text-align:center; line-height:1.12; overflow:hidden; }
   .spk-strip{ position:absolute; left:8px; right:86px; bottom:106px; z-index:20; display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px; border-radius:12px; background:rgba(10,15,22,.55); -webkit-overflow-scrolling:touch; touch-action:pan-x; scrollbar-width:none; }
   .spk-strip::-webkit-scrollbar{ display:none; }
   .spk-strip button{ flex:0 0 auto; min-height:44px; padding:6px 12px; font-size:13px; border-radius:10px; background:rgba(23,26,32,.92); color:#E9ECF1; border:1px solid #4B5563; white-space:nowrap; }
@@ -499,6 +509,9 @@
     .holo-pop-layer{ top:auto; left:8px; right:8px; bottom:8px; width:auto; max-height:62%; }
     .holo-hub{ bottom:106px; right:10px; width:60px; height:60px; }
     .spk-strip{ bottom:94px; right:78px; }
+    /* end spacer: the last speaker chip scrolls fully clear of the MENU hub
+       (hub is 60px wide here; 84px of trailing room = hub + a clear gap) */
+    .spk-strip::after{ content:""; flex:0 0 84px; }
     .rad-wedge{ width:60px; height:60px; }
   }
   /* HOLOPLOT: the map reclaims the old rail + panel space at every size
@@ -606,12 +619,12 @@ if(store.mapPrefs.res!=="high") store.mapPrefs.res="low";
 if(store.mapPrefs.renderMode!=="ondemand") store.mapPrefs.renderMode="live";
 function persistMapPrefs(){ store.mapPrefs={res:hs.resMode,renderMode:hs.renderMode}; persist(); }
 if(!store.viewPrefs||typeof store.viewPrefs!=="object") store.viewPrefs={};
-function persistViewPrefs(){ if(typeof hs==="undefined"||!hs.view) return; store.viewPrefs={origin:!!hs.view.origin,guidesShow:!!hs.view.guidesShow,gridShow:!!hs.view.gridShow,grid:hs.view.grid,snap:!!hs.view.snap,units:hs.view.units,precision:hs.view.precision}; persist(); }
-function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+function persistViewPrefs(){ if(typeof hs==="undefined"||!hs.viewOpts) return; if(!store.viewPrefs||typeof store.viewPrefs!=="object") store.viewPrefs={}; store.viewPrefs.origin=!!hs.viewOpts.origin; store.viewPrefs.guidesShow=!!hs.viewOpts.guidesShow; store.viewPrefs.gridShow=!!hs.viewOpts.gridShow; store.viewPrefs.grid=hs.viewOpts.grid; store.viewPrefs.snap=!!hs.viewOpts.snap; store.viewPrefs.units=hs.viewOpts.units; store.viewPrefs.precision=hs.viewOpts.precision; persist(); } /* merge-persist: stored isoYaw/isoTilt and any other view prefs survive; existing stored values load into hs.viewOpts at boot, never reset */
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); return true; }catch(e){ return false; } }
 function doneSet(){ return new Set(store.progress); }
 function markDone(id){ if(!store.progress.includes(id)){ store.progress.push(id); persist(); } renderProgress(); }
 function commentsFor(ws){ return store.comments.filter(function(c){return c.ws===ws;}); }
-function addSave(ws,name,data){ var snap=commentsFor(ws).map(function(c){return JSON.parse(JSON.stringify(c));}); store.saves[ws].push({id:Date.now(),name:name,data:data,comments:snap}); persist(); }
+function addSave(ws,name,data){ var snap=commentsFor(ws).map(function(c){return JSON.parse(JSON.stringify(c));}); store.saves[ws].push({id:Date.now(),name:name,data:data,comments:snap}); if(!persist()){ appToast("⚠ NOT saved — this browser's storage is full or unavailable. The item shows in the list for now but will NOT survive a reload; free space or export it instead."); return false; } return true; }
 function deleteSave(ws,id){ store.saves[ws]=store.saves[ws].filter(function(s){return s.id!==id;}); persist(); }
 function addComment(ws,target,author,text){ store.comments.push({id:Date.now()+Math.floor(Math.random()*999),ws:ws,target:target||"Current work",author:(author||"Isaac").trim()||"Isaac",text:text,created:new Date().toLocaleString(),resolved:false,replies:[]}); persist(); }
 function deleteComment(id){ store.comments=store.comments.filter(function(c){return c.id!==id;}); persist(); }
@@ -622,7 +635,8 @@ function snapshotStore(){ return JSON.stringify({saves:store.saves,comments:stor
 function restoreStoreSnapshot(s){ try{ var o=JSON.parse(s); store.saves=o.saves; store.comments=o.comments; store.speakerGroups=o.speakerGroups||[]; persist(); }catch(e){} }
 var _undoRestore=null, _undoTimer=null;
 function hideUndoToast(){ var t=document.getElementById("undo-toast"); if(t) t.hidden=true; _undoRestore=null; if(_undoTimer){ window.clearTimeout(_undoTimer); _undoTimer=null; } }
-function showUndoToast(msg, restoreFn){ var t=document.getElementById("undo-toast"); if(!t) return; _undoRestore=restoreFn||null; document.getElementById("undo-toast-msg").textContent=msg; t.hidden=false; if(_undoTimer) window.clearTimeout(_undoTimer); _undoTimer=window.setTimeout(hideUndoToast,5000); }
+function showUndoToast(msg, restoreFn){ var t=document.getElementById("undo-toast"); if(!t) return; _undoRestore=restoreFn||null; var ub=document.getElementById("undo-toast-btn"); if(ub) ub.hidden=!restoreFn; document.getElementById("undo-toast-msg").textContent=msg; t.hidden=false; if(_undoTimer) window.clearTimeout(_undoTimer); _undoTimer=window.setTimeout(hideUndoToast,5000); }
+function appToast(msg){ showUndoToast(msg,null); } /* plain status toast: same element, no Undo offered */
 document.getElementById("undo-toast-btn").addEventListener("click",function(){ var r=_undoRestore; hideUndoToast(); if(r) r(); });
 document.getElementById("undo-toast-close").addEventListener("click",hideUndoToast);
 /* ---------- shareable snapshot links (state in the URL hash, no server) ---------- */
@@ -632,6 +646,9 @@ function shareDecode(str){ try{ var b=str.replace(/-/g,"+").replace(/_/g,"/"); w
 function buildShareLink(ws,name,dataObj,comments){ return SHARE_BASE+"#share="+shareEncode({v:1,ws:ws,name:name,data:dataObj,comments:comments||[]}); }
 function presentShareLink(link,btn){
   function done(msg){ if(btn){ var old=btn.textContent; btn.textContent=msg; setTimeout(function(){ btn.textContent=old; },2600); } }
+  if(link.length>150000){ var wrap0=document.getElementById("share-link-wrap"); var box0=document.getElementById("share-link-box");
+    if(box0){ if(wrap0) wrap0.hidden=false; box0.value="⚠ This snapshot is too large to share as a link ("+Math.round(link.length/1000)+"k characters) — browsers mangle links that long. Trim long names or split the design, then share again."; }
+    done("⚠ Too large to share"); return; }
   if(navigator.share){ navigator.share({title:"Shared practice design",url:link}).then(function(){ done("✓ Shared"); }).catch(function(){ copyShareLink(link,btn,done); }); }
   else copyShareLink(link,btn,done);
 }
@@ -728,7 +745,7 @@ function attachZoomPan(svg,cfg){
     if(pointers.size===1&&!pinching){
       var dx=e.clientX-downX, dy=e.clientY-downY;
       if(!panning&&Math.hypot(dx,dy)>7){ panning=true; if(cfg.onGestureStart) cfg.onGestureStart(); try{ svg.setPointerCapture(e.pointerId); }catch(err){} }
-      if(panning){ var dd=dims(), vw=dd.W/st.k, vh=dd.H/st.k; st.x=downVX-dx/r.width*vw; st.y=downVY-dy/r.height*vh; clamp(st); apply(); }
+      if(panning&&!cfg.noPan){ var dd=dims(), vw=dd.W/st.k, vh=dd.H/st.k; st.x=downVX-dx/r.width*vw; st.y=downVY-dy/r.height*vh; clamp(st); apply(); }
     } else if(pointers.size===2){
       var pts=Array.from(pointers.values()); var dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
       var mx=(pts[0].x+pts[1].x)/2, my=(pts[0].y+pts[1].y)/2;
@@ -870,7 +887,7 @@ var H_FADER_HOME={1:{az:0,tilt:0,hBeam:28,vBeam:18,gain:0,x:-6,y:4},2:{az:0,tilt
 var H_FADER_LABEL={az:"Azimuth",tilt:"Tilt",hBeam:"Horizontal beam width",vBeam:"Vertical beam width",gain:"Gain",x:"Position left/right",y:"Position depth",height:"Height"};
 var H_FADER_UNIT={az:"°",tilt:"°",hBeam:"°",vBeam:"°",gain:" dB",x:" m",y:" m",height:" m"};
 var hs={
-  venueId:"theatre", sel:1, showSide:false, deck:"arrays", popup:null, radialOpen:false, saveName:"My theatre design", faderMsg:"",
+  venueId:"theatre", sel:1, showSide:false, deck:"arrays", popup:null, radialOpen:false, radialLevel:null, roomSeg:"all", _popAnchor:null, saveName:"My theatre design", faderMsg:"",
   showLegend:true, showKeys:true, showHover:true, hoverMode:"momentary", viewMode:"practice",
   hovered:null, latched:[], editing:null, editMsg:"", openLesson:"h1", _gesturing:false,
   resMode:(typeof store!=="undefined"&&store.mapPrefs)?store.mapPrefs.res:"low",
@@ -878,7 +895,8 @@ var hs={
   renderDirty:false, _comp:null, _renderSig:null, _renderMs:0, _previewing:false, _snapArrays:null,
   zoomPlan:{k:1,x:0,y:0}, zoomSide:{k:1,x:0,y:0}, zoomStage:{k:1,x:0,y:0}, zoomAud:{k:1,x:0,y:0}, zoomIso:{k:1,x:0,y:0},
   view:"plan", _aspect:{},
-  view:{origin:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.origin===false), guidesShow:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.guidesShow===false), gridShow:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.gridShow===false), grid:(typeof store!=="undefined"&&store.viewPrefs&&[0.5,1,2,5].indexOf(store.viewPrefs.grid)>=0)?store.viewPrefs.grid:1, snap:!!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.snap), units:(typeof store!=="undefined"&&store.viewPrefs&&["m","ft","ftin"].indexOf(store.viewPrefs.units)>=0)?store.viewPrefs.units:"m", precision:(typeof store!=="undefined"&&store.viewPrefs&&[0,1,2].indexOf(store.viewPrefs.precision)>=0)?store.viewPrefs.precision:1},
+  viewOpts:{origin:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.origin===false), guidesShow:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.guidesShow===false), gridShow:!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.gridShow===false), grid:(typeof store!=="undefined"&&store.viewPrefs&&[0.5,1,2,5].indexOf(store.viewPrefs.grid)>=0)?store.viewPrefs.grid:1, snap:!!(typeof store!=="undefined"&&store.viewPrefs&&store.viewPrefs.snap), units:(typeof store!=="undefined"&&store.viewPrefs&&["m","ft","ftin"].indexOf(store.viewPrefs.units)>=0)?store.viewPrefs.units:"m", precision:(typeof store!=="undefined"&&store.viewPrefs&&[0,1,2].indexOf(store.viewPrefs.precision)>=0)?store.viewPrefs.precision:1},
+  isoYaw:(typeof store!=="undefined"&&store.viewPrefs&&isFinite(store.viewPrefs.isoYaw))?(((Math.round(store.viewPrefs.isoYaw*10)/10)%360)+360)%360:0, isoTilt:(typeof store!=="undefined"&&store.viewPrefs&&isFinite(store.viewPrefs.isoTilt))?Math.min(70,Math.max(20,store.viewPrefs.isoTilt)):30,
   guides:[], viewOptsOpen:false, guideOrient:"v",
   tape:{active:false, a:null, cur:null, list:[], guideRef:null, last:""},
   env:{temp:20, rh:50, press:1013, absOn:false, absFreq:1000, modesOn:false, modeFreq:80},
@@ -923,26 +941,38 @@ function hResetBeamParam(key){ var a=hCur(), idx=hs.selBeam, linked=hIsLinked(a.
   targets.forEach(function(oa){ var ob=hBeams(oa)[idx]; if(ob) ob[key]=hBeamHome(oa.id,idx,key); });
   hs.faderMsg=H_FADER_LABEL[key]+" reset"+(linked?" for the whole link group ("+targets.map(function(t){return t.name;}).join(" + ")+")":" to "+hBeamHome(a.id,idx,key)+H_FADER_UNIT[key])+" — map updated."; }
 function hZoneTarget(name){ var vt=(hs.zoneTargets||{})[hs.venueId]||{}; return vt[name]||{target:80,tol:3}; }
-function hSetZoneTarget(name,field,val){ if(!hs.zoneTargets[hs.venueId]) hs.zoneTargets[hs.venueId]={}; var cur=hZoneTarget(name); var nt={target:cur.target,tol:cur.tol}; nt[field]=val; hs.zoneTargets[hs.venueId][name]=nt; }
-function hMigrateArrays(list){ if(!Array.isArray(list)) return hs.arrays; return list.map(function(a){ var na={id:a.id,name:a.name,model:a.model||"X2",x:a.x,y:a.y,height:isFinite(a.height)?hClampHeight(a.height):H_DEF_HEIGHT,on:a.on!==false}; na.home=(a.home&&isFinite(a.home.x)&&isFinite(a.home.y))?{x:a.home.x,y:a.home.y}:{x:a.x,y:a.y};
-  if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.map(function(b){ return {az:b.az||0,tilt:b.tilt||0,hBeam:b.hBeam||28,vBeam:b.vBeam||18,gain:b.gain||0,zone:b.zone||"",layer:b.layer||"Main",probe:!!b.probe}; }); }
-  else { na.beams=[{az:a.az||0,tilt:a.tilt||0,hBeam:a.hBeam||28,vBeam:a.vBeam||18,gain:a.gain||0,zone:a.zone||"",layer:a.layer||"Main",probe:!!a.probe}]; } return na; }); }
+function hSetZoneTarget(name,field,val){ if(!hs.zoneTargets[hs.venueId]) hs.zoneTargets[hs.venueId]={}; var cur=hZoneTarget(name); var nt={target:cur.target,tol:cur.tol}; nt[field]=val;
+  nt.target=Math.min(120,Math.max(30,hNum(nt.target,80))); nt.tol=Math.min(20,Math.max(0.5,Math.abs(hNum(nt.tol,3)))); hs.zoneTargets[hs.venueId][name]=nt; }
+function hNum(v,fb){ if(typeof v==="number") return isFinite(v)?v:fb; if(typeof v==="string"&&v.trim()!==""){ var n=Number(v); return isFinite(n)?n:fb; } return fb; }
+function hMigrateArrays(list){ if(!Array.isArray(list)) return hs.arrays; var usedIds={}, nextFree=1;
+  return list.slice(0,8).map(function(a,i){ if(!a||typeof a!=="object") a={};
+  var id=hNum(a.id,0); if(!(id>0)||usedIds[id]){ while(usedIds[nextFree]) nextFree++; id=nextFree; } usedIds[id]=1; if(id>=nextFree) nextFree=id+1;
+  var na={id:id, name:(typeof a.name==="string"&&a.name.trim())?a.name.slice(0,60):("Speaker "+(i+1)), model:(a.model==="X1"||a.model==="X2")?a.model:"X2",
+    x:hNum(a.x,0), y:hNum(a.y,4), height:(a.height===undefined||a.height===null)?H_DEF_HEIGHT:hClampHeight(hNum(a.height,H_DEF_HEIGHT)), on:a.on!==false};
+  na.home=(a.home&&isFinite(Number(a.home.x))&&isFinite(Number(a.home.y)))?{x:Number(a.home.x),y:Number(a.home.y)}:{x:na.x,y:na.y};
+  function beam(b){ if(!b||typeof b!=="object") b={}; return {az:hClampParam("az",hNum(b.az,0)), tilt:hClampParam("tilt",hNum(b.tilt,0)), hBeam:hClampParam("hBeam",hNum(b.hBeam,28)), vBeam:hClampParam("vBeam",hNum(b.vBeam,18)), gain:hClampParam("gain",hNum(b.gain,0)), zone:typeof b.zone==="string"?b.zone:"", layer:H_LAYERS.indexOf(b.layer)>=0?b.layer:"Main", probe:!!b.probe}; }
+  if(Array.isArray(a.beams)&&a.beams.length){ na.beams=a.beams.slice(0,3).map(beam); }
+  else { na.beams=[beam(a)]; } return na; }); }
 function hLoadDesignData(d){ if(!d) return; if(d.venueId) hs.venueId=d.venueId; if(d.arrays) hs.arrays=hMigrateArrays(d.arrays);
-  if(d.zoneTargets) hs.zoneTargets=d.zoneTargets; if(d.layerOn) hs.layerOn={Main:d.layerOn.Main!==false,Balcony:d.layerOn.Balcony!==false,Fill:d.layerOn.Fill!==false};
+  if(d.zoneTargets&&typeof d.zoneTargets==="object"){ var ztClean={}; Object.keys(d.zoneTargets).forEach(function(vk){ var zv=d.zoneTargets[vk]; if(!zv||typeof zv!=="object") return; var zo={}; Object.keys(zv).forEach(function(zn){ var z=zv[zn]; if(!z||typeof z!=="object") return; zo[zn]={target:Math.min(120,Math.max(30,hNum(z.target,80))), tol:Math.min(20,Math.max(0.5,hNum(z.tol,3)))}; }); ztClean[vk]=zo; }); hs.zoneTargets=ztClean; } if(d.layerOn) hs.layerOn={Main:d.layerOn.Main!==false,Balcony:d.layerOn.Balcony!==false,Fill:d.layerOn.Fill!==false};
   hs.linked=Array.isArray(d.linked)?d.linked.filter(function(id){return hs.arrays.some(function(a){return a.id===id;});}):[];
   hs.invertPan=!!d.invertPan&&hs.linked.length>=2; hs.invertTilt=!!d.invertTilt&&hs.linked.length>=2; if(typeof d.fanAmt==="number") hs.fanAmt=d.fanAmt;
-  hs.probe=(d.probe&&isFinite(d.probe.x)&&isFinite(d.probe.y))?{x:d.probe.x,y:d.probe.y}:null;
-  if(typeof d.probeTarget==="number"&&isFinite(d.probeTarget)) hs.probeTarget=d.probeTarget;
-  if(d.env) hs.env={temp:(typeof d.env.temp==="number"?d.env.temp:20), rh:(typeof d.env.rh==="number"?d.env.rh:50), press:(typeof d.env.press==="number"?d.env.press:1013), absOn:!!d.env.absOn, absFreq:(typeof d.env.absFreq==="number"?d.env.absFreq:1000), modesOn:!!d.env.modesOn, modeFreq:(typeof d.env.modeFreq==="number"?d.env.modeFreq:80)};
-  if(d.room&&Array.isArray(d.room.pts)&&d.room.pts.length>=4){ hs.room=JSON.parse(JSON.stringify(d.room)); hs.venueId=hs.room.id;
-    if(!(store.customVenues||[]).some(function(r){return r.id===hs.room.id;})){ store.customVenues.push(JSON.parse(JSON.stringify(d.room))); persist(); } }
+  hs.probe=(d.probe&&isFinite(Number(d.probe.x))&&isFinite(Number(d.probe.y)))?{x:Math.min(150,Math.max(-150,Number(d.probe.x))), y:Math.min(200,Math.max(0,Number(d.probe.y)))}:null;
+  if(typeof d.probeTarget==="number"&&isFinite(d.probeTarget)) hs.probeTarget=Math.min(100,Math.max(60,d.probeTarget));
+  if(d.env) hs.env={temp:Math.min(40,Math.max(-10,hNum(d.env.temp,20))), rh:Math.min(100,Math.max(0,hNum(d.env.rh,50))), press:Math.min(1050,Math.max(800,hNum(d.env.press,1013))), absOn:!!d.env.absOn, absFreq:[125,500,1000,2000,4000,8000].reduce(function(best,f){ return Math.abs(Math.log2(f/hNum(d.env.absFreq,1000)))<Math.abs(Math.log2(best/hNum(d.env.absFreq,1000)))?f:best; },1000), modesOn:!!d.env.modesOn, modeFreq:Math.min(300,Math.max(20,hNum(d.env.modeFreq,80)))};
+  if(d.room&&Array.isArray(d.room.pts)&&d.room.pts.length>=4&&d.room.pts.every(function(p){ return Array.isArray(p)&&isFinite(Number(p[0]))&&isFinite(Number(p[1])); })){ var rm={id:(typeof d.room.id==="string"&&d.room.id)?d.room.id:("custom-"+Date.now()), name:(typeof d.room.name==="string"&&d.room.name.trim())?d.room.name.slice(0,60):"Custom room",
+      pts:d.room.pts.slice(0,24).map(function(p){ return [Math.min(120,Math.max(-120,Number(p[0]))), Math.min(160,Math.max(0,Number(p[1])))]; }),
+      mats:[], stageSeg:(typeof d.room.stageSeg==="number"&&d.room.stageSeg>=0&&d.room.stageSeg<d.room.pts.length)?Math.floor(d.room.stageSeg):null, floorMat:H_FLOOR_MATS[d.room.floorMat]?d.room.floorMat:"audience"};
+    rm.pts.forEach(function(p,i){ var mk=Array.isArray(d.room.mats)?d.room.mats[i]:null; rm.mats.push(H_MATERIALS[mk]?mk:"concrete"); });
+    hs.room=rm; hs.venueId=hs.room.id;
+    if(!(store.customVenues||[]).some(function(r){return r.id===hs.room.id;})){ store.customVenues.push(JSON.parse(JSON.stringify(hs.room))); persist(); } }
   else if(!d.room&&d.venueId&&String(d.venueId).indexOf("custom-")!==0) hs.room=null;
   if(typeof d.reflOn==="boolean") hs.reflOn=d.reflOn;
   hs.guides=Array.isArray(d.guides)?d.guides.filter(function(g){ return g&&(g.o==="v"||g.o==="h")&&isFinite(g.pos); }).map(function(g){ return {o:g.o, pos:Math.round(g.pos*100)/100}; }):[];
   if(d.wallMat&&H_MATERIALS[d.wallMat]) hs.wallMat=d.wallMat;
   if(d.floorMat&&H_FLOOR_MATS[d.floorMat]) hs.floorMat=d.floorMat;
   hs.roomEdit=null;
-  if(hs.arrays.length){ hs.sel=hs.arrays[0].id; } hs.selBeam=0; hs.editing=null; hs._arrCache={}; hs._comp=null; hs.renderDirty=false; hs._snapArrays=null; hs._snapMeta=null; hs._snapProbe=null;
+  if(hs.arrays.length){ hs.sel=hs.arrays[0].id; } hs.selBeam=0; hs.editing=null; hs._arrCache={}; hs._comp=null; hs.renderDirty=false; hs._snapArrays=null; hs._snapMeta=null; hs._snapProbe=null; hs._snapEnv=null;
   if(hs.probe) hProbeSync(); }
 function hDesignData(){ return {venueId:hs.venueId, room:hs.room?JSON.parse(JSON.stringify(hs.room)):null, reflOn:!!hs.reflOn, wallMat:hs.wallMat, floorMat:hs.floorMat, arrays:JSON.parse(JSON.stringify(hs.arrays)), zoneTargets:JSON.parse(JSON.stringify(hs.zoneTargets||{})), layerOn:Object.assign({},hs.layerOn), linked:(hs.linked||[]).slice(), invertPan:!!hs.invertPan, invertTilt:!!hs.invertTilt, fanAmt:hs.fanAmt, probe:hs.probe?{x:hs.probe.x,y:hs.probe.y}:null, probeTarget:hs.probeTarget, env:JSON.parse(JSON.stringify(hs.env)), guides:JSON.parse(JSON.stringify(hs.guides||[]))}; }
 /* ================= UNDO / REDO HISTORY =================
@@ -1009,7 +1039,7 @@ function hClampSpeakerPos(a){ var b=hSpeakerBounds(); a.x=Math.round(Math.min(b.
 var H_EAR_H=1.5, H_DEF_HEIGHT=5.5, H_HEIGHT_RANGE=[0.5,12];
 function hSpkH(a){ return (a&&isFinite(a.height))?a.height:H_DEF_HEIGHT; }
 function hSpkDz(a){ return hSpkH(a)-H_EAR_H; }
-function hClampHeight(v){ return Math.round(Math.min(H_HEIGHT_RANGE[1],Math.max(H_HEIGHT_RANGE[0],v))*10)/10; }
+function hClampHeight(v){ v=Number(v); if(!isFinite(v)) return H_DEF_HEIGHT; return Math.round(Math.min(H_HEIGHT_RANGE[1],Math.max(H_HEIGHT_RANGE[0],v))*10)/10; }
 function hSetHeight(arrId,newVal){ var a=hs.arrays.find(function(x){return x.id===arrId;}); if(!a) return; newVal=hClampHeight(newVal); var delta=newVal-hSpkH(a); a.height=newVal;
   if(delta&&hIsLinked(arrId)){ hLinkedArrays().forEach(function(oa){ if(oa.id===arrId) return; oa.height=hClampHeight(hSpkH(oa)+delta); }); }
   hProbeSync(); }
@@ -1054,7 +1084,7 @@ function hBeamSplAt(a,b,px,py){
    effect on c in an ideal gas (that is the teaching point, stated in the
    panel); it feeds air density and the ISO 9613-1 absorption term instead. */
 function hSatVapPress(T){ return 6.112*Math.exp(17.67*T/(T+243.5)); } /* hPa */
-function hSoundSpeed(){ var e=hs.env||{temp:20,rh:50,press:1013}; var Tk=e.temp+273.15;
+function hSoundSpeed(envIn){ var e=envIn||hs.env||{temp:20,rh:50,press:1013}; var Tk=e.temp+273.15;
   var pv=(e.rh/100)*hSatVapPress(e.temp); var xw=pv/Math.max(300,e.press);
   return Math.round(331.3*Math.sqrt(Tk/273.15)*(1+0.14*xw)*10)/10; }
 function hAirDensity(){ var e=hs.env; var Tk=e.temp+273.15; var pv=(e.rh/100)*hSatVapPress(e.temp);
@@ -1070,8 +1100,9 @@ function hAlphaRaw(){ var e=hs.env; if(!e) return 0;
     + Math.pow(Ta/T0,-2.5)*(0.01275*Math.exp(-2239.1/Ta)/(frO+f*f/frO) + 0.1068*Math.exp(-3352/Ta)/(frN+f*f/frN));
   return Math.max(0, 8.686*f*f*term); } /* dB per metre, ISO 9613-1 simplified */
 function hDistToProbe(a){ if(!hs.probe) return 0; var dx=hs.probe.x-a.x, dy=hs.probe.y-a.y, dz=hSpkDz(a); return Math.sqrt(dx*dx+dy*dy+dz*dz); }
-function hArrivals(){ if(!hs.probe) return {list:[], spread:0}; var c=hSoundSpeed();
-  var list=hs.arrays.filter(function(a){return a.on;}).map(function(a){ var d=hDistToProbe(a); return {name:a.name, dist:Math.round(d*100)/100, ms:Math.round(d/c*10000)/10}; });
+function hArrivals(){ var useSnap=!!(hs.renderDirty&&hs._snapArrays); var probe=hs.renderDirty?hs._snapProbe:hs.probe; if(!probe) return {list:[], spread:0}; var c=(useSnap&&hs._snapEnv)?hSoundSpeed(hs._snapEnv):hSoundSpeed();
+  var arrays=useSnap?hs._snapArrays:hs.arrays;
+  var list=arrays.filter(function(a){return a.on;}).map(function(a){ var dx=probe.x-a.x, dy=probe.y-a.y, dz=hSpkDz(a); var d=Math.sqrt(dx*dx+dy*dy+dz*dz); return {name:a.name, dist:Math.round(d*100)/100, ms:Math.round(d/c*10000)/10}; });
   list.sort(function(p,q){return p.ms-q.ms;});
   var spread=list.length>1?Math.round((list[list.length-1].ms-list[0].ms)*10)/10:0;
   return {list:list, spread:spread, c:c}; }
@@ -1160,8 +1191,21 @@ function hStartRoomEdit(){ var v=hVenue(), draft;
   hs.roomEdit=draft; hs.selSeg=-1; hs.selPt=-1; hs.calibMode=false;
   hs.roomMsg="Drag the amber corners on the plan to reshape the room, or select a corner below and type exact metres. Tap a wall (or its ＋ midpoint) to select / split it, then give it a material.";
   hSetView("plan"); }
+function hRoomOutlineError(pts){
+  var out=[]; (pts||[]).forEach(function(p){ if(!Array.isArray(p)||!isFinite(Number(p[0]))||!isFinite(Number(p[1]))) return; var q=out[out.length-1]; if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>0.01) out.push([Number(p[0]),Number(p[1])]); });
+  if(out.length>1){ var f=out[0], l=out[out.length-1]; if(Math.hypot(f[0]-l[0],f[1]-l[1])<=0.01) out.pop(); }
+  if(out.length<4) return {err:"That outline has too few distinct corners — duplicate points were removed and fewer than 4 remain. A room needs at least 4 corners; the previous venue was kept."};
+  function segInt(a,b,c,d){ function o(p,q,r){ var v=(q[1]-p[1])*(r[0]-q[0])-(q[0]-p[0])*(r[1]-q[1]); return Math.abs(v)<1e-9?0:(v>0?1:2); } var o1=o(a,b,c), o2=o(a,b,d), o3=o(c,d,a), o4=o(c,d,b); return o1!==0&&o2!==0&&o3!==0&&o4!==0&&o1!==o2&&o3!==o4; }
+  var n=out.length;
+  for(var i=0;i<n;i++){ for(var j=i+1;j<n;j++){ if(j===i+1||(i===0&&j===n-1)) continue; if(segInt(out[i],out[(i+1)%n],out[j],out[(j+1)%n])) return {err:"That outline crosses itself (a bowtie) — inside and outside are undefined for that shape, so no acoustics can be computed from it. Move the crossing corners apart and save again; the previous venue was kept."}; } }
+  if(hPolyArea(out)<1) return {err:"That outline encloses almost no area — a room needs a non-zero enclosed area, so it can't drive reflections or coverage. The previous venue was kept."};
+  return {pts:out};
+}
 function hSaveRoomEdit(){ var d=hs.roomEdit; if(!d||d.pts.length<4) return;
-  d.pts=hNormalizeRoomPts(d.pts);
+  var chk=hRoomOutlineError(d.pts);
+  if(chk.err){ hs.roomMsg=chk.err; renderHoloplot(); return; }
+  d.pts=hNormalizeRoomPts(chk.pts).map(function(p){ return [Math.min(120,Math.max(-120,p[0])), Math.min(160,Math.max(0,p[1]))]; });
+  if(d.stageSeg!==null&&d.stageSeg!==undefined&&d.stageSeg>=d.pts.length) d.stageSeg=null;
   var room={id:d.id||("custom-"+Date.now()), name:(d.name||"").trim()||"My custom room", pts:d.pts, mats:d.mats.slice(0,d.pts.length), stageSeg:(typeof d.stageSeg==="number"&&d.stageSeg<d.pts.length)?d.stageSeg:null, floorMat:d.floorMat||"audience"};
   while(room.mats.length<room.pts.length) room.mats.push("concrete");
   var ix=(store.customVenues||[]).findIndex(function(r){return r.id===room.id;});
@@ -1221,7 +1265,7 @@ function wireRoomEdit(root){
   root.querySelectorAll("[data-rpt]").forEach(function(g){
     var pi=Number(g.getAttribute("data-rpt"));
     g.addEventListener("pointerdown",function(e){ e.stopPropagation(); e.preventDefault(); hs.selPt=pi; hs.selSeg=-1;
-      var move=function(ev){ var w=toWorld(ev); if(!w) return; if(hs.view.snap){ w.x=Math.round(hSnapVal(w.x)*10)/10; w.y=Math.round(hSnapVal(w.y)*10)/10; } ed.pts[pi]=[w.x,w.y];
+      var move=function(ev){ var w=toWorld(ev); if(!w) return; if(hs.viewOpts.snap){ w.x=Math.round(hSnapVal(w.x)*10)/10; w.y=Math.round(hSnapVal(w.y)*10)/10; } ed.pts[pi]=[w.x,w.y];
         var c=g.querySelectorAll("circle"); c.forEach(function(cc){ cc.setAttribute("cx", (hPlanDims().CX+w.x*9)); cc.setAttribute("cy", (30+w.y*11)); }); };
       var up=function(){ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); renderHoloplot(); };
       window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); });
@@ -1267,19 +1311,19 @@ function hProbePosText(p){ if(!p) return ""; var lr=p.x===0?"on centre":(hFmtLen
    the decimal count for measurement readouts (decimal feet keeps its 1 dp
    character at the default precision of 1). */
 var H_FT_PER_M=3.28084;
-function hUnitName(){ return hs.view.units==="ft"?"feet":(hs.view.units==="ftin"?"feet & inches":"metres"); }
-function hUnitShort(){ return hs.view.units==="m"?"m":"ft"; }
-function hFmtLen(mv){ if(!isFinite(mv)) return "—"; var pr=hs.view.precision;
-  if(hs.view.units==="m") return mv.toFixed(pr)+" m";
-  if(hs.view.units==="ft") return (mv*H_FT_PER_M).toFixed(pr)+" ft";
+function hUnitName(){ return hs.viewOpts.units==="ft"?"feet":(hs.viewOpts.units==="ftin"?"feet & inches":"metres"); }
+function hUnitShort(){ return hs.viewOpts.units==="m"?"m":"ft"; }
+function hFmtLen(mv){ if(!isFinite(mv)) return "—"; var pr=hs.viewOpts.precision;
+  if(hs.viewOpts.units==="m") return mv.toFixed(pr)+" m";
+  if(hs.viewOpts.units==="ft") return (mv*H_FT_PER_M).toFixed(pr)+" ft";
   var neg=mv<0, tin=Math.abs(mv)*39.3701, f=Math.floor(tin/12), inch=tin-f*12;
   if(inch.toFixed(pr)===(12).toFixed(pr)){ f+=1; inch=0; }
   return (neg?"−":"")+f+"′ "+inch.toFixed(pr)+"″"; }
 function hFmtSigned(mv){ return (mv>0?"+":"")+hFmtLen(mv); }
-function hDispToM(v){ return hs.view.units==="m"? v : v/H_FT_PER_M; } /* typed display values are metres or decimal feet */
-function hMToDisp(mv){ return hs.view.units==="m"? Math.round(mv*100)/100 : Math.round(mv*H_FT_PER_M*100)/100; }
-function hGridSpacing(){ return hs.view.grid||1; }
-function hSnapVal(v){ if(!hs.view.snap) return v; var sp=hGridSpacing(); return Math.round(v/sp)*sp; }
+function hDispToM(v){ return hs.viewOpts.units==="m"? v : v/H_FT_PER_M; } /* typed display values are metres or decimal feet */
+function hMToDisp(mv){ return hs.viewOpts.units==="m"? Math.round(mv*100)/100 : Math.round(mv*H_FT_PER_M*100)/100; }
+function hGridSpacing(){ return hs.viewOpts.grid||1; }
+function hSnapVal(v){ if(!hs.viewOpts.snap) return v; var sp=hGridSpacing(); return Math.round(v/sp)*sp; }
 function hSnapPoint(p){ return {x:hSnapVal(p.x), y:hSnapVal(p.y)}; }
 /* tape point snapping: speaker centres, the probe, room corners and guide
    lines / guide intersections win when the tap lands near them */
@@ -1292,7 +1336,7 @@ function hTapeSnap(p){
   var best=null, bd=TH*1.5;
   cands.forEach(function(c){ var d=Math.hypot(c.x-p.x,c.y-p.y); if(d<bd){ bd=d; best=c; } });
   if(best) return {x:best.x, y:best.y, label:best.label};
-  if(hs.view.guidesShow){ (hs.guides||[]).forEach(function(g){ if(g.o==="v"&&Math.abs(p.x-g.pos)<TH) x=g.pos; if(g.o==="h"&&Math.abs(p.y-g.pos)<TH) y=g.pos; }); }
+  if(hs.viewOpts.guidesShow){ (hs.guides||[]).forEach(function(g){ if(g.o==="v"&&Math.abs(p.x-g.pos)<TH) x=g.pos; if(g.o==="h"&&Math.abs(p.y-g.pos)<TH) y=g.pos; }); }
   return {x:Math.round(x*100)/100, y:Math.round(y*100)/100, label:hit};
 }
 function hTapeReadout(a,b){ var d=Math.hypot(b.x-a.x,b.y-a.y); return hFmtLen(d)+" · Δacross "+hFmtSigned(b.x-a.x)+" · Δout "+hFmtSigned(b.y-a.y); }
@@ -1313,7 +1357,7 @@ function hTapeStatusText(){
 function hOverlayHTML(pd){
   var SX=function(mx){return pd.CX+mx*9;}, SY=function(my){return 30+my*11;};
   var X0=-pd.W, X1=pd.W*2, Y0=-pd.H, Y1=pd.H*2, s="";
-  if(hs.view.guidesShow){ (hs.guides||[]).forEach(function(g,i){
+  if(hs.viewOpts.guidesShow){ (hs.guides||[]).forEach(function(g,i){
     if(g.o==="v") s+='<g data-guide="'+i+'"><line x1="'+SX(g.pos)+'" y1="'+Y0+'" x2="'+SX(g.pos)+'" y2="'+Y1+'" stroke="#38BDF8" stroke-width="1.3" stroke-dasharray="9 5" opacity="0.9"/><rect x="'+(SX(g.pos)-34)+'" y="'+(SY(0)-30)+'" width="68" height="17" rx="4" fill="#0F172A" opacity="0.88"/><text x="'+SX(g.pos)+'" y="'+(SY(0)-17)+'" fill="#7DD3FC" font-size="10.5" text-anchor="middle" font-weight="700">GUIDE '+hFmtSigned(g.pos)+'</text></g>';
     else s+='<g data-guide="'+i+'"><line x1="'+X0+'" y1="'+SY(g.pos)+'" x2="'+X1+'" y2="'+SY(g.pos)+'" stroke="#38BDF8" stroke-width="1.3" stroke-dasharray="9 5" opacity="0.9"/><rect x="'+(SX(-hVenue().w/2)+2)+'" y="'+(SY(g.pos)-8)+'" width="76" height="17" rx="4" fill="#0F172A" opacity="0.88"/><text x="'+(SX(-hVenue().w/2)+6)+'" y="'+(SY(g.pos)+4.5)+'" fill="#7DD3FC" font-size="10.5" font-weight="700">GUIDE '+hFmtSigned(g.pos)+'</text></g>'; }); }
   var t=hs.tape;
@@ -1336,10 +1380,11 @@ function hOverlayHTML(pd){
   }
   return s;
 }
-function hViewOptionsHTML(){
-  var vw=hs.view, t=hs.tape;
-  var h='<div class="vo-panel" id="h-viewopts" aria-label="View options panel"><h3>👁 View Options — origin, guides, grid &amp; measurements</h3>'+
-  '<p class="vo-note">View preferences save on this device. Guides are part of the drawing: they save with the design and travel in share links. Tape measurements are session-only annotations — they stay on the Plan when you switch views and are not saved.</p>';
+function hViewOptionsHTML(){ return hDisplayHTML()+hUnitsHTML()+hTapeHTML(); }
+function hDisplayHTML(){
+  var vw=hs.viewOpts, t=hs.tape;
+  var h='<div class="vo-panel" id="h-displayopts" aria-label="Display options panel"><h3>👁 Display — origin, guides, grid &amp; snap</h3>'+
+  '<p class="vo-note">View preferences save on this device. Guides are part of the drawing: they save with the design and travel in share links.</p>';
   /* ORIGIN */
   h+='<div class="vo-sec"><p class="vo-lab" style="margin-top:0">Origin</p><div class="vo-row">'+
   '<button class="btn btn-sm" id="h-vo-origin" aria-pressed="'+vw.origin+'" style="'+(vw.origin?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Origin &amp; axes: '+(vw.origin?"ON":"OFF")+'</button>'+
@@ -1362,12 +1407,23 @@ function hViewOptionsHTML(){
   '<span class="mono" id="h-grid-eff" style="font-size:13.5px;font-weight:700">Grid spacing: '+hFmtLen(hGridSpacing())+' · heavier line every 5 cells</span></div>'+
   '<div class="vo-row"><button class="btn btn-sm" id="h-vo-snap" aria-pressed="'+vw.snap+'" style="'+(vw.snap?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Snap to grid: '+(vw.snap?"ON":"OFF")+'</button>'+
   '<span class="vo-note" style="margin:0">Snap state: <strong style="color:var(--text)">'+(vw.snap?("ON — drags land on "+hFmtLen(hGridSpacing())+" increments"):"OFF")+'</strong>. Applies to dragging speakers, the probe and room corners. Typed values are never altered by snap.</span></div></div>';
+  return h+'</div>';
+}
+function hUnitsHTML(){
+  var vw=hs.viewOpts, t=hs.tape;
+  var h='<div class="vo-panel" id="h-unitsopts" aria-label="Units and precision panel"><h3>📐 Units &amp; Precision</h3>';
   /* MEASUREMENTS / UNITS */
   h+='<div class="vo-sec"><p class="vo-lab">Measurements — display units</p><div class="vo-row">'+
   '<label style="font-size:13px;font-weight:600">Units<select id="h-vo-units" class="field" style="margin-top:4px;min-height:48px;width:auto" aria-label="Display units for measurements"><option value="m"'+(vw.units==="m"?" selected":"")+'>Metres</option><option value="ft"'+(vw.units==="ft"?" selected":"")+'>Feet (decimal)</option><option value="ftin"'+(vw.units==="ftin"?" selected":"")+'>Feet &amp; inches</option></select></label>'+
   '<span style="font-weight:700;font-size:14px">Precision</span>'+
   [0,1,2].map(function(p){ return '<button class="btn btn-sm" data-precision="'+p+'" aria-pressed="'+(vw.precision===p)+'" style="'+(vw.precision===p?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+p+' dp</button>'; }).join("")+'</div>'+
   '<p class="vo-note">Every measurement readout follows this — axis &amp; guide labels, position fields, grid spacing and tape readouts. The model underneath stays in metres. Worked example: the Theatre\'s front corners are 36.0 m apart, which reads '+hFmtLen(36)+' in the current units.</p></div>';
+  return h+'</div>';
+}
+function hTapeHTML(){
+  var vw=hs.viewOpts, t=hs.tape;
+  var h='<div class="vo-panel" id="h-tapeopts" aria-label="Tape measure panel"><h3>📏 Tape Measure</h3>'+
+  '<p class="vo-note">Tape measurements are session-only annotations — they stay on the Plan when you switch views and are not saved. Guides created from the tape do save with the design.</p>';
   /* TAPE */
   h+='<div class="vo-sec"><p class="vo-lab">📏 Tape measure — SketchUp-style</p>'+
   '<div class="vo-row"><button class="btn btn-sm" id="h-tape-tog" aria-pressed="'+t.active+'" style="'+(t.active?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Tape: '+(t.active?"ON — tap the plan":"OFF")+'</button>'+
@@ -1425,6 +1481,7 @@ function wireHoloZoom(svg){ if(!svg) return;
     onGestureStart:function(){ hs.arrays.forEach(function(a){ hLP.cancel("arr"+a.id); }); } };
   if(hIsDyn()){ base.getDims=function(){ return hFitSize(); }; base.viewBoxFn=function(st){ return hDynViewBox(st); }; base.clampFn=function(st){ hDynClamp(st); }; base.zoomAtFn=function(st,fx,fy,nk){ hDynZoomAt(st,fx,fy,nk); }; }
   else { base.W=H_3D_DIMS.W; base.H=H_3D_DIMS.H; }
+  if(hView()==="iso") base.noPan=true; /* in Iso a one-finger drag orbits (wireIsoOrbit); pinch + wheel zoom/pan still run through here */
   attachZoomPan(svg, base); }
 /* Probe drag: a gesture that starts on the probe marker drags the probe and
    wins over the map pan (pointerdown is stopped before it reaches the svg).
@@ -1443,7 +1500,7 @@ function wireProbeDrag(root){
       var v=hVenue();
       hs.probe={ x:Math.round(Math.min(v.w/2-1,Math.max(-v.w/2+1,(vx-pd.CX)/9))*10)/10,
                  y:Math.round(Math.min(v.d-1,Math.max(1,(vy-30)/11))*10)/10 };
-      if(hs.view.snap){ hs.probe.x=Math.round(hSnapVal(hs.probe.x)*10)/10; hs.probe.y=Math.round(hSnapVal(hs.probe.y)*10)/10; }
+      if(hs.viewOpts.snap){ hs.probe.x=Math.round(hSnapVal(hs.probe.x)*10)/10; hs.probe.y=Math.round(hSnapVal(hs.probe.y)*10)/10; }
       hProbeSync();
       if(hs.renderMode==="live"){ renderHoloplotSoft(); }
       else { var ng=root.querySelector("[data-probe]"); if(ng) ng.setAttribute("transform","translate("+(hPlanDims().CX+hs.probe.x*9)+","+(30+hs.probe.y*11)+")");
@@ -1478,7 +1535,7 @@ function wireSpeakerDrag(root){
         var st=hs.zoomPlan, pd=hPlanDims(), f=hFitSize(), vw=f.W/st.k, vh=f.H/st.k;
         var vx=st.x+(ev.clientX-r.left)/r.width*vw, vy=st.y+(ev.clientY-r.top)/r.height*vh;
         a.x=(vx-pd.CX)/9; a.y=(vy-30)/11; hClampSpeakerPos(a);
-        if(hs.view.snap){ a.x=Math.round(hSnapVal(a.x)*10)/10; a.y=Math.round(hSnapVal(a.y)*10)/10; hClampSpeakerPos(a); }
+        if(hs.viewOpts.snap){ a.x=Math.round(hSnapVal(a.x)*10)/10; a.y=Math.round(hSnapVal(a.y)*10)/10; hClampSpeakerPos(a); }
         hProbeSync();
         if(hs.renderMode==="live"){ renderHoloplotSoft(); }
         else { var ng=root.querySelector('[data-arr="'+id+'"]'); if(ng) ng.setAttribute("transform","translate("+((a.x-sx0)*9)+","+((a.y-sy0)*11)+")");
@@ -1536,20 +1593,20 @@ function wireSideSpeakerDrag(root){
 /* ================= VIEW OPTIONS + TAPE WIRING ================= */
 function wireViewOptions(root){
   function tog(id, fn){ var el=document.getElementById(id); if(el) el.addEventListener("click",fn); }
-  tog("h-viewopts-btn",function(){ hs.viewOptsOpen=!hs.viewOptsOpen; if(hs.viewOptsOpen) hs.popup="view"; else if(hs.popup==="view") hs.popup=null; renderHoloplot(); });
-  function tapeToggle(){ hs.tape.active=!hs.tape.active; if(!hs.tape.active){ hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } if(hs.tape.active){ hs.viewOptsOpen=true; hs.popup="view"; } renderHoloplot(); }
+  tog("h-viewopts-btn",function(){ if(hShownPop()==="display"){ hs.popup=null; hs.viewOptsOpen=false; } else { hs.popup="display"; hs.viewOptsOpen=true; } renderHoloplot(); });
+  function tapeToggle(){ hs.tape.active=!hs.tape.active; if(!hs.tape.active){ hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; if(hs.popup==="tape"){ hs.popup=null; hs.viewOptsOpen=false; } } if(hs.tape.active){ hs.viewOptsOpen=true; hs.popup="tape"; } renderHoloplot(); }
   tog("h-tape-btn",tapeToggle); tog("h-tape-tog",tapeToggle);
-  tog("h-vo-origin",function(){ hs.view.origin=!hs.view.origin; persistViewPrefs(); renderHoloplot(); });
-  tog("h-vo-guides-show",function(){ hs.view.guidesShow=!hs.view.guidesShow; persistViewPrefs(); renderHoloplot(); });
-  tog("h-vo-grid-show",function(){ hs.view.gridShow=!hs.view.gridShow; persistViewPrefs(); renderHoloplot(); });
-  tog("h-vo-snap",function(){ hs.view.snap=!hs.view.snap; persistViewPrefs(); renderHoloplot(); });
-  root.querySelectorAll("[data-grid-spacing]").forEach(function(b){ b.addEventListener("click",function(){ hs.view.grid=Number(b.getAttribute("data-grid-spacing")); persistViewPrefs(); renderHoloplot(); }); });
-  root.querySelectorAll("[data-precision]").forEach(function(b){ b.addEventListener("click",function(){ hs.view.precision=Number(b.getAttribute("data-precision")); persistViewPrefs(); renderHoloplot(); }); });
-  var un=document.getElementById("h-vo-units"); if(un) un.addEventListener("change",function(){ hs.view.units=un.value; persistViewPrefs(); renderHoloplot(); });
+  tog("h-vo-origin",function(){ hs.viewOpts.origin=!hs.viewOpts.origin; persistViewPrefs(); renderHoloplot(); });
+  tog("h-vo-guides-show",function(){ hs.viewOpts.guidesShow=!hs.viewOpts.guidesShow; persistViewPrefs(); renderHoloplot(); });
+  tog("h-vo-grid-show",function(){ hs.viewOpts.gridShow=!hs.viewOpts.gridShow; persistViewPrefs(); renderHoloplot(); });
+  tog("h-vo-snap",function(){ hs.viewOpts.snap=!hs.viewOpts.snap; persistViewPrefs(); renderHoloplot(); });
+  root.querySelectorAll("[data-grid-spacing]").forEach(function(b){ b.addEventListener("click",function(){ hs.viewOpts.grid=Number(b.getAttribute("data-grid-spacing")); persistViewPrefs(); renderHoloplot(); }); });
+  root.querySelectorAll("[data-precision]").forEach(function(b){ b.addEventListener("click",function(){ hs.viewOpts.precision=Number(b.getAttribute("data-precision")); persistViewPrefs(); renderHoloplot(); }); });
+  var un=document.getElementById("h-vo-units"); if(un) un.addEventListener("change",function(){ hs.viewOpts.units=un.value; persistViewPrefs(); renderHoloplot(); });
   root.querySelectorAll("[data-guide-orient]").forEach(function(b){ b.addEventListener("click",function(){ hs.guideOrient=b.getAttribute("data-guide-orient"); renderHoloplot(); }); });
   tog("h-guide-add",function(){ var inp=document.getElementById("h-guide-pos"); if(!inp) return; var v=Number(inp.value);
     if(inp.value===""||!isFinite(v)){ hs.tape.last="Type a guide position first — in "+hUnitName()+"."; renderHoloplot(); return; }
-    var pos=Math.round(hDispToM(v)*100)/100; hs.guides.push({o:hs.guideOrient, pos:pos}); hs._histLabel="Guide added at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
+    var pos=Math.round(hDispToM(v)*100)/100; hs.guides.push({o:hs.guideOrient, pos:pos}); hs._histLabel="Guide added at "+hFmtSigned(pos); hs.viewOpts.guidesShow=true; persistViewPrefs();
     hs.tape.last="Guide added: "+(hs.guideOrient==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+"."; renderHoloplot(); });
   root.querySelectorAll("[data-guide-del]").forEach(function(b){ b.addEventListener("click",function(){ var i=Number(b.getAttribute("data-guide-del")); var g=hs.guides[i]; hs.guides.splice(i,1); hs._histLabel="Guide deleted"; if(g) hs.tape.last="Guide removed: "+(g.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(g.pos)+"."; renderHoloplot(); }); });
   tog("h-guides-clear",function(){ hs.guides=[]; hs._histLabel="Clear all guides"; hs.tape.last="All guides cleared."; renderHoloplot(); });
@@ -1559,7 +1616,7 @@ function wireViewOptions(root){
     var v=inp?Number(inp.value):NaN;
     if(!inp||inp.value===""||!isFinite(v)){ hs.tape.last="Type the offset from "+t.guideRef.label+" first — in "+hUnitName()+"."; renderHoloplot(); return; }
     var pos=Math.round((t.guideRef.base+hDispToM(v))*100)/100;
-    hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
+    hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.viewOpts.guidesShow=true; persistViewPrefs();
     hs.tape.last="Guide created from tape: "+(t.guideRef.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+" — "+hFmtLen(Math.abs(hDispToM(v)))+" from "+t.guideRef.label+".";
     t.guideRef=null; renderHoloplot(); });
 }
@@ -1568,6 +1625,52 @@ function wireViewOptions(root){
    the second tap fixes a persistent dimension line. Tapping a wall or a
    speaker instead starts SketchUp's create-guide move: the next tap places
    a guide parallel to that reference through the tapped point. */
+/* Iso orbit drag: a one-finger / mouse drag that starts on the empty Iso
+   background or floor spins yaw (horizontal) and adjusts tilt (vertical),
+   delta-based from the drag start like the other drags in this app. It
+   tracks moves on window (the established drag pattern here) because each
+   re-render replaces the svg element. Drags starting on a speaker or
+   probe marker never orbit; a second pointer (pinch) cancels the orbit
+   and pinch zoom/pan takes over. Single-pointer pan is disabled for Iso
+   in wireHoloZoom (noPan) so the two never fight. */
+function wireIsoOrbit(root){
+  if(hView()!=="iso") return;
+  var svg=root.querySelector(".map-shell svg"); if(!svg) return;
+  svg.addEventListener("pointerdown",function(e){
+    if(hs.tape&&hs.tape.active) return;
+    if(e.button!==undefined&&e.button>0) return;
+    if(e.target&&e.target.closest&&e.target.closest("[data-3d-arr],[data-3d-probe]")) return; /* markers keep their own tap behaviour */
+    if(hs._isoOrbitId!==undefined&&hs._isoOrbitId!==null){ if(hs._isoOrbitEnd) hs._isoOrbitEnd(); return; } /* second finger: end the orbit, pinch takes over */
+    var pid=e.pointerId, sx=e.clientX, sy=e.clientY, y0=hIsoYaw(), t0=hIsoTilt(), moved=false, raf=0;
+    hs._isoOrbitId=pid;
+    var move=function(ev){
+      if(ev.pointerId!==pid) return;
+      var dx=ev.clientX-sx, dy=ev.clientY-sy;
+      if(!moved&&Math.hypot(dx,dy)<6) return;
+      moved=true;
+      hIsoSet(y0+dx*0.35, t0-dy*0.15);
+      var rd=document.getElementById("h-iso-read"); if(rd) rd.textContent=hIsoReadout();
+      if(!raf){ raf=window.requestAnimationFrame(function(){ raf=0; if(hs._isoOrbitId===pid) renderHoloplot(); }); }
+    };
+    var end=function(ev){
+      if(ev&&ev.pointerId!==undefined&&ev.pointerId!==pid) return;
+      window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("pointercancel",end);
+      if(hs._isoOrbitId===pid){ hs._isoOrbitId=null; hs._isoOrbitEnd=null; }
+      if(raf){ window.cancelAnimationFrame(raf); raf=0; }
+      if(moved) renderHoloplot();
+    };
+    hs._isoOrbitEnd=end;
+    window.addEventListener("pointermove",move); window.addEventListener("pointerup",end); window.addEventListener("pointercancel",end);
+  });
+}
+/* 3D-view markers: tapping a speaker marker selects it (same as the plan). */
+function wire3DMarkers(root){
+  root.querySelectorAll("[data-3d-arr]").forEach(function(g){
+    var id=Number(g.getAttribute("data-3d-arr"));
+    g.style.cursor="pointer";
+    g.addEventListener("click",function(){ if(hs._suppressArrClickUntil&&Date.now()<hs._suppressArrClickUntil) return; hs.sel=id; renderHoloplot(); });
+  });
+}
 function wireTape(root){
   var svg=root.querySelector(".map-shell svg"); if(!svg||hView()!=="plan") return;
   var layer=svg.querySelector("#h-tape-layer");
@@ -1592,15 +1695,15 @@ function wireTape(root){
     if(t.guideRef){
       if(ref){ t.guideRef=ref; renderHoloplot(); return; }
       var pos=t.guideRef.o==="v"? w.x : w.y;
-      if(hs.view.snap) pos=hSnapVal(pos);
+      if(hs.viewOpts.snap) pos=hSnapVal(pos);
       pos=Math.round(pos*100)/100;
-      hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.view.guidesShow=true; persistViewPrefs();
+      hs.guides.push({o:t.guideRef.o, pos:pos}); hs._histLabel="Guide added (tape) at "+hFmtSigned(pos); hs.viewOpts.guidesShow=true; persistViewPrefs();
       hs.tape.last="Guide created from tape: "+(t.guideRef.o==="v"?"vertical":"horizontal")+" at "+hFmtSigned(pos)+" — "+hFmtLen(Math.abs(pos-t.guideRef.base))+" from "+t.guideRef.label+".";
       t.guideRef=null; t.a=null; renderHoloplot(); return;
     }
     if(ref){ t.guideRef=ref; t.a=null; renderHoloplot(); return; }
     var p=hTapeSnap(w);
-    if(hs.view.snap) p=hSnapPoint(p);
+    if(hs.viewOpts.snap) p=hSnapPoint(p);
     if(!t.a){ t.a=p; t.cur=p; refreshLive(); return; }
     t.list.push({ax:t.a.x, ay:t.a.y, bx:p.x, by:p.y});
     hs.tape.last=hTapeReadout(t.a,p)+(p.label||t.a.label?(" ("+((t.a.label||"")+(t.a.label&&p.label?" → ":"")+(p.label||""))+")"):"");
@@ -1700,6 +1803,7 @@ function hDoForceRender(){
   try{ hs._snapArrays=JSON.parse(JSON.stringify(hs.arrays)); }catch(e){ hs._snapArrays=hs.arrays; }
   hs._snapMeta={layerOn:Object.assign({},hs.layerOn), zt:JSON.parse(JSON.stringify((hs.zoneTargets||{})[hs.venueId]||{})), venue:hs.venueId};
   hs._snapProbe=hs.probe?{x:hs.probe.x,y:hs.probe.y}:null;
+  hs._snapEnv=JSON.parse(JSON.stringify(hs.env));
   return comp;
 }
 /* compact diff of what changed since the last render (On Demand stale state) */
@@ -1734,6 +1838,7 @@ function hStaleDiff(){
   return out;
 }
 function hDisplayArrays(){ return (hs.renderDirty&&hs._snapArrays)?hs._snapArrays:hs.arrays; }
+function hRenderC(){ return (hs.renderDirty&&hs._snapEnv)?hSoundSpeed(hs._snapEnv):hSoundSpeed(); } /* speed of sound of the RENDERED state — while On Demand is stale, waves/arrivals must not mix the new air with the old geometry */
 function hEnsureComp(){
   var sig=hSignature();
   if(!hs._comp) return hDoForceRender();
@@ -1769,7 +1874,7 @@ function hPlanSVG(cells, step){
   if(hs.roomEdit&&hs.roomEdit.underlay&&!hs.roomEdit.underlayHidden){ var _u=hs.roomEdit.underlay, _uw=_u.w, _uh=_u.w/(_u.aspect||1.4);
     s+='<image href="'+_u.url+'" x="'+SX(_u.cx-_uw/2)+'" y="'+SY(_u.cy-_uh/2)+'" width="'+(_uw*9)+'" height="'+(_uh*11)+'" opacity="0.55" preserveAspectRatio="none"/>'+
     '<rect x="'+SX(_u.cx-_uw/2)+'" y="'+SY(_u.cy-_uh/2)+'" width="'+(_uw*9)+'" height="'+(_uh*11)+'" fill="none" stroke="#F59E0B" stroke-dasharray="6 4" stroke-width="1.4"/>'; }
-  if(hs.view.gridShow){ var _sp=hGridSpacing(), _gx0=Math.ceil((-venue.w/2-36)/_sp), _gx1=Math.floor((venue.w/2+36)/_sp), _gy0=Math.ceil(-18/_sp), _gy1=Math.floor((venue.d+18)/_sp);
+  if(hs.viewOpts.gridShow){ var _sp=hGridSpacing(), _gx0=Math.ceil((-venue.w/2-36)/_sp), _gx1=Math.floor((venue.w/2+36)/_sp), _gy0=Math.ceil(-18/_sp), _gy1=Math.floor((venue.d+18)/_sp);
     for(var gi=_gx0; gi<=_gx1; gi++){ var gxv=gi*_sp, gmaj=(gi%5===0); s+='<line x1="'+SX(gxv)+'" y1="'+(-pd.H)+'" x2="'+SX(gxv)+'" y2="'+(pd.H*2)+'" stroke="'+(gmaj?"#273449":"#1B2536")+'" stroke-width="'+(gmaj?1.1:0.5)+'"/>'; }
     for(var gj=_gy0; gj<=_gy1; gj++){ var gyv=gj*_sp, gmaj2=(gj%5===0); s+='<line x1="'+(-pd.W)+'" y1="'+SY(gyv)+'" x2="'+(pd.W*2)+'" y2="'+SY(gyv)+'" stroke="'+(gmaj2?"#273449":"#1B2536")+'" stroke-width="'+(gmaj2?1.1:0.5)+'"/>'; } }
   s+='<rect x="'+SX(-venue.w/2)+'" y="'+SY(0)+'" width="'+(venue.w*9)+'" height="'+(venue.d*11)+'" fill="none" stroke="#64748B" stroke-width="1.6"/>';
@@ -1782,7 +1887,7 @@ function hPlanSVG(cells, step){
   cells.forEach(function(c){ s+='<rect x="'+SX(c.x-cellStep/2)+'" y="'+SY(c.y-cellStep/2)+'" width="'+(cellStep*9)+'" height="'+(cellStep*11)+'" fill="'+splColor(c.spl)+'" opacity="'+(c.inAud?0.95:0.45)+'"/>'; });
   /* origin + axes (View Options toggle): (0,0) at stage centre floor, the X
      axis across the stage line and the depth axis out into the house */
-  if(hs.view.origin){ s+='<g data-origin="1"><line x1="'+SX(-venue.w/2-10)+'" y1="'+SY(0)+'" x2="'+SX(venue.w/2+10)+'" y2="'+SY(0)+'" stroke="#22D3EE" stroke-width="1.5" opacity="0.85"/>'+
+  if(hs.viewOpts.origin){ s+='<g data-origin="1"><line x1="'+SX(-venue.w/2-10)+'" y1="'+SY(0)+'" x2="'+SX(venue.w/2+10)+'" y2="'+SY(0)+'" stroke="#22D3EE" stroke-width="1.5" opacity="0.85"/>'+
     '<line x1="'+SX(0)+'" y1="'+SY(-3)+'" x2="'+SX(0)+'" y2="'+SY(venue.d+3)+'" stroke="#22D3EE" stroke-width="1.5" opacity="0.85"/>'+
     '<circle cx="'+SX(0)+'" cy="'+SY(0)+'" r="5.5" fill="#0B1220" stroke="#22D3EE" stroke-width="2.4"/><circle cx="'+SX(0)+'" cy="'+SY(0)+'" r="1.8" fill="#22D3EE"/>'+
     '<text x="'+(SX(0)+10)+'" y="'+(SY(0)-8)+'" fill="#67E8F9" font-size="11" font-weight="800">ORIGIN (0, 0)</text>'+
@@ -1867,11 +1972,11 @@ function hSideSVG(){
   s+='<text x="'+(G.x0-46)+'" y="'+((G.yG+G.yT)/2)+'" fill="#94A3B8" font-size="11" font-weight="700" text-anchor="middle" transform="rotate(-90 '+(G.x0-46)+' '+((G.yG+G.yT)/2)+')">HEIGHT</text>';
   /* depth gridlines + labels */
   /* depth gridlines follow the View Options grid spacing; labels every 10 m */
-  if(hs.view.gridShow){ var _ssp=hGridSpacing(); for(var ddi=0, dd=_ssp*ddi; dd<=venue.d+0.001; ddi++, dd=_ssp*ddi){ var dx2=G.SX(dd); var isLab=(Math.round(dd*10)%100===0); s+='<line x1="'+dx2+'" y1="'+G.yT+'" x2="'+dx2+'" y2="'+G.yG+'" stroke="#1E293B" stroke-width="'+(isLab?0.9:0.5)+'"/>'+(isLab?('<text x="'+dx2+'" y="'+(G.yG+18)+'" fill="#94A3B8" font-size="11" text-anchor="middle">'+hFmtLen(dd)+'</text>'):""); } }
+  if(hs.viewOpts.gridShow){ var _ssp=hGridSpacing(); for(var ddi=0, dd=_ssp*ddi; dd<=venue.d+0.001; ddi++, dd=_ssp*ddi){ var dx2=G.SX(dd); var isLab=(Math.round(dd*10)%100===0); s+='<line x1="'+dx2+'" y1="'+G.yT+'" x2="'+dx2+'" y2="'+G.yG+'" stroke="#1E293B" stroke-width="'+(isLab?0.9:0.5)+'"/>'+(isLab?('<text x="'+dx2+'" y="'+(G.yG+18)+'" fill="#94A3B8" font-size="11" text-anchor="middle">'+hFmtLen(dd)+'</text>'):""); } }
   /* origin in elevation: the stage-line (0 m depth) axis, View Options toggle */
-  if(hs.view.origin){ s+='<line x1="'+G.SX(0)+'" y1="'+G.yT+'" x2="'+G.SX(0)+'" y2="'+G.yG+'" stroke="#22D3EE" stroke-width="1.5" opacity="0.8"/><circle cx="'+G.SX(0)+'" cy="'+G.yG+'" r="4.5" fill="#0B1220" stroke="#22D3EE" stroke-width="2.2"/><text x="'+(G.SX(0)+8)+'" y="'+(G.yG-8)+'" fill="#67E8F9" font-size="10.5" font-weight="800">ORIGIN · 0</text>'; }
+  if(hs.viewOpts.origin){ s+='<line x1="'+G.SX(0)+'" y1="'+G.yT+'" x2="'+G.SX(0)+'" y2="'+G.yG+'" stroke="#22D3EE" stroke-width="1.5" opacity="0.8"/><circle cx="'+G.SX(0)+'" cy="'+G.yG+'" r="4.5" fill="#0B1220" stroke="#22D3EE" stroke-width="2.2"/><text x="'+(G.SX(0)+8)+'" y="'+(G.yG-8)+'" fill="#67E8F9" font-size="10.5" font-weight="800">ORIGIN · 0</text>'; }
   /* horizontal guides (constant depth) appear in elevation as depth lines */
-  if(hs.view.guidesShow){ (hs.guides||[]).forEach(function(g){ if(g.o!=="h") return; s+='<line x1="'+G.SX(g.pos)+'" y1="'+G.yT+'" x2="'+G.SX(g.pos)+'" y2="'+G.yG+'" stroke="#38BDF8" stroke-width="1.3" stroke-dasharray="9 5" opacity="0.9"/><text x="'+(G.SX(g.pos)+4)+'" y="'+(G.yT+14)+'" fill="#7DD3FC" font-size="10.5" font-weight="700">GUIDE '+hFmtSigned(g.pos)+'</text>'; }); }
+  if(hs.viewOpts.guidesShow){ (hs.guides||[]).forEach(function(g){ if(g.o!=="h") return; s+='<line x1="'+G.SX(g.pos)+'" y1="'+G.yT+'" x2="'+G.SX(g.pos)+'" y2="'+G.yG+'" stroke="#38BDF8" stroke-width="1.3" stroke-dasharray="9 5" opacity="0.9"/><text x="'+(G.SX(g.pos)+4)+'" y="'+(G.yT+14)+'" fill="#7DD3FC" font-size="10.5" font-weight="700">GUIDE '+hFmtSigned(g.pos)+'</text>'; }); }
   s+='<text x="'+((G.x0+G.x1)/2)+'" y="'+(G.yG+38)+'" fill="#94A3B8" font-size="11" font-weight="700" text-anchor="middle">DEPTH FROM STAGE ('+hUnitShort()+')</text>';
   /* ear-height line */
   var earY=G.SY(1.5);
@@ -1936,14 +2041,41 @@ function hPerspProjector(kind){ var v=hVenue();
   var ux=ry*fz-rz*fy, uy=rz*fx-rx*fz, uz=rx*fy-ry*fx;
   return function(P){ var dx=P.x-C.x, dy=P.y-C.y, dz=P.z-C.z; var cz=dx*fx+dy*fy+dz*fz; if(cz<1.2) cz=1.2; var cx=dx*rx+dy*ry+dz*rz, cy=dx*ux+dy*uy+dz*uz; return {x:360+cx/cz*focal, y:262-cy/cz*focal, d:cz}; };
 }
-function hIsoProjector(){ var v=hVenue(); var s=Math.min(620/((v.w+v.d)*0.87), 300/(v.d*0.5+11));
-  var cs=0.866, sn=0.5;
-  function raw(P){ return {x:(P.x-P.y)*cs*s, y:(P.x+P.y)*sn*s-P.z*s}; }
-  var corners=[{x:-v.w/2,y:0,z:0},{x:v.w/2,y:0,z:0},{x:-v.w/2,y:v.d,z:0},{x:v.w/2,y:v.d,z:0},{x:0,y:0,z:10}].map(raw);
+/* Iso orbit: yaw spins the room around its vertical axis, tilt sets the
+   viewing elevation of the axonometric drawing. Both are VIEW PREFERENCES
+   (persisted with the other view prefs) — never design data, never in
+   saves / share links / undo history. At yaw 0 / tilt 30 the projection
+   below is EXACTLY the original fixed isometric: A = 45 degrees gives
+   u = (x-y)/sqrt(2), w = (x+y)/sqrt(2), and the sqrt(2) factors cancel
+   into cos/sin(30), so screen = ((x-y)cos30, (x+y)sin30 - z) as before,
+   and depth d = w is a positive rescale of the old d = x+y, so painter
+   ordering is unchanged at the defaults. */
+var H_ISO_YAW0=0, H_ISO_TILT0=30, H_ISO_TILT_MIN=20, H_ISO_TILT_MAX=70;
+/* NOTE: the angles live in top-level hs fields. hs.view is ONLY the
+   view-name string; the view-options object lives in hs.viewOpts (the two
+   historically shared one key and the string won at runtime, silently
+   discarding option changes the moment the view switched). Persistence
+   MERGES into store.viewPrefs so no other stored preference is touched. */
+function hIsoYaw(){ var y=Number(hs.isoYaw); if(!isFinite(y)) y=H_ISO_YAW0; return ((y%360)+360)%360; }
+function hIsoTilt(){ var t=Number(hs.isoTilt); if(!isFinite(t)) t=H_ISO_TILT0; return Math.min(H_ISO_TILT_MAX,Math.max(H_ISO_TILT_MIN,t)); }
+function hIsoPersist(){ if(!store.viewPrefs||typeof store.viewPrefs!=="object") store.viewPrefs={}; store.viewPrefs.isoYaw=hs.isoYaw; store.viewPrefs.isoTilt=hs.isoTilt; persist(); }
+function hIsoSet(yaw,tilt){ hs.isoYaw=Math.round((((yaw%360)+360)%360)*10)/10; hs.isoTilt=Math.min(H_ISO_TILT_MAX,Math.max(H_ISO_TILT_MIN,Math.round(tilt*10)/10)); hIsoPersist(); }
+function hIsoReadout(){ var y=Math.round(hIsoYaw()); return "Yaw "+(y<10?"00":y<100?"0":"")+y+"° · Tilt "+Math.round(hIsoTilt())+"°"; }
+function hIsoProjector(){ var v=hVenue();
+  var A=Math.PI/4 + hIsoYaw()*Math.PI/180, tilt=hIsoTilt()*Math.PI/180;
+  var cA=Math.cos(A), sA=Math.sin(A), kX=Math.SQRT2*Math.cos(tilt), kY=Math.SQRT2*Math.sin(tilt);
+  function rawU(P){ var u=P.x*cA-P.y*sA, w=P.x*sA+P.y*cA; return {x:u*kX, y:w*kY-P.z, d:w}; }
+  var ref=[{x:-v.w/2,y:0,z:0},{x:v.w/2,y:0,z:0},{x:-v.w/2,y:v.d,z:0},{x:v.w/2,y:v.d,z:0},{x:0,y:0,z:10}].map(rawU);
+  var bw=Math.max.apply(null,ref.map(function(c){return c.x;}))-Math.min.apply(null,ref.map(function(c){return c.x;}));
+  var bh=Math.max.apply(null,ref.map(function(c){return c.y;}))-Math.min.apply(null,ref.map(function(c){return c.y;}));
+  var s=Math.min(620/((v.w+v.d)*0.87), 300/(v.d*0.5+11));
+  if(bw>0) s=Math.min(s, 680/bw); if(bh>0) s=Math.min(s, 470/bh); /* rotated frames shrink to fit; inert at the defaults */
+  function raw(P){ var r=rawU(P); return {x:r.x*s, y:r.y*s, d:r.d}; }
+  var corners=ref.map(function(r){ return {x:r.x*s, y:r.y*s}; });
   var mnx=Math.min.apply(null,corners.map(function(c){return c.x;})), mxx=Math.max.apply(null,corners.map(function(c){return c.x;}));
   var mny=Math.min.apply(null,corners.map(function(c){return c.y;})), mxy=Math.max.apply(null,corners.map(function(c){return c.y;}));
   var ox=360-(mnx+mxx)/2, oy=268-(mny+mxy)/2;
-  return function(P){ var r=raw(P); return {x:r.x+ox, y:r.y+oy, d:P.x+P.y}; };
+  return function(P){ var r=raw(P); return {x:r.x+ox, y:r.y+oy, d:r.d}; };
 }
 function h3DSVG(kind, cells, step){
   var venue=hVenue();
@@ -1974,9 +2106,15 @@ function h3DSVG(kind, cells, step){
   var sc=PP(0,-3,0.2); s+='<text x="'+sc.x+'" y="'+sc.y+'" fill="#94A3B8" font-size="12" text-anchor="middle" font-weight="700">STAGE</text>';
   /* zone outlines on the floor */
   if(hs.showKeys){ venue.zones.forEach(function(z){ var zp=[PP(z.x,z.y,0.06),PP(z.x+z.w,z.y,0.06),PP(z.x+z.w,z.y+z.h,0.06),PP(z.x,z.y+z.h,0.06)]; s+='<polygon points="'+pts(zp)+'" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.4"/><text x="'+(zp[0].x+5)+'" y="'+(zp[0].y+13)+'" fill="#fff" font-size="10.5" font-weight="700">'+esc(z.name)+'</text>'; }); }
-  /* iso walls (light outlines) */
-  if(kind==="iso"){ var w1=PP(-venue.w/2,venue.d,0), w2=PP(-venue.w/2,venue.d,7), w3=PP(venue.w/2,venue.d,7), w4=PP(venue.w/2,venue.d,0), w5=PP(-venue.w/2,0,7);
-    s+='<polygon points="'+pts([w1,w2,w3,w4])+'" fill="none" stroke="#334155" stroke-width="1.2"/><line x1="'+w1.x+'" y1="'+w1.y+'" x2="'+w5.x+'" y2="'+w5.y+'" stroke="#334155" stroke-width="1.2"/>'; }
+  /* iso walls (light outlines): the two walls meeting at the floor corner
+     that projects furthest LEFT on screen — at the default yaw that corner
+     is the rear-left, reproducing the original rear-wall polygon + left
+     wall top rail exactly; as the view orbits, the drawn walls follow. */
+  if(kind==="iso"){ var fcw=[[-venue.w/2,0],[venue.w/2,0],[venue.w/2,venue.d],[-venue.w/2,venue.d]];
+    var pc=fcw.map(function(c){ return PP(c[0],c[1],0); }); var li=0; for(var ci=1;ci<4;ci++){ if(pc[ci].x<pc[li].x) li=ci; }
+    var C0=fcw[li], Cp=fcw[(li+3)%4], Cn=fcw[(li+1)%4];
+    var b0=PP(C0[0],C0[1],0), t0=PP(C0[0],C0[1],7), bp=PP(Cp[0],Cp[1],0), tp=PP(Cp[0],Cp[1],7), tn=PP(Cn[0],Cn[1],7);
+    s+='<polygon points="'+pts([b0,t0,tp,bp])+'" fill="none" stroke="#334155" stroke-width="1.2"/><line x1="'+t0.x+'" y1="'+t0.y+'" x2="'+tn.x+'" y2="'+tn.y+'" stroke="#334155" stroke-width="1.2"/>'; }
   /* beams + speakers + probe, far to near */
   var items=[];
   hDisplayArrays().forEach(function(a){ items.push({d:PP(a.x,a.y,hSpkH(a)).d, a:a}); });
@@ -2001,11 +2139,12 @@ function h3DSVG(kind, cells, step){
   if(hs.probe){ var PF=PP(hs.probe.x,hs.probe.y,0), PH=PP(hs.probe.x,hs.probe.y,1.62);
     s+='<g data-3d-probe="1"><line x1="'+PF.x+'" y1="'+PF.y+'" x2="'+PH.x+'" y2="'+PH.y+'" stroke="#F59E0B" stroke-width="3"/><circle cx="'+PH.x+'" cy="'+(PH.y-5)+'" r="6" fill="#F59E0B" stroke="#fff" stroke-width="1.6"/><text x="'+PH.x+'" y="'+(PH.y-18)+'" fill="#FCD34D" font-size="11" text-anchor="middle" font-weight="800">Probe · '+hFmtLen(hs.probe.y)+' out</text></g>'; }
   s+='<text x="360" y="26" fill="#E6E8EB" font-size="13" text-anchor="middle" font-weight="700">'+esc(title)+'</text>';
-  s+='<text x="360" y="44" fill="#94A3B8" font-size="10.5" text-anchor="middle">Same design, same positions as Plan and Side · floor colours are the coverage model, decimated for drawing</text>';
+  s+='<text x="360" y="44" fill="#94A3B8" font-size="10.5" text-anchor="middle">'+(kind==="iso"?"Drag the empty floor to orbit · ⟲ ⟳ step the yaw, Tilt +/− the elevation · axonometric at every angle — nothing distorts":"Same design, same positions as Plan and Side · floor colours are the coverage model, decimated for drawing")+'</text>';
   s+='<g id="h-wave-layer" pointer-events="none"></g>';
   return s+'</svg>';
 }
 function hRoomPanelHTML(){
+  var seg=hs.roomSeg||"all";
   var v=hVenue(), ac=hRoomAcoustics(), ed=hs.roomEdit;
   var fLabel=hs.env.absFreq>=1000?((hs.env.absFreq/1000)+"k Hz"):(hs.env.absFreq+" Hz");
   var h='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px" aria-label="Room and surfaces panel">'+
@@ -2024,6 +2163,8 @@ function hRoomPanelHTML(){
   }
   h+='<p style="font-weight:700;font-size:14px;margin:12px 0 0">Floor / audience area</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+
   Object.keys(H_FLOOR_MATS).map(function(k){ var m=H_FLOOR_MATS[k]; return '<button class="btn btn-sm" data-floormat="'+k+'" aria-pressed="'+(hs.floorMat===k)+'" style="'+(hs.floorMat===k?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+m.label+' · α '+m.a[hMatFreqIdx()]+'</button>'; }).join("")+'</div>';
+  if(seg==="mat") return h+'</div>';
+  if(seg==="edit"||seg==="import"){ h='<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px" aria-label="Room outline editor, custom venues and import panel">'+'<h3 style="margin:0;font-size:15px">🏠 Room outline, custom venues &amp; import</h3>'+'<p style="font-size:12px;margin:4px 0 0;color:var(--dim)">Reshape the room, flag a stage end, calibrate scale, or import a drawing — reflections, room modes and RT60 follow the outline. Wall and floor materials live under Room › Materials.</p>'; }
   /* custom venue library */
   var lib=store.customVenues||[];
   if(lib.length){ h+='<p style="font-weight:700;font-size:14px;margin:14px 0 0">Your custom venues (saved on this device)</p>';
@@ -2053,7 +2194,7 @@ function hRoomPanelHTML(){
     h+='<p style="font-weight:700;font-size:14px;margin:14px 0 0">Floor material for this room</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+
     Object.keys(H_FLOOR_MATS).map(function(k){ var m=H_FLOOR_MATS[k]; return '<button class="btn btn-sm" data-ed-floormat="'+k+'" aria-pressed="'+(ed.floorMat===k)+'" style="'+(ed.floorMat===k?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+m.label+'</button>'; }).join("")+'</div>';
     /* calibration + import */
-    h+='<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">📐 Scale calibration &amp; import</p>'+
+    h+='<div id="h-room-import-sec" style="border-top:1px solid var(--border);margin-top:14px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">📐 Scale calibration &amp; import</p>'+
     '<p style="font-size:12.5px;margin:4px 0 0;color:var(--dim)">Units are never assumed. Tap “Calibrate”, tap two points on the plan (wall corners snap), type the real distance between them, and apply — the '+(hs.calibTarget==="underlay"?"underlay image":"room outline")+' rescales to true metres.</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><button class="btn btn-sm" id="h-calib-tog" aria-pressed="'+hs.calibMode+'" style="'+(hs.calibMode?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">Calibrate: '+(hs.calibMode?"ON — tap two points":"OFF")+'</button>'+
     '<button class="btn btn-sm" data-calib-target="outline" aria-pressed="'+(hs.calibTarget==="outline")+'">Target: outline</button>'+
@@ -2095,11 +2236,11 @@ function hEnvPanelHTML(cur){
   row("press","Pressure",800,1050,1,e.press," hPa")+
   '<p class="mono" style="font-size:16px;margin:12px 0 0">Speed of sound <strong id="h-env-c" style="font-size:19px">c = '+c+' m/s</strong> · Air density <span id="h-env-rho">'+hAirDensity()+' kg/m³</span></p>'+
   '<p style="font-size:13px;margin:6px 0 0;color:var(--dim)">Teaching point: pressure barely moves the speed of sound — in an ideal gas c depends on temperature (and a little on humidity), not on pressure. Pressure instead changes air density and the air-absorption term below.</p>'+
-  '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">Air absorption (ISO 9613-1, simplified)</p>'+
+  '<div id="h-env-abs-sec" style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">Air absorption (ISO 9613-1, simplified)</p>'+
   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><button class="btn btn-sm" id="h-env-abs" aria-pressed="'+e.absOn+'" style="'+(e.absOn?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Air absorption: '+(e.absOn?"ON":"OFF")+'</button>'+
   [125,500,1000,2000,4000,8000].map(function(f){ return '<button class="btn btn-sm" data-abs-freq="'+f+'" aria-pressed="'+(e.absFreq===f)+'" style="'+(e.absFreq===f?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(f>=1000?(f/1000)+"k":f)+' Hz</button>'; }).join("")+'</div>'+
   '<p class="mono" id="h-env-alpha" style="font-size:14px;margin:8px 0 0">α @ '+fLabel+' = '+alpha.toFixed(3)+' dB/m'+(e.absOn?(' · predicted extra loss: '+(lossProbe!==null?('at probe '+lossProbe.toFixed(1)+' dB · '):'')+'at rear '+lossRear.toFixed(1)+' dB (from '+esc(cur.name)+')'):' · toggle ON to apply it to the map')+'</p></div>'+
-  '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">Room modes — standing waves</p>'+
+  '<div id="h-env-modes-sec" style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px"><p style="margin:0;font-weight:700;font-size:15px">Room modes — standing waves</p>'+
   '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Venue treated as a rectangular box '+v.w+' m wide × '+v.d+' m deep × '+H_ROOM_H+' m high. Rectangular-room approximation — real rooms shift these.</p>'+
   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center"><button class="btn btn-sm" id="h-env-modes" aria-pressed="'+e.modesOn+'" style="'+(e.modesOn?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Room modes: '+(e.modesOn?"ON":"OFF")+'</button>'+
   '<span style="font-weight:700;font-size:14px">Mode frequency</span>'+
@@ -2122,7 +2263,7 @@ function hViewSVG(comp){ var v=hView(); if(v==="plan") return hPlanSVG(comp.cell
    auto-pauses when the tab is hidden. View preference only: never saved. */
 var H_WAVE_PERIOD=14, H_WAVE_MAXR=52;
 function hWaveRingsHTML(){
-  var c=hSoundSpeed(), t=hs.anim.t, v=hView(), venue=hVenue(), out="";
+  var c=hRenderC(), t=hs.anim.t, v=hView(), venue=hVenue(), out="";
   var arrs=hDisplayArrays();
   function ringOp(r){ return Math.max(0, Math.min(0.85, 6.5/Math.max(2,r))) * (r>H_WAVE_MAXR*0.8 ? Math.max(0,(H_WAVE_MAXR-r)/(H_WAVE_MAXR*0.2)) : 1); }
   if(v==="plan"){ var pd=hPlanDims(); var SX=function(mx){return pd.CX+mx*9;}, SY=function(my){return 30+my*11;};
@@ -2152,25 +2293,33 @@ function hWaveRingsHTML(){
     if(hs.probe){ var arr2=hArrivals(); if(arr2.list.length){ var ph2=((t-arr2.list[0].ms)%H_WAVE_PERIOD+H_WAVE_PERIOD)%H_WAVE_PERIOD; var pr2=ph2/H_WAVE_PERIOD;
       out+='<circle cx="'+G.SX(hs.probe.y)+'" cy="'+G.SY(1.5)+'" r="'+(7+pr2*11)+'" fill="none" stroke="#F59E0B" stroke-width="2.6" opacity="'+(0.85*(1-pr2)).toFixed(2)+'"/>'; } }
     return out; }
-  /* 3D views: wavefront circle projected on the floor plane */
+  /* 3D views: the wavefront is a sphere centred on the speaker's TRUE 3D
+     position (x, y, height) — never on its floor point. Drawn as the
+     horizontal ring through the sphere's centre plane (z = speaker height,
+     radius r, centred on the speaker itself, so the ring passes through
+     the speaker in space) plus, once the front is large enough to reach
+     the floor, the fainter circle where the sphere intersects the floor
+     plane (radius sqrt(r^2 - h^2) around the floor point). */
   var proj=v==="iso"?hIsoProjector():hPerspProjector(v);
-  arrs.forEach(function(a){ if(!a.on) return;
+  arrs.forEach(function(a){ if(!a.on) return; var sh=hSpkH(a);
     for(var age=(t%H_WAVE_PERIOD); age<1400; age+=H_WAVE_PERIOD){ var r=c*age/1000; if(r>H_WAVE_MAXR) break; var op=ringOp(r); if(op<=0.02) continue;
-      var ptsArr=[]; for(var th=0; th<=360; th+=15){ var p=proj({x:a.x+Math.sin(th*Math.PI/180)*r, y:a.y+Math.cos(th*Math.PI/180)*r, z:0.06}); ptsArr.push((Math.round(p.x*10)/10)+","+(Math.round(p.y*10)/10)); }
-      out+='<polyline points="'+ptsArr.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.8" opacity="'+op.toFixed(2)+'"/>'; } });
+      var ptsArr=[]; for(var th=0; th<=360; th+=10){ var p=proj({x:a.x+Math.sin(th*Math.PI/180)*r, y:a.y+Math.cos(th*Math.PI/180)*r, z:sh}); ptsArr.push((Math.round(p.x*10)/10)+","+(Math.round(p.y*10)/10)); }
+      out+='<polyline points="'+ptsArr.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.8" opacity="'+op.toFixed(2)+'"/>';
+      if(r>sh){ var fr=Math.sqrt(r*r-sh*sh), fPts=[]; for(var th2=0; th2<=360; th2+=10){ var pf=proj({x:a.x+Math.sin(th2*Math.PI/180)*fr, y:a.y+Math.cos(th2*Math.PI/180)*fr, z:0.06}); fPts.push((Math.round(pf.x*10)/10)+","+(Math.round(pf.y*10)/10)); }
+        out+='<polyline points="'+fPts.join(" ")+'" fill="none" stroke="#7DD3FC" stroke-width="1.2" opacity="'+(op*0.45).toFixed(2)+'"/>'; } } });
   if(hs.probe){ var arr3=hArrivals(); if(arr3.list.length){ var ph3=((t-arr3.list[0].ms)%H_WAVE_PERIOD+H_WAVE_PERIOD)%H_WAVE_PERIOD; var pr3=ph3/H_WAVE_PERIOD;
     var PP3=proj({x:hs.probe.x, y:hs.probe.y, z:1.6}); out+='<circle cx="'+PP3.x+'" cy="'+PP3.y+'" r="'+(8+pr3*13)+'" fill="none" stroke="#F59E0B" stroke-width="2.6" opacity="'+(0.85*(1-pr3)).toFixed(2)+'"/>'; } }
   return out;
 }
 function hAnimUpdateChrome(){ var b=document.getElementById("h-anim-play"); if(b){ b.textContent=hs.anim.playing?"⏸ Pause":"▶ Waves"; b.setAttribute("aria-pressed", hs.anim.playing); }
   document.querySelectorAll("[data-anim-speed]").forEach(function(x){ x.classList.toggle("on", Number(x.getAttribute("data-anim-speed"))===hs.anim.speed); });
-  var tt=document.getElementById("h-anim-time"); if(tt) tt.textContent="t = "+Math.round(hs.anim.t)+" ms · c "+hSoundSpeed()+" m/s · slowed ×"+(0.1*hs.anim.speed); }
+  var tt=document.getElementById("h-anim-time"); if(tt) tt.textContent="t = "+Math.round(hs.anim.t)+" ms · c "+hRenderC()+" m/s · slowed ×"+(0.1*hs.anim.speed); }
 function hAnimTick(ts){ if(!hs.anim.playing) return;
   if(hs.anim.lastTs){ var dt=Math.min(100, ts-hs.anim.lastTs); hs.anim.t+=dt*0.1*hs.anim.speed; /* slowed time: sim ms = real ms x (0.1 x speed) */ }
   hs.anim.lastTs=ts;
   var layer=document.getElementById("h-wave-layer");
   if(layer) layer.innerHTML=hWaveRingsHTML();
-  var tt=document.getElementById("h-anim-time"); if(tt) tt.textContent="t = "+Math.round(hs.anim.t)+" ms · c "+hSoundSpeed()+" m/s · slowed ×"+(0.1*hs.anim.speed);
+  var tt=document.getElementById("h-anim-time"); if(tt) tt.textContent="t = "+Math.round(hs.anim.t)+" ms · c "+hRenderC()+" m/s · slowed ×"+(0.1*hs.anim.speed);
   hs.anim.raf=window.requestAnimationFrame(hAnimTick); }
 function hAnimSet(playing){ hs.anim.playing=playing; hs.anim.lastTs=0;
   if(playing){ if(hs.anim.raf) window.cancelAnimationFrame(hs.anim.raf); hs.anim.raf=window.requestAnimationFrame(hAnimTick); }
@@ -2183,14 +2332,117 @@ document.addEventListener("visibilitychange",function(){ if(document.hidden&&hs.
    opened from a circular (radial) menu. Groups stay in the DOM at all
    times (hidden), so every existing handler, id and deck shortcut keeps
    working exactly as before — only visibility changed. */
-var H_RADIAL=[["speaker","🔊","Speaker"],["layers","🗂","Layers"],["probe","🛰","Probe"],["waves","🌊","Waves"],["room","🏠","Room"],["view","👁","View"],["tape","📏","Tape"],["more","⋯","More"]];
-function hShownPop(){ return hs.popup || ((hs.viewOptsOpen||hs.tape.active) ? "view" : null); }
+var H_RADIAL_ROOT=[["design","🎛","Design"],["probe","🛰","Probe"],["field","🌊","Field"],["room","🏠","Room"],["view","👁","View"],["tools","🧰","Tools"],["library","💾","Library"]];
+var H_RADIAL_CAPS={design:"Design",probe:"Probe",field:"Field",room:"Room",view:"View",tools:"Tools",library:"Library"};
+function hRadialSubs(cat){
+  if(cat==="design") return [
+    {id:"pop:speaker-pos",kind:"panel",icon:"📍",label:"Position"},
+    {id:"pop:speaker-beams",kind:"panel",icon:"🎚",label:"Beams"},
+    {id:"pop:speaker-link",kind:"panel",icon:"🔗",label:"Link/Groups"},
+    {id:"pop:layers",kind:"panel",icon:"🗂",label:"Layers"},
+    {id:"pop:zones",kind:"panel",icon:"🎯",label:"Zones/Goals"}];
+  if(cat==="probe") return [
+    {id:"pop:probe",kind:"panel",icon:"🛰",label:"Position"},
+    {id:"pop:probetag",kind:"panel",icon:"🎯",label:"Tag & Balance"},
+    {id:"act:slices",kind:"action",icon:"📊",label:"Slices"}];
+  if(cat==="field") return [
+    {id:"pop:waves",kind:"panel",icon:"🌊",label:"Animation"},
+    {id:"pop:env",kind:"panel",icon:"🌡",label:"Environment"},
+    {id:"pop:env-abs",kind:"panel",icon:"〰",label:"Absorption"},
+    {id:"pop:env-modes",kind:"panel",icon:"∿",label:"Room Modes"},
+    {id:"tgl:refl",kind:"toggle",icon:"🪞",label:"Reflections",on:!!hs.reflOn}];
+  if(cat==="room") return [
+    {id:"pop:room",kind:"panel",icon:"✎",label:"Outline Editor"},
+    {id:"pop:roommat",kind:"panel",icon:"🧱",label:"Materials"},
+    {id:"pop:room-import",kind:"panel",icon:"📥",label:"Import"}];
+  if(cat==="view"){ var v=[
+    {id:"pop:views",kind:"panel",icon:"🔭",label:"Views"},
+    {id:"pop:display",kind:"panel",icon:"👁",label:"Display"},
+    {id:"pop:units",kind:"panel",icon:"📐",label:"Units"},
+    {id:"tgl:origin",kind:"toggle",icon:"⊕",label:"Origin",on:!!hs.viewOpts.origin},
+    {id:"tgl:snap",kind:"toggle",icon:"🧲",label:"Snap",on:!!hs.viewOpts.snap}];
+    if(hView()==="iso") v.push({id:"pop:isorot",kind:"panel",icon:"🧭",label:"Iso Rotate"});
+    return v; }
+  if(cat==="tools") return [
+    {id:"act:tape",kind:"action",icon:"📏",label:"Tape"},
+    {id:"pop:more-edit",kind:"panel",icon:"✎",label:"Edit Values"},
+    {id:"pop:more-labels",kind:"panel",icon:"🏷",label:"Labels"},
+    {id:"pop:more-lessons",kind:"panel",icon:"🎓",label:"Tutor"}];
+  if(cat==="library") return [
+    {id:"pop:save",kind:"panel",icon:"💾",label:"Save/Load"},
+    {id:"pop:share",kind:"panel",icon:"🔗",label:"Share Link"},
+    {id:"act:comments",kind:"action",icon:"💬",label:"Comments"},
+    {id:"act:reset",kind:"action",icon:"↺",label:"Reset"}];
+  return [];
+}
+function hRadialCurrent(){
+  if(!hs.radialLevel) return H_RADIAL_ROOT.map(function(r){ return {id:"cat:"+r[0],kind:"cat",icon:r[1],label:r[2]}; });
+  return hRadialSubs(hs.radialLevel);
+}
+function hRadialWedgesHTML(){
+  return hRadialCurrent().map(function(it,i){
+    var lab=it.label+(it.kind==="toggle"?(" · "+(it.on?"ON":"OFF")):"");
+    return '<button type="button" class="rad-wedge'+(it.kind==="toggle"&&it.on?" rad-on":"")+'" data-rad-item="'+it.id+'" aria-label="'+esc(lab)+' (shortcut '+(i+1)+')"'+(it.kind==="toggle"?(' aria-pressed="'+!!it.on+'"'):'')+'><span class="rad-ic" aria-hidden="true">'+it.icon+'</span><span class="rad-lab">'+esc(it.label)+'</span>'+(it.kind==="toggle"?('<span class="rad-state">'+(it.on?"ON":"OFF")+'</span>'):'')+'<span class="rad-key">'+(i+1)+'</span></button>';
+  }).join("");
+}
+function hRadialPick(it){
+  if(!it) return;
+  if(it.kind==="cat"){ hs.radialLevel=it.id.slice(4); renderHoloplot(); return; }
+  hRadialLeaf(it);
+}
+function hRadialLeaf(it){
+  var leaf=it.id;
+  function open(pop, anchor){ hs.popup=pop; hs.radialOpen=false; hs.radialLevel=null; if(anchor) hs._popAnchor=anchor; hs.viewOptsOpen=(pop==="display"||pop==="units"||pop==="tape"); renderHoloplot(); }
+  if(it.kind==="toggle"){
+    if(leaf==="tgl:origin"){ hs.viewOpts.origin=!hs.viewOpts.origin; persistViewPrefs(); renderHoloplot(); return; }
+    if(leaf==="tgl:snap"){ hs.viewOpts.snap=!hs.viewOpts.snap; persistViewPrefs(); renderHoloplot(); return; }
+    if(leaf==="tgl:refl"){ hs.reflOn=!hs.reflOn; hs._histLabel="Reflections "+(hs.reflOn?"ON":"OFF"); hs._arrCache={}; renderHoloplot(); return; }
+  }
+  if(leaf==="act:slices"){ hs.radialOpen=false; hs.radialLevel=null; setPage("probe"); return; }
+  if(leaf==="act:comments"){ hs.radialOpen=false; hs.radialLevel=null; setPage("comments"); return; }
+  if(leaf==="act:reset"){ hResetDesignRadial(); return; }
+  if(leaf==="act:tape"){ hs.tape.active=true; open("tape"); return; }
+  if(leaf==="pop:speaker-pos"){ hs.deck="arrays"; open("speaker","h-seg-pos"); return; }
+  if(leaf==="pop:speaker-beams"){ hs.deck="arrays"; open("speaker","h-seg-beams"); return; }
+  if(leaf==="pop:speaker-link"){ hs.deck="arrays"; open("speaker","h-seg-link"); return; }
+  if(leaf==="pop:layers"){ open("layers"); return; }
+  if(leaf==="pop:zones"){ open("zones"); return; }
+  if(leaf==="pop:probe"){ open("probe"); return; }
+  if(leaf==="pop:probetag"){ open("probetag"); return; }
+  if(leaf==="pop:waves"){ open("waves"); return; }
+  if(leaf==="pop:env"){ open("env"); return; }
+  if(leaf==="pop:env-abs"){ open("env","h-env-abs-sec"); return; }
+  if(leaf==="pop:env-modes"){ open("env","h-env-modes-sec"); return; }
+  if(leaf==="pop:room"){ open("room"); return; }
+  if(leaf==="pop:roommat"){ open("roommat"); return; }
+  if(leaf==="pop:room-import"){ open("room","h-room-import-sec"); return; }
+  if(leaf==="pop:views"){ open("views"); return; }
+  if(leaf==="pop:display"){ open("display"); return; }
+  if(leaf==="pop:units"){ open("units"); return; }
+  if(leaf==="pop:isorot"){ if(hView()!=="iso") hSetView("iso"); open("isorot"); return; }
+  if(leaf==="pop:more-edit"||leaf==="pop:more-labels"){ open("more","h-display"); return; }
+  if(leaf==="pop:more-lessons"){ open("more","h-lessons"); return; }
+  if(leaf==="pop:save"){ hs.deck="save"; open("more"); return; }
+  if(leaf==="pop:share"){ hs.deck="save"; open("more","h-share"); return; }
+  hs.radialOpen=false; hs.radialLevel=null; renderHoloplot();
+}
+function hResetDesignRadial(){
+  var snap=hDesignData(); hs._histLabel="Reset beams"; hs.arrays=[
+    {id:1,name:"Array L",model:"X2",x:-6,y:4,height:5.5,on:true,beams:[{az:-10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:2,name:"Array R",model:"X2",x:6,y:4,height:5.5,on:true,beams:[{az:10,tilt:0,hBeam:28,vBeam:18,gain:0,zone:"Stalls",layer:"Main"}]},
+    {id:3,name:"Centre / Balcony",model:"X1",x:0,y:4,height:5.5,on:false,beams:[{az:0,tilt:8,hBeam:20,vBeam:12,gain:-3,zone:"Balcony",layer:"Balcony"}]}
+  ]; hs.linked=[]; hs.invertPan=false; hs.invertTilt=false; hs.sel=1; hs.selBeam=0; hs.editing=null; hs.latched=[]; hs.hovered=null; hs._arrCache={};
+  hs.radialOpen=false; hs.radialLevel=null; renderHoloplot();
+  showUndoToast("Beams reset to the baseline design.", function(){ hs._histRestore=true; hLoadDesignData(snap); renderHoloplot(); });
+}
+function hShownPop(){ return hs.popup || (hs.tape.active ? "tape" : null); }
 function hOpenPopup(name){
   if(name==="speaker"){ hs.deck="arrays"; hs.popup="speaker"; }
-  else if(name==="tape"){ hs.popup="view"; hs.viewOptsOpen=true; if(!hs.tape.active) hs.tape.active=true; }
-  else if(name==="view"){ hs.popup="view"; hs.viewOptsOpen=true; }
+  else if(name==="tape"){ hs.popup="tape"; if(!hs.tape.active) hs.tape.active=true; }
+  else if(name==="view"){ hs.popup="display"; }
   else hs.popup=name;
-  hs.radialOpen=false;
+  hs.viewOptsOpen=(hs.popup==="display"||hs.popup==="units"||hs.popup==="tape");
+  hs.radialOpen=false; hs.radialLevel=null;
 }
 function hClosePopup(){ hs.popup=null; hs.viewOptsOpen=false; if(hs.tape.active){ hs.tape.active=false; hs.tape.a=null; hs.tape.cur=null; hs.tape.guideRef=null; } }
 function hPopHead(title){ return '<div class="pop-head"><h3>'+title+'</h3><button type="button" class="btn pop-close" data-pop-close aria-label="Close this popup">✕</button></div>'; }
@@ -2208,7 +2460,52 @@ function hLayoutRadial(){
   if(sr.width<ext*2) cx=sr.width/2; if(sr.height<ext*2) cy=sr.height/2;
   var disc=layer.querySelector(".rad-disc"); if(disc){ disc.style.left=cx+"px"; disc.style.top=cy+"px"; disc.style.width=(ext*2)+"px"; disc.style.height=(ext*2)+"px"; }
   var cen=layer.querySelector(".rad-centre"); if(cen){ cen.style.left=cx+"px"; cen.style.top=cy+"px"; }
-  layer.querySelectorAll(".rad-wedge").forEach(function(w,i){ var a=(-90+i*45)*Math.PI/180; w.style.left=(cx+Math.cos(a)*R)+"px"; w.style.top=(cy+Math.sin(a)*R)+"px"; w.style.animationDelay=(i*14)+"ms"; });
+  var _ws=layer.querySelectorAll(".rad-wedge"), _nw=Math.max(1,_ws.length);
+  /* Safe box for wedges = the map wrap itself. The shell's full box includes
+     readout rows that following page sections can paint over, so a wedge
+     clamped only to the shell can land in covered territory (observed: the
+     bottom-arc wedge on phone shells ended up under the tutor card). */
+  var _bx0=35, _by0=32, _bx1=Math.max(35,sr.width-35), _by1=Math.max(32,sr.height-32);
+  var _wrap=shell.querySelector(":scope > svg")||shell.querySelector("svg");
+  if(_wrap){ var _wr=_wrap.getBoundingClientRect();
+    if(_wr.width>90&&_wr.height>90){
+      _bx0=Math.max(4, _wr.left-sr.left+35); _bx1=Math.min(sr.width-4, _wr.right-sr.left-35);
+      _by0=Math.max(4, _wr.top-sr.top+32); _by1=Math.min(sr.height-4, _wr.bottom-sr.top-32);
+      if(_bx1<_bx0){ _bx0=35; _bx1=Math.max(35,sr.width-35); }
+      if(_by1<_by0){ _by0=32; _by1=Math.max(32,sr.height-32); }
+    }
+  }
+  var _hubA=Math.atan2(hy-cy,hx-cx), _step=2*Math.PI/_nw; /* a gap in the fan always faces the hub, so no wedge centre ever lands under the hub button */
+  /* Phase 1: natural fan positions, clamped into the safe box. */
+  var _pts=[];
+  _ws.forEach(function(w,i){ var a=_hubA+_step/2+i*_step;
+    _pts.push({ x:Math.max(_bx0, Math.min(_bx1, cx+Math.cos(a)*R)),
+                y:Math.max(_by0, Math.min(_by1, cy+Math.sin(a)*R)), a:a });
+  });
+  /* Phase 2: separation passes. The hub is a fixed obstacle (wedge centres
+     keep 86px from it) and wedge centres keep 70px from each other; after
+     each push, re-clamp into the safe box. Clamping alone can shove two
+     wedges into the same corner (observed: Animation under Reflections),
+     which leaves the lower one unclickable — this pass spreads them. */
+  for(var _pass=0; _pass<10; _pass++){
+    var _moved=false;
+    for(var _i=0; _i<_pts.length; _i++){ var _p=_pts[_i];
+      var _dx=_p.x-hx, _dy=_p.y-hy, _dd=Math.sqrt(_dx*_dx+_dy*_dy);
+      if(_dd<86){ if(_dd<1){ _dx=Math.cos(_p.a); _dy=Math.sin(_p.a); _dd=1; }
+        _p.x=hx+_dx/_dd*86; _p.y=hy+_dy/_dd*86; _moved=true; }
+      for(var _j=_i+1; _j<_pts.length; _j++){ var _q=_pts[_j];
+        var _ex=_q.x-_p.x, _ey=_q.y-_p.y, _ee=Math.sqrt(_ex*_ex+_ey*_ey);
+        if(_ee<70){ if(_ee<1){ _ex=Math.cos(_p.a+Math.PI/2); _ey=Math.sin(_p.a+Math.PI/2); _ee=1; }
+          var _push=(70-_ee)/2, _ux=_ex/_ee, _uy=_ey/_ee;
+          _p.x-=_ux*_push; _p.y-=_uy*_push; _q.x+=_ux*_push; _q.y+=_uy*_push; _moved=true; }
+      }
+      _p.x=Math.max(_bx0, Math.min(_bx1, _p.x)); _p.y=Math.max(_by0, Math.min(_by1, _p.y));
+    }
+    for(var _k=0; _k<_pts.length; _k++){ _pts[_k].x=Math.max(_bx0, Math.min(_bx1, _pts[_k].x)); _pts[_k].y=Math.max(_by0, Math.min(_by1, _pts[_k].y)); }
+    if(!_moved) break;
+  }
+  _ws.forEach(function(w,i){ w.style.left=_pts[i].x+"px"; w.style.top=_pts[i].y+"px"; w.style.animationDelay=(i*14)+"ms"; });
+  var _cap=layer.querySelector(".rad-cap"); if(_cap){ _cap.style.left=cx+"px"; _cap.style.top=(cy+44)+"px"; }
 }
 if(!window._holoPopWired){ window._holoPopWired=true;
   document.addEventListener("keydown",function(e){
@@ -2221,21 +2518,21 @@ if(!window._holoPopWired){ window._holoPopWired=true;
     }
     if(e.key==="Escape"){
       if(typing) return;
-      if(hs.radialOpen){ hs.radialOpen=false; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+      if(hs.radialOpen){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; } e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
       if(hs.tape&&hs.tape.active&&(hs.tape.guideRef||hs.tape.a)) return; /* mid tape step: the tape Esc handler owns this press */
       if(hShownPop()){ hClosePopup(); e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
       return;
     }
     if(typing||e.altKey||e.ctrlKey||e.metaKey) return;
-    if(hs.radialOpen&&/^Digit[1-8]$/.test(e.code||"")){
-      var item=H_RADIAL[Number(e.code.slice(5))-1]; if(item){ hOpenPopup(item[0]); e.preventDefault(); e.stopPropagation(); renderHoloplot(); } return;
+    if(hs.radialOpen&&/^Digit[1-9]$/.test(e.code||"")){
+      var items=hRadialCurrent(); var item=items[Number(e.code.slice(5))-1]; if(item){ hRadialPick(item); e.preventDefault(); e.stopPropagation(); } return;
     }
-    if(e.code==="KeyM"){ hs.radialOpen=!hs.radialOpen; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
+    if(e.code==="KeyM"){ hs.radialOpen=!hs.radialOpen; if(!hs.radialOpen) hs.radialLevel=null; e.preventDefault(); e.stopPropagation(); renderHoloplot(); return; }
   },true);
   document.addEventListener("pointerdown",function(e){
     if(typeof hs==="undefined"||!hs.radialOpen) return;
     if(e.target&&e.target.closest&&e.target.closest("#h-hub,#h-radial")) return;
-    hs.radialOpen=false;
+    hs.radialOpen=false; hs.radialLevel=null;
     var rl=document.getElementById("h-radial"); if(rl) rl.classList.remove("open");
     var hb=document.getElementById("h-hub"); if(hb){ hb.classList.remove("open"); hb.setAttribute("aria-expanded","false"); }
   },true);
@@ -2269,7 +2566,7 @@ function renderHoloplot(){
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px"><label style="font-size:14px;font-weight:700" for="h-venue">VENUE</label>'+
     '<select id="h-venue" class="field" style="flex:1">'+VENUES.concat((store.customVenues||[]).map(function(r){return {id:r.id,label:r.name+" — custom room"};})).map(function(v){return '<option value="'+v.id+'"'+(v.id===hs.venueId?" selected":"")+'>'+esc(v.label)+'</option>';}).join("")+'</select></div>'+
     '</div>';
-  var hintHTML='<p class="mono" style="font-size:12px;margin:0 0 8px;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then open the ● MENU hub on the map (or press M) and pick Speaker to work its beams. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
+  var hintHTML='<p class="mono" style="font-size:12px;margin:0 0 8px;color:var(--dim)">Tap an array in the plan to select it — or drag its marker to move that speaker — then open the ● MENU hub on the map (or press M) and pick Design, then Position or Beams. Pinch with two fingers (or use the + / − / FIT buttons on the map) to zoom 100–400%, and drag with one finger to pan while zoomed — a tap still selects, a drag never does.</p>';
   var displayHTML='<div id="h-display">'+displayControlsHTML("h")+'</div>';
   /* Resolution + render-on-demand bar — lives in the Waves popup */
   var resBarHTML='<div class="map-res-bar" aria-label="Map resolution and rendering controls">'+
@@ -2294,10 +2591,11 @@ function renderHoloplot(){
     var diffTxt=staleDiff.slice(0,3).join(" · ")+(pendingN>3?(" · +"+(pendingN-3)+" more"):"");
     html+='<div class="render-needed-badge" id="h-render-needed" role="alert"><span>◐ Render needed<br/><small style="font-weight:600">Map &amp; readouts are stale — values changed, heatmap has not recomputed.</small></span><span class="stale-diff" style="font-size:12px;font-weight:700;line-height:1.4">'+esc(diffTxt)+' — not yet rendered</span><button type="button" id="h-render-now" class="render-now-btn">▶ Render map ('+pendingN+')</button></div>';
   }
-  html+='<div class="zoom-controls" role="group" aria-label="Map view and zoom controls"><div class="view-switch" role="group" aria-label="Map view: Plan, Side, Stage, Audience or Isometric">'+[["plan","Plan"],["side","Side"],["stage","Stage"],["aud","Audience"],["iso","Iso"]].map(function(vw){ return '<button type="button" data-view="'+vw[0]+'" id="h-view-'+vw[0]+'" aria-pressed="'+(hView()===vw[0])+'" class="'+(hView()===vw[0]?"on":"")+'" aria-label="Show '+vw[1]+' view">'+vw[1]+'</button>'; }).join("")+'</div><div class="anim-row" role="group" aria-label="Wave animation controls"><button type="button" id="h-anim-play" class="zoom-btn anim-play" aria-pressed="'+hs.anim.playing+'" aria-label="Play or pause the wave animation">'+(hs.anim.playing?"⏸ Pause":"▶ Waves")+'</button><div class="view-switch anim-speed" role="group" aria-label="Animation speed (slowed time)">'+[0.25,0.5,1].map(function(sp){ return '<button type="button" data-anim-speed="'+sp+'" class="'+(hs.anim.speed===sp?"on":"")+'" aria-pressed="'+(hs.anim.speed===sp)+'" aria-label="Animation speed '+sp+' times">'+sp+'×</button>'; }).join("")+'</div></div><span id="h-anim-time" class="zoom-pct mono" aria-label="Simulation time and speed of sound">t = '+Math.round(hs.anim.t)+' ms · c '+hSoundSpeed()+' m/s · slowed ×'+(0.1*hs.anim.speed)+'</span><span id="h-tape-status" class="zoom-pct mono" aria-label="Tape measure status" style="'+(hs.tape.active?"":"display:none")+'">'+esc(hTapeStatusText())+'</span><button type="button" id="h-viewopts-btn" class="zoom-btn" style="width:auto;font-size:13px;padding:6px 10px" aria-expanded="'+hs.viewOptsOpen+'" aria-label="Toggle the View Options panel: origin, guides, grid and measurements">👁 View</button><button type="button" id="h-tape-btn" class="zoom-btn'+(hs.tape.active?" tape-on":"")+'" style="width:auto;font-size:13px;padding:6px 10px" aria-pressed="'+hs.tape.active+'" aria-label="Toggle the tape measure tool">📏 Tape</button><button type="button" id="h-zoom-in" class="zoom-btn" aria-label="Zoom in on coverage map">+</button><button type="button" id="h-zoom-out" class="zoom-btn" aria-label="Zoom out on coverage map">−</button><button type="button" id="h-zoom-reset" class="zoom-btn zoom-reset" aria-label="Reset map view to fit, 100 percent">FIT</button><span id="h-zoom-pct" class="zoom-pct mono" aria-label="Current map zoom level">'+Math.round(hZoomState().k*100)+'%</span></div>';
+  html+='<div class="zoom-controls" role="group" aria-label="Map view and zoom controls"><div class="view-switch" role="group" aria-label="Map view: Plan, Side, Stage, Audience or Isometric">'+[["plan","Plan"],["side","Side"],["stage","Stage"],["aud","Audience"],["iso","Iso"]].map(function(vw){ return '<button type="button" data-view="'+vw[0]+'" id="h-view-'+vw[0]+'" aria-pressed="'+(hView()===vw[0])+'" class="'+(hView()===vw[0]?"on":"")+'" aria-label="Show '+vw[1]+' view">'+vw[1]+'</button>'; }).join("")+'</div><div class="anim-row" role="group" aria-label="Wave animation controls"><button type="button" id="h-anim-play" class="zoom-btn anim-play" aria-pressed="'+hs.anim.playing+'" aria-label="Play or pause the wave animation">'+(hs.anim.playing?"⏸ Pause":"▶ Waves")+'</button><div class="view-switch anim-speed" role="group" aria-label="Animation speed (slowed time)">'+[0.25,0.5,1].map(function(sp){ return '<button type="button" data-anim-speed="'+sp+'" class="'+(hs.anim.speed===sp?"on":"")+'" aria-pressed="'+(hs.anim.speed===sp)+'" aria-label="Animation speed '+sp+' times">'+sp+'×</button>'; }).join("")+'</div></div><span id="h-anim-time" class="zoom-pct mono" aria-label="Simulation time and speed of sound">t = '+Math.round(hs.anim.t)+' ms · c '+hRenderC()+' m/s · slowed ×'+(0.1*hs.anim.speed)+'</span><span id="h-tape-status" class="zoom-pct mono" aria-label="Tape measure status" style="'+(hs.tape.active?"":"display:none")+'">'+esc(hTapeStatusText())+'</span><button type="button" id="h-viewopts-btn" class="zoom-btn" style="width:auto;font-size:13px;padding:6px 10px" aria-expanded="'+hs.viewOptsOpen+'" aria-label="Toggle the View Options panel: origin, guides, grid and measurements">👁 View</button><button type="button" id="h-tape-btn" class="zoom-btn'+(hs.tape.active?" tape-on":"")+'" style="width:auto;font-size:13px;padding:6px 10px" aria-pressed="'+hs.tape.active+'" aria-label="Toggle the tape measure tool">📏 Tape</button><button type="button" id="h-zoom-in" class="zoom-btn" aria-label="Zoom in on coverage map">+</button><button type="button" id="h-zoom-out" class="zoom-btn" aria-label="Zoom out on coverage map">−</button><button type="button" id="h-zoom-reset" class="zoom-btn zoom-reset" aria-label="Reset map view to fit, 100 percent">FIT</button><span id="h-zoom-pct" class="zoom-pct mono" aria-label="Current map zoom level">'+Math.round(hZoomState().k*100)+'%</span>'+'</div>';
+  if(hView()==="iso") html+='<div class="iso-rot" role="group" aria-label="Isometric view rotation controls" style="position:absolute;left:10px;top:74px;z-index:30;display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:490px"><span class="zoom-pct mono" aria-hidden="true" style="font-weight:800">ISO</span><button type="button" id="h-iso-ccw" class="zoom-btn" style="width:auto;font-size:16px;padding:6px 9px" aria-label="Rotate the isometric view counter-clockwise by 15 degrees">⟲</button><button type="button" id="h-iso-cw" class="zoom-btn" style="width:auto;font-size:16px;padding:6px 9px" aria-label="Rotate the isometric view clockwise by 15 degrees">⟳</button><button type="button" id="h-iso-tdn" class="zoom-btn" style="width:auto;font-size:12px;padding:6px 8px" aria-label="Lower the isometric tilt by 5 degrees">Tilt −</button><button type="button" id="h-iso-tup" class="zoom-btn" style="width:auto;font-size:12px;padding:6px 8px" aria-label="Raise the isometric tilt by 5 degrees">Tilt +</button><span id="h-iso-read" class="zoom-pct mono" aria-label="Current isometric yaw and tilt">'+hIsoReadout()+'</span><button type="button" id="h-iso-reset" class="zoom-btn" style="width:auto;font-size:12px;padding:6px 8px" aria-label="Reset isometric yaw and tilt to the defaults">Reset</button></div>';
   html+= hViewSVG(comp);
   html+='<div class="spk-strip" role="group" aria-label="Speakers — tap to select">'+spkChips+'</div>';
-  html+='<div class="holo-radial'+(hs.radialOpen?" open":"")+'" id="h-radial" aria-hidden="'+(!hs.radialOpen)+'"><div class="rad-disc"></div>'+H_RADIAL.map(function(w,i){ return '<button type="button" class="rad-wedge" data-rad="'+w[0]+'" aria-label="Open '+w[2]+' controls (shortcut '+(i+1)+')"><span class="rad-ic" aria-hidden="true">'+w[1]+'</span><span class="rad-lab">'+w[2]+'</span><span class="rad-key">'+(i+1)+'</span></button>'; }).join("")+'<button type="button" class="rad-centre" id="h-radial-close" aria-label="Close the circular menu">✕</button></div>';
+  html+='<div class="holo-radial'+(hs.radialOpen?" open":"")+'" id="h-radial" aria-hidden="'+(!hs.radialOpen)+'"><div class="rad-disc"></div>'+hRadialWedgesHTML()+'<div class="rad-cap" aria-hidden="true">'+(hs.radialLevel?esc(H_RADIAL_CAPS[hs.radialLevel]||""):"MENU")+'</div><button type="button" class="rad-centre" id="h-radial-close" aria-label="'+(hs.radialLevel?"Back to the main circular menu":"Close the circular menu")+'">'+(hs.radialLevel?"‹":"✕")+'</button></div>';
   html+='<button type="button" class="holo-hub'+(hs.radialOpen?" open":"")+'" id="h-hub" aria-expanded="'+hs.radialOpen+'" aria-label="Toggle the circular controls menu (key M)"><span class="hub-ic" aria-hidden="true">'+(hs.radialOpen?"✕":"●")+'</span><span class="hub-lab">MENU</span></button>';
   if(hs.showLegend){
     html+='<div class="legend-bar" aria-label="SPL legend">'+
@@ -2317,7 +2615,11 @@ function renderHoloplot(){
   if(hs.renderDirty) html+='<p class="mono" style="margin:0;padding:6px 10px;font-size:12px;font-weight:700;color:#FCD34D;background:#2A1A05">⏳ Pending — these readouts are from the last Render and have NOT updated yet. Press Render to update them.</p>';
   html+='</section><p class="practice-note'+(hs.renderDirty?" stale-note":"")+'" style="background:transparent;padding-left:2px">'+(hs.renderDirty?"Last rendered · ":"")+'Practice values — relative, not a prediction.</p></div>';
   html+='<div class="holo-pop-layer'+(_pop?" open":"")+'" data-scroll-panel aria-label="HOLOPLOT control popups">';
-  html+='<section class="pop-group'+(_pop==="view"?" active":"")+'" data-pop="view" aria-label="View options and tape popup">'+hPopHead("👁 View &amp; Tape")+hViewOptionsHTML()+'</section>';
+  html+='<section class="pop-group'+(_pop==="display"?" active":"")+'" data-pop="display" aria-label="Display options popup">'+hPopHead("👁 Display")+hDisplayHTML()+'</section>';
+  html+='<section class="pop-group'+(_pop==="units"?" active":"")+'" data-pop="units" aria-label="Units and precision popup">'+hPopHead("📐 Units &amp; Precision")+hUnitsHTML()+'</section>';
+  html+='<section class="pop-group'+(_pop==="tape"?" active":"")+'" data-pop="tape" aria-label="Tape measure popup">'+hPopHead("📏 Tape Measure")+hTapeHTML()+'</section>';
+  html+='<section class="pop-group'+(_pop==="views"?" active":"")+'" data-pop="views" aria-label="Choose a view popup">'+hPopHead("🔭 Views")+'<div class="vo-panel"><h3>🔭 Pick a view — one design, five cameras</h3><p class="vo-note">Plan, Side (elevation), Stage and Audience (perspectives) and Iso (axonometric) all project the same speakers, beams, zones and probe. Also pinned beside the zoom controls.</p><div class="vo-row">'+[["plan","Plan"],["side","Side"],["stage","Stage"],["aud","Audience"],["iso","Iso"]].map(function(vw2){ return '<button type="button" class="btn btn-sm" data-view="'+vw2[0]+'" aria-pressed="'+(hView()===vw2[0])+'" style="'+(hView()===vw2[0]?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+vw2[1]+'</button>'; }).join("")+'</div></div></section>';
+  html+='<section class="pop-group'+(_pop==="isorot"?" active":"")+'" data-pop="isorot" aria-label="Isometric rotation popup">'+hPopHead("🧭 Iso Rotate")+'<div class="vo-panel"><h3>🧭 Rotate the isometric view</h3><p class="vo-note">Axonometric: width, depth and height stay true at any angle. Drag the empty Iso floor to orbit, or step exactly here. View preference only — never saved into designs.</p><div class="vo-row"><button type="button" class="btn btn-sm" data-iso-act="ccw">⟲ −15°</button><button type="button" class="btn btn-sm" data-iso-act="cw">⟳ +15°</button><button type="button" class="btn btn-sm" data-iso-act="tdn">Tilt −5°</button><button type="button" class="btn btn-sm" data-iso-act="tup">Tilt +5°</button><span class="mono" id="h-iso-read2" style="font-weight:800;font-size:15px">'+hIsoReadout()+'</span><button type="button" class="btn btn-sm" data-iso-act="reset">Reset</button></div></div></section>';
   html+='<section class="pop-group'+(_pop==="probe"?" active":"")+'" data-pop="probe" aria-label="Probe popup">'+hPopHead("🛰 Probe");
   /* zones, goal scoring & layers */
   /* probe panel */
@@ -2327,8 +2629,9 @@ function renderHoloplot(){
   if(!hs.probe){
     html+='<p style="font-size:14px;margin:8px 0 0;color:var(--dim)">No probe yet. Place one on the plan, drag it to a seat, then tag beams to it from the Arrays deck — tagged beams aim themselves at the probe and auto-balance their level there.</p>'+
     '<button class="btn" id="h-probe-add" style="width:100%;margin-top:10px;background:var(--amber);color:#000;border:0">＋ Add Probe</button>';
+    html+='</div></section><section class="pop-group'+(_pop==="probetag"?" active":"")+'" data-pop="probetag" aria-label="Probe tag and balance popup">'+hPopHead("🎯 Tag &amp; Balance")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="font-size:14px;margin:0;color:var(--dim)">No probe yet — add one under Probe › Position first, then tag beams to it from the Speaker popup (Design › Beams).</p>';
   } else {
-    var pc=hProbeContribs(hs.arrays, hs.probe);
+    var pc=hProbeContribs(hDisplayArrays(), hs.renderDirty?hs._snapProbe:hs.probe);
     html+='<p class="mono" id="h-probe-pos" style="font-size:15px;margin:8px 0 0;font-weight:700">'+esc(hProbePosText(hs.probe))+'</p>'+
     '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Drag the amber Probe marker on the plan to move it, or type exact metres:</p>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><label style="font-size:13px;font-weight:600;flex:1;min-width:130px">Sideways x ('+hUnitShort()+', − = left)<input id="h-probe-x" type="number" step="0.5" value="'+hMToDisp(hs.probe.x)+'" class="field" style="margin-top:4px;min-height:48px" aria-label="Probe sideways position in current display units"/></label>'+
@@ -2336,8 +2639,8 @@ function renderHoloplot(){
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><span style="font-weight:700;font-size:14px">Probe target (practice target)</span>'+
     '<button class="stepper" data-probe-tstep="-1" aria-label="Decrease probe target level">−</button>'+
     '<span class="mono" id="h-probe-target" style="font-weight:800;font-size:17px;min-width:74px;text-align:center">'+hs.probeTarget+' dB</span>'+
-    '<button class="stepper" data-probe-tstep="1" aria-label="Increase probe target level">+</button></div>'+
-    '<div id="h-probe-readout" style="margin-top:10px">';
+    '<button class="stepper" data-probe-tstep="1" aria-label="Increase probe target level">+</button></div>';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-sm" id="h-probe-remove">✕ Remove Probe</button></div></div></section><section class="pop-group'+(_pop==="probetag"?" active":"")+'" data-pop="probetag" aria-label="Probe tag and balance popup">'+hPopHead("🎯 Tag &amp; Balance")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><div id="h-probe-readout" style="margin-top:2px">';
     if(pc.taggedActive){
       html+='<p class="mono" style="font-size:15px;margin:0">At probe (tagged beams): <strong>'+pc.taggedSum+' dB</strong> · target '+hs.probeTarget+' dB · spread '+pc.spread+' dB</p>'+
       '<ul style="margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.6">'+
@@ -2354,16 +2657,21 @@ function renderHoloplot(){
     html+='</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
     '<button class="btn btn-sm" id="h-probe-rebalance" '+(pc.taggedActive?"":"disabled")+'>↻ Re-balance now</button>'+
     '<button class="btn btn-sm" id="h-probe-open" style="background:var(--cyan-dim);color:#67E8F9">Open Probe tab (slices) ›</button>'+
-    '<button class="btn btn-sm" id="h-probe-remove">✕ Remove Probe</button></div>';
+    '</div>';
   }
   html+='</div></section>';
-  html+='<section class="pop-group'+(_pop==="waves"?" active":"")+'" data-pop="waves" aria-label="Waves, weather and render popup">'+hPopHead("🌊 Waves, Weather &amp; Render")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="margin:0;font-weight:700;font-size:15px">Wave animation</p><p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Play / Pause stays on the map cluster — it is transport, not a setting. Speed lives here as well as on the map:</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><button type="button" class="btn btn-sm" data-anim-play-dup aria-pressed="'+hs.anim.playing+'">'+(hs.anim.playing?"⏸ Pause waves":"▶ Play waves")+'</button>'+[0.25,0.5,1].map(function(sp){ return '<button type="button" class="btn btn-sm" data-anim-speed="'+sp+'" aria-pressed="'+(hs.anim.speed===sp)+'" style="'+(hs.anim.speed===sp?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+sp+'×</button>'; }).join("")+'</div></div>'+resBarHTML;
+  html+='<section class="pop-group'+(_pop==="waves"?" active":"")+'" data-pop="waves" aria-label="Wave animation and render popup">'+hPopHead("🌊 Animation &amp; Render")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px"><p style="margin:0;font-weight:700;font-size:15px">Wave animation</p><p style="font-size:13px;margin:4px 0 0;color:var(--dim)">Play / Pause stays on the map cluster — it is transport, not a setting. Speed lives here as well as on the map:</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><button type="button" class="btn btn-sm" data-anim-play-dup aria-pressed="'+hs.anim.playing+'">'+(hs.anim.playing?"⏸ Pause waves":"▶ Play waves")+'</button>'+[0.25,0.5,1].map(function(sp){ return '<button type="button" class="btn btn-sm" data-anim-speed="'+sp+'" aria-pressed="'+(hs.anim.speed===sp)+'" style="'+(hs.anim.speed===sp?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">'+sp+'×</button>'; }).join("")+'</div></div>'+resBarHTML;
+  html+='</section>';
+  html+='<section class="pop-group'+(_pop==="env"?" active":"")+'" data-pop="env" aria-label="Environment, absorption and room modes popup">'+hPopHead("🌡 Environment, Absorption &amp; Modes");
   html+=hEnvPanelHTML(cur);
   html+='</section>';
-  html+='<section class="pop-group'+(_pop==="room"?" active":"")+'" data-pop="room" aria-label="Room and surfaces popup">'+hPopHead("🏠 Room &amp; Surfaces");
-  html+=hRoomPanelHTML();
+  html+='<section class="pop-group'+(_pop==="room"?" active":"")+'" data-pop="room" aria-label="Room outline editor and import popup">'+hPopHead("🏠 Room — Outline &amp; Import");
+  hs.roomSeg="edit"; html+=hRoomPanelHTML();
   html+='</section>';
-  html+='<section class="pop-group'+(_pop==="layers"?" active":"")+'" data-pop="layers" aria-label="Layers, zones and goals popup">'+hPopHead("🗂 Layers, Zones &amp; Goals")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
+  html+='<section class="pop-group'+(_pop==="roommat"?" active":"")+'" data-pop="roommat" aria-label="Room materials, reflections and reverb popup">'+hPopHead("🧱 Materials, Reflections &amp; RT60");
+  hs.roomSeg="mat"; html+=hRoomPanelHTML(); hs.roomSeg="all";
+  html+='</section>';
+  html+='<section class="pop-group'+(_pop==="zones"?" active":"")+'" data-pop="zones" aria-label="Zones and goals popup">'+hPopHead("🎯 Zones &amp; Goals")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
   '<h3 style="margin:0;font-size:15px">Audience zones &amp; goal — practice targets</h3>'+
   '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.renderDirty?"Last rendered · ":"")+'Practice values — relative, not a prediction. Practice targets only, on a simplified model. Goal score: <strong id="h-goal-score" style="color:var(--text)">'+comp.goal+'%</strong> of audience cells within their zone target ± tolerance · '+(comp.allZonesInTol?'<span style="color:var(--green);font-weight:700">All zones in tolerance ✓</span>':'<span style="color:#FCD34D;font-weight:700">Some zones out of tolerance</span>')+'</p>'+
   '<div class="grid2" style="margin-top:10px">';
@@ -2373,8 +2681,9 @@ function renderHoloplot(){
     '<p class="mono" style="font-size:14px;margin:4px 0 0">Avg <span data-zone-avg="'+esc(z.name)+'">'+z.avg+'</span> dB · target '+z.target+' ±'+z.tol+' dB · '+z.withinPct+'% of cells in band</p>'+
     '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><label style="font-size:13px;font-weight:600;flex:1;min-width:110px">Target SPL dB<input type="number" step="1" value="'+z.target+'" data-ztarget="'+esc(z.name)+'" class="field" style="margin-top:4px;min-height:48px" aria-label="Practice target SPL for '+esc(z.name)+' zone"/></label>'+
     '<label style="font-size:13px;font-weight:600;flex:1;min-width:110px">Tolerance ± dB<input type="number" step="0.5" min="0.5" value="'+z.tol+'" data-ztol="'+esc(z.name)+'" class="field" style="margin-top:4px;min-height:48px" aria-label="Tolerance in dB for '+esc(z.name)+' zone"/></label></div></div>'; });
-  html+='</div>'+
-  '<h3 style="margin:14px 0 0;font-size:15px">Layers — grouping + mute</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
+  html+='</div></div></section>';
+  html+='<section class="pop-group'+(_pop==="layers"?" active":"")+'" data-pop="layers" aria-label="Layers popup">'+hPopHead("🗂 Layers")+'<div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px">'+
+  '<h3 style="margin:0;font-size:15px">Layers — grouping + mute</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
   H_LAYERS.forEach(function(L){ var n=0; hs.arrays.forEach(function(a){ hBeams(a).forEach(function(b){ if(b.layer===L) n++; }); }); var on=hs.layerOn[L]!==false;
     html+='<button class="btn btn-sm" data-layer-tog="'+L+'" aria-pressed="'+on+'" style="'+(on?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"opacity:.65")+'">'+L+' layer · '+n+' beam'+(n===1?"":"s")+' · '+(on?"ON":"OFF")+'</button>'; });
   html+='</div><p style="font-size:12px;margin:6px 0 0;color:var(--dim)">Turning a layer OFF removes its beams from the map and every readout.</p></div></section>';
@@ -2416,7 +2725,7 @@ function renderHoloplot(){
   html+='</div>';
 
   /* decks — nav + panel ride inside the Speaker popup (arrays) or the More popup (drills / save) */
-  if(hs.deck!=="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead("⋯ More — Display, Drills, Save &amp; Lessons")+hintHTML+displayHTML; }
+  if(hs.deck!=="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead(hs.deck==="save"?"💾 Library — Save, Load &amp; Share":(hs.deck==="drills"?"🎯 Coverage Drills":"⋯ More — Display, Tools &amp; Lessons"))+hintHTML+displayHTML; }
   html+='<div class="holo-decks" style="margin-top:8px">'+hDeckNavHTML()+'<div style="margin-top:8px">';
 
   if(hs.deck==="arrays"){
@@ -2425,7 +2734,7 @@ function renderHoloplot(){
     (hs.faderMsg?'<p class="fader-note" role="status">↺ '+esc(hs.faderMsg)+'</p>':"");
     html+='<div class="spk-row" role="group" aria-label="Speakers — tap to select">'+spkChips+'</div>';
     var sb=hSpeakerBounds();
-    html+='<div style="margin-top:14px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🔊 Speaker — '+esc(cur.name)+' · '+hs.arrays.length+' of 8 speakers</p>'+
+    html+='<div style="margin-top:14px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-pos"><p style="margin:0;font-weight:700;font-size:15px">🔊 Speaker — '+esc(cur.name)+' · '+hs.arrays.length+' of 8 speakers</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:flex-end"><label style="font-size:14px;font-weight:600;flex:1;min-width:170px">Speaker name<input id="h-spk-name" type="text" class="field" style="margin-top:6px;min-height:48px" value="'+esc(cur.name)+'" aria-label="Name of the selected speaker"/></label>'+
       '<button class="btn btn-sm" id="h-add-speaker" '+(hs.arrays.length>=8?"disabled":"")+'>＋ Add Speaker</button>'+
       '<button class="btn btn-sm" id="h-del-speaker" '+(hs.arrays.length<=1?"disabled":"")+'>✕ Delete Speaker</button></div>'+
@@ -2447,7 +2756,7 @@ function renderHoloplot(){
       '<label style="display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;min-height:48px"><input type="checkbox" id="h-on" '+(cur.on?"checked":"")+'/> Powered on</label>'+
       '<div style="flex:1;min-width:180px"><label style="font-size:14px;font-weight:600" for="h-model">Module — '+esc(cur.name)+'</label>'+
       '<select id="h-model" class="field" style="margin-top:6px">'+["X1","X2","X1 + Sub"].map(function(m){return '<option'+(m===cur.model?" selected":"")+'>'+m+'</option>';}).join("")+'</select></div></div>';
-    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">🔗 Speaker link — one group'+(hs.linked.length>=2?(' · Linked: '+hGroupOrder().map(function(a){return a.name;}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
+    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-link"><p style="margin:0;font-weight:700;font-size:15px">🔗 Speaker link — one group'+(hs.linked.length>=2?(' · Linked: '+hGroupOrder().map(function(a){return a.name;}).join(" + ")):'')+(hs.invertPan?' · Invert Pan ON':'')+(hs.invertTilt?' · Invert Tilt ON':'')+'</p>'+
       '<p style="font-size:13px;margin:4px 0 0;color:var(--dim)">'+(hs.linked.length>=2?("Linked: "+hLinkedArrays().map(function(a){return a.name;}).join(" + ")+" — beam edits apply the SAME change (delta) to the matching beam on every linked speaker, preserving each speaker's own offsets. Gains move by equal dB deltas; the gain fader uses a logarithmic (dB) taper so equal travel gives equal dB steps."):"Link 2 or more speakers and beam edits move together by the same delta — offsets preserved, never snapped to identical values.")+'</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+hs.arrays.map(function(a){ var on=hIsLinked(a.id); return '<button class="btn btn-sm" data-link-tog="'+a.id+'" aria-pressed="'+on+'" style="'+(on?"background:var(--amber-dim);color:#FCD34D;border:2px solid var(--amber)":"")+'">'+(on?"🔗 Linked: ":"Link: ")+esc(a.name)+'</button>'; }).join("")+'</div></div>';
     var hasGrp=hs.linked.length>=2;
@@ -2473,7 +2782,7 @@ function renderHoloplot(){
       ((store.speakerGroups||[]).length?(store.speakerGroups.map(function(g){ return '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:150px;font-weight:600">'+esc(g.name)+' <span style="color:var(--dim);font-weight:400">('+(g.linked||[]).map(function(id){ var ar=hs.arrays.find(function(x){return x.id===id;}); return ar?ar.name:String(id); }).join(" + ")+((g.invertPan||g.invertTilt)?(" · "+(g.invertPan?"Invert Pan ":"")+(g.invertTilt?"Invert Tilt":"")):"")+')</span></span><button class="btn btn-sm" data-group-apply="'+g.id+'">Apply</button><button class="btn btn-sm" data-group-del="'+g.id+'" aria-label="Delete speaker group '+esc(g.name)+'">✕ Delete</button></div>'; }).join("")):'<p style="font-size:13px;margin:8px 0 0;color:var(--dim)">No saved groups yet.</p>')+'</div>';
     var cbs=hBeams(cur), cbm=hCurBeam();
     var taggedTotal=hProbeTaggedList().length;
-    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of 3)'+(taggedTotal?' · 🎯 '+taggedTotal+' beam'+(taggedTotal===1?"":"s")+' locked to probe':"")+'</p>'+
+    html+='<div style="margin-top:16px;border-radius:12px;padding:12px;background:var(--surface2)" id="h-seg-beams"><p style="margin:0;font-weight:700;font-size:15px">Beams — '+esc(cur.name)+' ('+cbs.length+' of 3)'+(taggedTotal?' · 🎯 '+taggedTotal+' beam'+(taggedTotal===1?"":"s")+' locked to probe':"")+'</p>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+cbs.map(function(b,bi){ return '<button class="btn btn-sm" data-beam-sel="'+bi+'" aria-pressed="'+(bi===hs.selBeam)+'" style="'+(bi===hs.selBeam?"background:var(--cyan-dim);color:#67E8F9;border:2px solid var(--cyan)":"")+'">Beam '+(bi+1)+' → '+esc(b.zone||"—")+' · '+esc(b.layer)+(b.probe?" · 🎯 →Probe":"")+'</button>'; }).join("")+
       '<button class="btn btn-sm" id="h-add-beam" '+(cbs.length>=3?"disabled":"")+'>+ Add beam</button>'+
       '<button class="btn btn-sm" id="h-del-beam" '+(cbs.length<=1?"disabled":"")+'>✕ Delete Beam '+(hs.selBeam+1)+'</button>'+
@@ -2522,7 +2831,7 @@ function renderHoloplot(){
     html+='</section>';
   }
   html+='</div></div>';
-  if(hs.deck==="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead("⋯ More — Display, Drills, Save &amp; Lessons")+hintHTML+displayHTML+'<p class="pop-note" style="margin-top:10px">Coverage Drills and Save sit on the deck tabs inside the Speaker popup (🎚 / 🎯 / 💾) — or use the Drills and Projects pages in the top bar.</p>'; }
+  if(hs.deck==="arrays"){ html+='</section><section class="pop-group'+(_pop==="more"?" active":"")+'" data-pop="more" aria-label="More controls popup">'+hPopHead(hs.deck==="save"?"💾 Library — Save, Load &amp; Share":(hs.deck==="drills"?"🎯 Coverage Drills":"⋯ More — Display, Tools &amp; Lessons"))+hintHTML+displayHTML+'<p class="pop-note" style="margin-top:10px">Coverage Drills and Save sit on the deck tabs inside the Speaker popup (🎚 / 🎯 / 💾) — or use the Drills and Projects pages in the top bar.</p>'; }
   html+='<div id="h-lessons">'+lessonsHTML(H_LESSONS, hs.openLesson)+'</div>'+githubNoteHTML();
   html+='</section></div></div>';
   root.innerHTML=html;
@@ -2564,6 +2873,7 @@ function renderHoloplot(){
       if(!ed.calib||!ed.calib.a||!ed.calib.b||!isFinite(D)||D<=0){ hs.roomMsg="Calibration needs two tapped points and a real distance in metres."; renderHoloplot(); return; }
       var shown=Math.hypot(ed.calib.b[0]-ed.calib.a[0], ed.calib.b[1]-ed.calib.a[1]); if(shown<0.05){ hs.roomMsg="Those two points are on top of each other — tap two distinct points."; renderHoloplot(); return; }
       var f=D/shown, a=ed.calib.a;
+      if(D>1000||f<0.02||f>50){ hs.roomMsg="That calibration was rejected: a "+D+" m distance over a "+(Math.round(shown*100)/100)+" m shown gap would rescale ×"+(Math.round(f*100)/100)+", far outside the sane range for a room — the previous scale was kept. Check the distance (metres) and the two tapped points."; renderHoloplot(); return; }
       if(hs.calibTarget==="underlay"&&ed.underlay){ var u=ed.underlay; u.cx=a[0]+(u.cx-a[0])*f; u.cy=a[1]+(u.cy-a[1])*f; u.w=Math.round(u.w*f*100)/100; hs.roomMsg="Underlay rescaled ×"+(Math.round(f*1000)/1000)+" — the tapped feature now measures "+D+" m. Trace the walls over it."; }
       else { ed.pts=ed.pts.map(function(p){ return [Math.round((a[0]+(p[0]-a[0])*f)*100)/100, Math.round((a[1]+(p[1]-a[1])*f)*100)/100]; }); hs.roomMsg="Outline rescaled ×"+(Math.round(f*1000)/1000)+" — the tapped distance now measures "+D+" m."; }
       ed.calib={a:null,b:null}; hs.calibMode=false; renderHoloplot(); });
@@ -2582,7 +2892,7 @@ function renderHoloplot(){
     var rcx=document.getElementById("h-room-cancel"); if(rcx) rcx.addEventListener("click",function(){ hs.roomEdit=null; hs.roomMsg=""; renderHoloplot(); });
   }
   wireRoomEdit(root);
-  root.querySelectorAll("[data-view]").forEach(function(b){ b.addEventListener("click",function(){ hSetView(b.getAttribute("data-view")); renderHoloplot(); }); });
+  root.querySelectorAll("[data-view]").forEach(function(b){ b.addEventListener("click",function(){ hSetView(b.getAttribute("data-view")); if(hs.popup==="views") hs.popup=null; renderHoloplot(); }); });
   /* wave animation controls (view preference — never saved into designs) */
   var _ap=document.getElementById("h-anim-play"); if(_ap) _ap.addEventListener("click",function(){ hAnimSet(!hs.anim.playing); });
   root.querySelectorAll("[data-anim-speed]").forEach(function(b){ b.addEventListener("click",function(){ hs.anim.speed=Number(b.getAttribute("data-anim-speed")); hAnimUpdateChrome(); }); });
@@ -2624,17 +2934,26 @@ function renderHoloplot(){
   wireProbeDrag(root);
   wireSpeakerDrag(root);
   wireSideSpeakerDrag(root);
+  wireIsoOrbit(root);
+  wire3DMarkers(root);
   wireTape(root);
   var hzi=document.getElementById("h-zoom-in"); if(hzi) hzi.addEventListener("click",function(){ hZoomBy(1.4); });
   var hzo=document.getElementById("h-zoom-out"); if(hzo) hzo.addEventListener("click",function(){ hZoomBy(1/1.4); });
   var hzr=document.getElementById("h-zoom-reset"); if(hzr) hzr.addEventListener("click",function(){ hZoomReset(); });
+  /* iso orbit steppers (view prefs only — no design change, no history) */
+  var icw=document.getElementById("h-iso-cw"); if(icw) icw.addEventListener("click",function(){ hIsoSet(hIsoYaw()+15,hIsoTilt()); renderHoloplot(); });
+  var icc=document.getElementById("h-iso-ccw"); if(icc) icc.addEventListener("click",function(){ hIsoSet(hIsoYaw()-15,hIsoTilt()); renderHoloplot(); });
+  var itu=document.getElementById("h-iso-tup"); if(itu) itu.addEventListener("click",function(){ hIsoSet(hIsoYaw(),hIsoTilt()+5); renderHoloplot(); });
+  var itd=document.getElementById("h-iso-tdn"); if(itd) itd.addEventListener("click",function(){ hIsoSet(hIsoYaw(),hIsoTilt()-5); renderHoloplot(); });
+  var irs=document.getElementById("h-iso-reset"); if(irs) irs.addEventListener("click",function(){ hIsoSet(H_ISO_YAW0,H_ISO_TILT0); renderHoloplot(); });
+  root.querySelectorAll("[data-iso-act]").forEach(function(b){ b.addEventListener("click",function(){ var a=b.getAttribute("data-iso-act"); if(a==="cw") hIsoSet(hIsoYaw()+15,hIsoTilt()); else if(a==="ccw") hIsoSet(hIsoYaw()-15,hIsoTilt()); else if(a==="tup") hIsoSet(hIsoYaw(),hIsoTilt()+5); else if(a==="tdn") hIsoSet(hIsoYaw(),hIsoTilt()-5); else hIsoSet(H_ISO_YAW0,H_ISO_TILT0); renderHoloplot(); }); });
   root.querySelectorAll("[data-hdeck]").forEach(function(b){ b.addEventListener("click",function(){ hs.deck=b.getAttribute("data-hdeck"); hs.popup=(hs.deck==="arrays")?"speaker":"more"; renderHoloplot(); }); });
   /* ---- radial hub + popup wiring ---- */
-  var _hub=document.getElementById("h-hub"); if(_hub) _hub.addEventListener("click",function(){ hs.radialOpen=!hs.radialOpen; renderHoloplot(); });
+  var _hub=document.getElementById("h-hub"); if(_hub) _hub.addEventListener("click",function(){ hs.radialOpen=!hs.radialOpen; if(!hs.radialOpen) hs.radialLevel=null; renderHoloplot(); });
   var _hu=document.getElementById("h-undo"); if(_hu) _hu.addEventListener("click",function(){ hHistUndo(); });
   var _hr=document.getElementById("h-redo"); if(_hr) _hr.addEventListener("click",function(){ hHistRedo(); });
-  var _rc=document.getElementById("h-radial-close"); if(_rc) _rc.addEventListener("click",function(){ hs.radialOpen=false; renderHoloplot(); });
-  root.querySelectorAll("[data-rad]").forEach(function(b){ b.addEventListener("click",function(){ hOpenPopup(b.getAttribute("data-rad")); renderHoloplot(); }); });
+  var _rc=document.getElementById("h-radial-close"); if(_rc) _rc.addEventListener("click",function(){ if(hs.radialLevel){ hs.radialLevel=null; } else { hs.radialOpen=false; } renderHoloplot(); });
+  root.querySelectorAll("[data-rad-item]").forEach(function(b){ b.addEventListener("click",function(){ var want=b.getAttribute("data-rad-item"); var it=hRadialCurrent().filter(function(x){ return x.id===want; })[0]; if(it) hRadialPick(it); }); });
   root.querySelectorAll("[data-pop-close]").forEach(function(b){ b.addEventListener("click",function(){ hClosePopup(); renderHoloplot(); }); });
   var _apd=root.querySelector("[data-anim-play-dup]"); if(_apd) _apd.addEventListener("click",function(){ hAnimSet(!hs.anim.playing); _apd.textContent=hs.anim.playing?"⏸ Pause waves":"▶ Play waves"; _apd.setAttribute("aria-pressed",hs.anim.playing); });
   if(hs.deck!=="arrays"){ root.querySelectorAll(".spk-strip [data-sel-arr]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-sel-arr")); if(!id) return; hs.sel=id; hs.editing=null; if(hs.showHover){ if(hs.hoverMode==="latch"){ if(hs.latched.indexOf(id)<0) hs.latched.push(id); } else hs.hovered=id; } renderHoloplot(); }); }); }
@@ -2643,10 +2962,11 @@ function renderHoloplot(){
     if(!hShownPop()) return;
     if(hs.tape&&hs.tape.active) return;
     if(hs.roomEdit) return;
-    if(e.target&&e.target.closest&&e.target.closest("[data-arr],[data-probe],[data-rpt],[data-rseg],[data-rmid],[data-guide]")) return;
+    if(e.target&&e.target.closest&&e.target.closest("[data-arr],[data-probe],[data-3d-arr],[data-3d-probe],[data-rpt],[data-rseg],[data-rmid],[data-guide]")) return;
     hClosePopup(); renderHoloplot();
   });
   hLayoutRadial();
+  if(hs._popAnchor){ var _anc=document.getElementById(hs._popAnchor); var _lay=root.querySelector("[data-scroll-panel]"); if(_anc&&_lay){ _lay.scrollTop+=(_anc.getBoundingClientRect().top-_lay.getBoundingClientRect().top)-64; } hs._popAnchor=null; }
 
   root.querySelectorAll("[data-arr]").forEach(function(g){
     var id=Number(g.getAttribute("data-arr"));
@@ -2710,7 +3030,7 @@ function renderHoloplot(){
     ["h-pos-x","h-pos-y","h-pos-h"].forEach(function(pid){ var inp=document.getElementById(pid); if(inp){ inp.addEventListener("change",commitPos); inp.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); commitPos(); } }); } });
     root.querySelectorAll("[data-posstep]").forEach(function(b){ b.addEventListener("click",function(ev){ var p=b.getAttribute("data-posstep").split(":"), a=hCur();
       if(p[0]==="height"){ hSetHeight(a.id, hSpkH(a)+Number(p[1])*(ev.shiftKey?5:1)); hs._histLabel=a.name+" height \u2192 "+hFmtLen(hSpkH(a)); hs._histKey="posstep:height"; hs.posMsg=""; renderHoloplot(); return; }
-      a[p[0]]=Math.round((a[p[0]]+Number(p[1]))*10)/10; hClampSpeakerPos(a); if(hs.view.snap){ a[p[0]]=Math.round(hSnapVal(a[p[0]])*10)/10; hClampSpeakerPos(a); } hs._histLabel="Move "+a.name+" \u2014 "+hFmtLen(a.x)+" offset, "+hFmtLen(a.y)+" out"; hs._histKey="posstep:"+p[0]; hs.posMsg=""; hProbeSync(); renderHoloplot(); }); });
+      a[p[0]]=Math.round((a[p[0]]+Number(p[1]))*10)/10; hClampSpeakerPos(a); if(hs.viewOpts.snap){ a[p[0]]=Math.round(hSnapVal(a[p[0]])*10)/10; hClampSpeakerPos(a); } hs._histLabel="Move "+a.name+" \u2014 "+hFmtLen(a.x)+" offset, "+hFmtLen(a.y)+" out"; hs._histKey="posstep:"+p[0]; hs.posMsg=""; hProbeSync(); renderHoloplot(); }); });
     root.querySelectorAll("[data-hchip]").forEach(function(b){ b.addEventListener("click",function(){ hSetHeight(hs.sel, Number(b.getAttribute("data-hchip"))); hs._histLabel=hCur().name+" height \u2192 "+hFmtLen(Number(b.getAttribute("data-hchip"))); hs.posMsg=""; renderHoloplot(); }); });
     root.querySelectorAll("[data-link-tog]").forEach(function(b){ b.addEventListener("click",function(){ var id=Number(b.getAttribute("data-link-tog")); var i=hs.linked.indexOf(id); if(i>=0) hs.linked.splice(i,1); else hs.linked.push(id); if(hs.linked.length<2){ hs.invertPan=false; hs.invertTilt=false; } var _la=hs.arrays.find(function(x){return x.id===id;}); hs._histLabel=(i>=0?"Unlink ":"Link ")+(_la?_la.name:"speaker"); renderHoloplot(); }); });
     root.querySelectorAll("[data-invert]").forEach(function(b){ b.addEventListener("click",function(){ var _ik=b.getAttribute("data-invert"); hToggleInvert(_ik); hs._histLabel="Invert "+(_ik==="az"?("Pan "+(hs.invertPan?"ON":"OFF")):("Tilt "+(hs.invertTilt?"ON":"OFF"))); renderHoloplot(); }); });
@@ -2753,7 +3073,7 @@ function renderHoloplot(){
         else { if(tapTimer) window.clearTimeout(tapTimer); tapTimer=window.setTimeout(function(){ tapCount=0; },380); }
       });
       inp.addEventListener("input",function(){ var key=inp.getAttribute("data-slider"); var raw=Number(inp.value);
-        if((key==="x"||key==="y")&&hs.view.snap) raw=Math.round(hSnapVal(raw)*10)/10;
+        if((key==="x"||key==="y")&&hs.viewOpts.snap) raw=Math.round(hSnapVal(raw)*10)/10;
         if(key==="x"||key==="y") hCur()[key]=raw; else if(key==="height") hSetHeight(hs.sel,raw); else if(key==="gain") hSetBeamParam("gain",posToGain(raw)); else hSetBeamParam(key,raw);
         var curVal=(key==="x"||key==="y")?hCur()[key]:((key==="height")?hSpkH(hCur()):hCurBeam()[key]);
         var lbl=root.querySelector('[data-slval="'+key+'"]'); if(lbl){ var s=[["az","°"],["tilt","°"],["hBeam","°"],["vBeam","°"],["gain"," dB"],["x"," m"],["y"," m"],["height"," m"]].find(function(p){return p[0]===key;}); lbl.textContent=(key==="x"||key==="y"||key==="height")?hFmtLen(curVal):(curVal+(s?s[1]:"")); }
@@ -2781,7 +3101,7 @@ function renderHoloplot(){
     document.getElementById("h-savename").addEventListener("input",function(e){ hs.saveName=e.target.value; });
     document.getElementById("h-save").addEventListener("click",function(){ addSave("holoplot", hs.saveName||"Untitled design", JSON.stringify(hDesignData())); renderHoloplot(); });
     document.getElementById("h-share").addEventListener("click",function(){ var link=buildShareLink("holoplot", hs.saveName||"Untitled design", hDesignData(), commentsFor("holoplot")); presentShareLink(link, this); });
-    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hResetAllZooms(); }catch(e){} renderHoloplot(); }); });
+    root.querySelectorAll("[data-load-save]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.holoplot.find(function(x){return x.id===Number(b.getAttribute("data-load-save"));}); if(!s) return; try{ var d=JSON.parse(s.data); hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hResetAllZooms(); }catch(e){ appToast("⚠ “"+s.name+"” is corrupted and could not be loaded — your current design was not changed."); } renderHoloplot(); }); });
     root.querySelectorAll("[data-del-save]").forEach(function(b){ b.addEventListener("click",function(){ var snap=snapshotStore(); deleteSave("holoplot", Number(b.getAttribute("data-del-save"))); renderHoloplot(); showUndoToast("Saved design deleted.", function(){ restoreStoreSnapshot(snap); renderHoloplot(); }); }); });
   }
   wireLessons(document.getElementById("h-lessons"), H_LESSONS, hs, renderHoloplot);
@@ -2824,6 +3144,8 @@ function renderHoloplotSoft(){
   });
   wireSpeakerDrag(root);
   wireSideSpeakerDrag(root);
+  wireIsoOrbit(root);
+  wire3DMarkers(root);
   var grid=root.querySelector(".readout-grid");
   if(grid){ var vals=[stats.avg+" dB",stats.uni+" dB",stats.min+" dB",stats.max+" dB",stats.coverage+"%",stats.spill+"%",(stats.goal||0)+"%"];
     grid.querySelectorAll(".readout .v").forEach(function(el,i){ if(vals[i]!==undefined) el.textContent=vals[i]; }); }
@@ -3211,7 +3533,7 @@ function renderAutocad(){
     document.getElementById("c-save").addEventListener("click",function(){ addSave("autocad", cs.saveName||"Untitled drawing", JSON.stringify({shapes:cs.shapes,layers:cs.layers})); renderAutocad(); });
     document.getElementById("c-share").addEventListener("click",function(){ var link=buildShareLink("autocad", cs.saveName||"Untitled drawing", {shapes:cs.shapes,layers:cs.layers}, commentsFor("autocad")); presentShareLink(link, this); });
     document.getElementById("c-useroom").addEventListener("click",function(){ cUseAsRoom(); });
-    root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.zoom={k:1,x:0,y:0}; cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){} renderAutocad(); }); });
+    root.querySelectorAll("[data-cload]").forEach(function(b){ b.addEventListener("click",function(){ var s=store.saves.autocad.find(function(x){return x.id===Number(b.getAttribute("data-cload"));}); if(!s) return; try{ var d=JSON.parse(s.data); cs.zoom={k:1,x:0,y:0}; cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); }catch(e){ appToast("⚠ “"+s.name+"” is corrupted and could not be loaded — your current drawing was not changed."); } renderAutocad(); }); });
     root.querySelectorAll("[data-cdel]").forEach(function(b){ b.addEventListener("click",function(){ var snap=snapshotStore(); deleteSave("autocad", Number(b.getAttribute("data-cdel"))); renderAutocad(); showUndoToast("Saved drawing deleted.", function(){ restoreStoreSnapshot(snap); renderAutocad(); }); }); });
   }
   wireLessons(document.getElementById("c-lessons"), C_LESSONS, cs, renderAutocad);
@@ -3273,7 +3595,7 @@ function renderProjectsPage(){
   block("holoplot","◉ HOLOPLOT designs")+block("autocad","⌖ AutoCAD drawings")+
   '<button class="btn" id="proj-export-all" style="width:100%;margin-top:18px">⬇ Export everything (designs, drawings &amp; all comments) as JSON</button></div>';
   el.querySelectorAll("[data-proj-load]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-load").split(":"); var ws=p[0], id=Number(p[1]); var s=store.saves[ws].find(function(x){return x.id===id;}); if(!s) return;
-    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){}
+    try{ var d=JSON.parse(s.data); if(ws==="holoplot"){ hLoadDesignData(d); hs._histLabel="Load design: "+s.name; hs.saveName=s.name; } else { cs.shapes=d.shapes; if(d.layers) cs.layers=d.layers; cs.shapes.forEach(function(sh){ if(sh.id>=nextShapeId) nextShapeId=sh.id+1; }); cs.saveName=s.name; } }catch(e){ appToast("⚠ “"+s.name+"” is corrupted and could not be loaded — your current work was not changed."); }
     if(ws==="holoplot") renderHoloplot(); else renderAutocad(); setPage(ws); }); });
   el.querySelectorAll("[data-proj-del]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-del").split(":"); var snap=snapshotStore(); deleteSave(p[0], Number(p[1])); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); showUndoToast("Saved design deleted.", function(){ restoreStoreSnapshot(snap); renderProjectsPage(); if(p[0]==="holoplot") renderHoloplot(); else renderAutocad(); }); }); });
   el.querySelectorAll("[data-proj-share]").forEach(function(b){ b.addEventListener("click",function(){ var p=b.getAttribute("data-proj-share").split(":"); var s=store.saves[p[0]].find(function(x){return x.id===Number(p[1]);}); if(!s) return; var dobj={}; try{ dobj=JSON.parse(s.data); }catch(e){} presentShareLink(buildShareLink(p[0], s.name, dobj, s.comments||[]), b); }); });
@@ -3552,7 +3874,8 @@ function applyShared(p){
 }
 function checkSharedLink(){
   var h=window.location.hash||""; var m=h.match(/#share=([A-Za-z0-9\-_]+)/); if(!m) return;
-  var p=shareDecode(m[1]); if(p) applyShared(p);
+  var p=shareDecode(m[1]);
+  if(!p||!applyShared(p)) appToast("⚠ That share link is incomplete or corrupted — it was rejected and your current design was not changed.");
 }
 document.getElementById("shared-dismiss").addEventListener("click",function(){ document.getElementById("shared-banner").hidden=true; pendingShared=null; });
 document.getElementById("shared-save").addEventListener("click",function(){
@@ -3789,6 +4112,18 @@ function kbdDispatch(e){
     if(code==="BracketRight"){ kbdCycleFocus(1); done(); return; }
     if(code==="Minus"){ kbdStepFocused(-1,e.shiftKey); done(); return; }
     if(code==="Equal"){ kbdStepFocused(1,e.shiftKey); done(); return; }
+    /* Iso view: plain arrows orbit the axonometric camera instead of aiming
+       (aim steppers still drive az/tilt from the Speaker popup, and in every
+       other view the arrows below keep their aim meaning; Option+arrows
+       above still nudge the probe in all views, Iso included). */
+    if(typeof hView==="function"&&hView()==="iso"&&(code==="ArrowLeft"||code==="ArrowRight"||code==="ArrowUp"||code==="ArrowDown")){
+      var ystep=e.shiftKey?45:15;
+      if(code==="ArrowLeft") hIsoSet(hIsoYaw()-ystep,hIsoTilt());
+      else if(code==="ArrowRight") hIsoSet(hIsoYaw()+ystep,hIsoTilt());
+      else if(code==="ArrowUp") hIsoSet(hIsoYaw(),hIsoTilt()+5);
+      else hIsoSet(hIsoYaw(),hIsoTilt()-5);
+      renderHoloplot(); kbdChip("Iso "+hIsoReadout()); done(); return;
+    }
     if(code==="ArrowLeft"){ kbdAim("az",-1,e.shiftKey); done(); return; }
     if(code==="ArrowRight"){ kbdAim("az",1,e.shiftKey); done(); return; }
     if(code==="ArrowUp"){ kbdAim("tilt",1,e.shiftKey); done(); return; }
